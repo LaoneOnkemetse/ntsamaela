@@ -1,7 +1,8 @@
-import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, TextField, Switch, FormControlLabel, Divider } from '@mui/material';
-import { Settings as SettingsIcon, Save, Refresh } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, TextField, Switch, FormControlLabel, Divider, Alert } from '@mui/material';
+import { Settings as SettingsIcon, Save, Refresh, Lock } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -14,6 +15,12 @@ export default function Settings() {
     sessionTimeout: 30,
   });
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({
       ...prev,
@@ -22,8 +29,45 @@ export default function Settings() {
   };
 
   const handleSave = () => {
-    // Mock save functionality
+    toast.success('Settings saved successfully!');
     console.log('Settings saved:', settings);
+  };
+
+  const handleReset = () => {
+    setSettings({
+      emailNotifications: true,
+      smsNotifications: false,
+      autoApproveVerifications: false,
+      maintenanceMode: false,
+      apiRateLimit: 1000,
+      sessionTimeout: 30,
+    });
+    toast.success('Settings reset to default');
+  };
+
+  const handleChangePassword = () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    // Mock password change
+    toast.success('Password changed successfully!');
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
   };
 
   return (
@@ -33,7 +77,7 @@ export default function Settings() {
           System Settings
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" startIcon={<Refresh />}>
+          <Button variant="outlined" startIcon={<Refresh />} onClick={handleReset}>
             Reset
           </Button>
           <Button variant="contained" startIcon={<Save />} onClick={handleSave}>
@@ -135,6 +179,55 @@ export default function Settings() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 <strong>Server Status:</strong> Running
               </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader 
+              title="Change Password" 
+              avatar={<Lock />}
+            />
+            <CardContent>
+              <TextField
+                fullWidth
+                type="password"
+                label="Current Password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                type="password"
+                label="New Password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                type="password"
+                label="Confirm New Password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <Button 
+                fullWidth 
+                variant="contained" 
+                startIcon={<Lock />}
+                onClick={handleChangePassword}
+                sx={{
+                  backgroundColor: '#75AADB',
+                  '&:hover': {
+                    backgroundColor: '#5A8FBF',
+                  },
+                }}
+              >
+                Update Password
+              </Button>
             </CardContent>
           </Card>
         </Grid>

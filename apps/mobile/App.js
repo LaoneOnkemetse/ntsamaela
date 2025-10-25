@@ -59,6 +59,24 @@ function NavigationProvider({ children }) {
       status: 'in-transit',
       driver: 'Mike K.',
     },
+    {
+      id: 'PKG-004',
+      description: 'Groceries',
+      pickup: 'Game City',
+      delivery: 'Extension 10',
+      price: 150,
+      status: 'pending',
+      driver: 'Not assigned',
+    },
+    {
+      id: 'PKG-005',
+      description: 'Clothing',
+      pickup: 'Main Mall',
+      delivery: 'Phakalane',
+      price: 200,
+      status: 'delivered',
+      driver: 'Grace T.',
+    },
   ]);
 
   const [availablePackages, setAvailablePackages] = useState([
@@ -82,9 +100,64 @@ function NavigationProvider({ children }) {
       weight: '1 kg',
       distance: '15 km',
     },
+    {
+      id: 'PKG-006',
+      customer: 'Anna B.',
+      description: 'Books',
+      pickup: 'University',
+      delivery: 'Block 8',
+      price: 100,
+      weight: '2 kg',
+      distance: '12 km',
+    },
+    {
+      id: 'PKG-007',
+      customer: 'Peter M.',
+      description: 'Electronics',
+      pickup: 'Riverwalk',
+      delivery: 'Mogoditshane',
+      price: 220,
+      weight: '3 kg',
+      distance: '20 km',
+    },
+    {
+      id: 'PKG-008',
+      customer: 'Lisa K.',
+      description: 'Food delivery',
+      pickup: 'Gaborone West',
+      delivery: 'Broadhurst',
+      price: 90,
+      weight: '1.5 kg',
+      distance: '6 km',
+    },
   ]);
 
-  const [myBids, setMyBids] = useState([]);
+  const [myBids, setMyBids] = useState([
+    {
+      id: 'BID-001',
+      packageId: 'PKG-002',
+      amount: 150,
+      status: 'pending',
+      description: 'Documents',
+      route: 'Broadhurst → Main Mall',
+    },
+    {
+      id: 'BID-002',
+      packageId: 'PKG-003',
+      amount: 100,
+      status: 'accepted',
+      description: 'Small parcel',
+      route: 'Game City → Mogoditshane',
+    },
+    {
+      id: 'BID-003',
+      packageId: 'PKG-006',
+      amount: 85,
+      status: 'rejected',
+      description: 'Books',
+      route: 'University → Block 8',
+    },
+  ]);
   
   const navigate = (screenName, replace = false) => {
     if (replace) {
@@ -432,6 +505,10 @@ function LoginScreen() {
 function CustomerHomeScreen() {
   const { navigate, myPackages, customerWallet, userProfile } = useNavigation();
 
+  const handleNotifications = () => {
+    Alert.alert('Notifications', 'You have no new notifications.');
+  };
+
   return (
     <View style={styles.screenContainer}>
       <StatusBar style="dark" />
@@ -441,7 +518,7 @@ function CustomerHomeScreen() {
             <Text style={styles.greeting}>Hello,</Text>
             <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
             <Text style={styles.notificationIcon}>🔔</Text>
           </TouchableOpacity>
         </View>
@@ -541,6 +618,10 @@ function CustomerHomeScreen() {
 function DriverHomeScreen() {
   const { navigate, availablePackages, driverWallet, userProfile } = useNavigation();
 
+  const handleNotifications = () => {
+    Alert.alert('Notifications', 'You have no new notifications.');
+  };
+
   return (
     <View style={styles.screenContainer}>
       <StatusBar style="dark" />
@@ -550,7 +631,7 @@ function DriverHomeScreen() {
             <Text style={styles.greeting}>Hello,</Text>
             <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
             <Text style={styles.notificationIcon}>🔔</Text>
           </TouchableOpacity>
         </View>
@@ -661,6 +742,49 @@ function CreatePackageScreen() {
   const [delivery, setDelivery] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
+  const [packagePhoto, setPackagePhoto] = useState(null);
+
+  const handlePhotoSelection = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant camera permission to take photos');
+      return;
+    }
+
+    Alert.alert(
+      'Add Package Photo',
+      'Choose photo source',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setPackagePhoto(result.assets[0].uri);
+            }
+          }
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setPackagePhoto(result.assets[0].uri);
+            }
+          }
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
 
   const handleCreate = () => {
     if (!description || !pickup || !delivery || !weight || !price) {
@@ -722,6 +846,30 @@ function CreatePackageScreen() {
             onChangeText={setPrice}
             keyboardType="decimal-pad"
           />
+
+          {/* Photo Upload Section */}
+          <View style={styles.photoSection}>
+            <Text style={styles.photoLabel}>Package Photo (Optional)</Text>
+            {packagePhoto ? (
+              <View style={styles.photoPreview}>
+                <Image source={{ uri: packagePhoto }} style={styles.photoImage} />
+                <TouchableOpacity 
+                  style={styles.changePhotoButton}
+                  onPress={handlePhotoSelection}
+                >
+                  <Text style={styles.changePhotoText}>Change Photo</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.addPhotoButton}
+                onPress={handlePhotoSelection}
+              >
+                <Text style={styles.addPhotoIcon}>📷</Text>
+                <Text style={styles.addPhotoText}>Add Package Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleCreate}>
             <Text style={styles.primaryButtonText}>Create Package</Text>
@@ -1242,6 +1390,26 @@ function SettingsScreen() {
     );
   };
 
+  const handleNotifications = () => {
+    Alert.alert('Notifications', 'Notification settings coming soon!');
+  };
+
+  const handlePrivacy = () => {
+    Alert.alert('Privacy', 'Privacy settings coming soon!');
+  };
+
+  const handleSupport = () => {
+    Alert.alert('Help & Support', 'Support page coming soon!');
+  };
+
+  const handleTerms = () => {
+    Alert.alert('Terms of Service', 'Please read our terms of service on our website.');
+  };
+
+  const handlePrivacyPolicy = () => {
+    Alert.alert('Privacy Policy', 'Please read our privacy policy on our website.');
+  };
+
   return (
     <View style={styles.screenContainer}>
       <StatusBar style="dark" />
@@ -1252,17 +1420,17 @@ function SettingsScreen() {
           <View style={styles.settingsSection}>
             <Text style={styles.settingsSectionTitle}>Account</Text>
             
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handleNotifications}>
               <Text style={styles.settingsItemText}>🔔 Notifications</Text>
               <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handlePrivacy}>
               <Text style={styles.settingsItemText}>🔒 Privacy</Text>
               <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handleSupport}>
               <Text style={styles.settingsItemText}>❓ Help & Support</Text>
               <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
@@ -1271,12 +1439,12 @@ function SettingsScreen() {
           <View style={styles.settingsSection}>
             <Text style={styles.settingsSectionTitle}>About</Text>
             
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handleTerms}>
               <Text style={styles.settingsItemText}>📄 Terms of Service</Text>
               <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handlePrivacyPolicy}>
               <Text style={styles.settingsItemText}>🔐 Privacy Policy</Text>
               <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
@@ -1298,7 +1466,7 @@ function SettingsScreen() {
 
 // Bottom Navigation
 function BottomNav() {
-  const { activeTab, setActiveTab } = useNavigation();
+  const { activeTab, setActiveTab, navigate } = useNavigation();
 
   const tabs = [
     { id: 'home', label: 'Home', icon: '🏠' },
@@ -1306,13 +1474,19 @@ function BottomNav() {
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
+  const handleTabPress = (tabId) => {
+    setActiveTab(tabId);
+    // Reset to home screen to ensure tab content is shown
+    navigate('home', true);
+  };
+
   return (
     <View style={styles.bottomNav}>
       {tabs.map(tab => (
         <TouchableOpacity
           key={tab.id}
           style={styles.bottomNavItem}
-          onPress={() => setActiveTab(tab.id)}
+          onPress={() => handleTabPress(tab.id)}
         >
           <View style={[
             styles.bottomNavIcon,
@@ -2167,5 +2341,56 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  // Photo Upload Styles
+  photoSection: {
+    marginBottom: 24,
+  },
+  photoLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  addPhotoButton: {
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  addPhotoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  photoPreview: {
+    position: 'relative',
+  },
+  photoImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: colors.border,
+  },
+  changePhotoButton: {
+    backgroundColor: colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  changePhotoText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
