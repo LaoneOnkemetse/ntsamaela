@@ -61,6 +61,7 @@ function NavigationProvider({ children }) {
       price: 250,
       status: 'in-transit',
       driver: 'Mike K.',
+      driverPhoto: 'https://i.pravatar.cc/150?img=15',
     },
     {
       id: 'PKG-004',
@@ -79,6 +80,7 @@ function NavigationProvider({ children }) {
       price: 200,
       status: 'delivered',
       driver: 'Grace T.',
+      driverPhoto: 'https://i.pravatar.cc/150?img=32',
     },
   ]);
 
@@ -377,18 +379,22 @@ function InputModal({ visible, title, placeholder, onSubmit, onCancel, keyboardT
       animationType="fade"
       onRequestClose={handleCancel}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder={placeholder}
-            placeholderTextColor={colors.textTertiary}
-            value={value}
-            onChangeText={setValue}
-            keyboardType={keyboardType}
-            autoFocus
-          />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder={placeholder}
+              placeholderTextColor={colors.textTertiary}
+              value={value}
+              onChangeText={setValue}
+              keyboardType={keyboardType}
+              autoFocus
+            />
           <View style={styles.modalButtons}>
             <TouchableOpacity 
               style={[styles.modalButton, styles.modalButtonCancel]}
@@ -405,6 +411,7 @@ function InputModal({ visible, title, placeholder, onSubmit, onCancel, keyboardT
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -712,7 +719,16 @@ function CustomerHomeScreen() {
                 <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
               </View>
               <View style={styles.packageFooter}>
-                <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                {pkg.driverPhoto && (
+                  <Image 
+                    source={{ uri: pkg.driverPhoto }} 
+                    style={styles.packageDriverPhoto}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                </View>
                 <Text style={styles.packagePrice}>P {pkg.price}</Text>
               </View>
             </TouchableOpacity>
@@ -922,13 +938,17 @@ function CreateTripModal({ visible, onClose }) {
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
-            <Text style={styles.modalTitle}>Create Trip</Text>
-            <Text style={styles.modalSubtitle}>
-              Create a trip so customers can suggest packages
-            </Text>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
+              <Text style={styles.modalTitle}>Create Trip</Text>
+              <Text style={styles.modalSubtitle}>
+                Create a trip so customers can suggest packages
+              </Text>
 
             <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
               <Text style={styles.fieldLabel}>From *</Text>
@@ -1016,6 +1036,7 @@ function CreateTripModal({ visible, onClose }) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <LocationSearchModal
@@ -1073,18 +1094,26 @@ function LocationSearchModal({ visible, title, onSelect, onCancel }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          
-          <TextInput
-            style={styles.modalInput}
-            placeholder="Search location..."
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => {
+      onCancel();
+      setSearchQuery('');
+      setSelectedLocation(null);
+    }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Search location..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
 
           <ScrollView style={{ maxHeight: 300, marginBottom: 16 }}>
             {filteredLocations.map(location => (
@@ -1133,6 +1162,7 @@ function LocationSearchModal({ visible, title, onSelect, onCancel }) {
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1183,12 +1213,20 @@ function CreatePackageForDriverModal({ visible, driver, onClose }) {
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, justifyContent: 'center' }}
-          >
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => {
+        setDescription('');
+        setPickup(null);
+        setDelivery(null);
+        setRecipientPhone('');
+        setWeight('');
+        setPrice('');
+        onClose();
+      }}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
             <View style={[styles.modalContainer, { maxHeight: '90%' }]}>
               <Text style={styles.modalTitle}>Create Package for {driverName}</Text>
               <Text style={styles.modalSubtitle}>
@@ -1303,8 +1341,8 @@ function CreatePackageForDriverModal({ visible, driver, onClose }) {
                 </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <LocationSearchModal
@@ -1591,9 +1629,9 @@ function MyPackagesScreen() {
       price: 250,
       status: 'pending',
       bids: [
-        { id: 1, driver: 'Thabo Mokoena', rating: 4.8, amount: 220, trips: 234 },
-        { id: 2, driver: 'Neo Sedimo', rating: 4.9, amount: 200, trips: 189 },
-        { id: 3, driver: 'Mpho Kgosi', rating: 4.7, amount: 240, trips: 156 },
+        { id: 1, driver: 'Thabo Mokoena', photo: 'https://i.pravatar.cc/150?img=12', rating: 4.8, amount: 220, trips: 234 },
+        { id: 2, driver: 'Neo Sedimo', photo: 'https://i.pravatar.cc/150?img=47', rating: 4.9, amount: 200, trips: 189 },
+        { id: 3, driver: 'Mpho Kgosi', photo: 'https://i.pravatar.cc/150?img=33', rating: 4.7, amount: 240, trips: 156 },
       ]
     },
   ];
@@ -1704,7 +1742,16 @@ function MyPackagesScreen() {
                     <Text style={styles.progressText}>{pkg.progress}% complete</Text>
                   </View>
                   <View style={styles.packageFooter}>
-                    <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    {pkg.driverPhoto && (
+                      <Image 
+                        source={{ uri: pkg.driverPhoto }} 
+                        style={styles.packageDriverPhoto}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    </View>
                     <Text style={styles.packagePrice}>P {pkg.price}</Text>
                   </View>
                 </View>
@@ -1731,7 +1778,16 @@ function MyPackagesScreen() {
                     <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
                   </View>
                   <View style={styles.packageFooter}>
-                    <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    {pkg.driverPhoto && (
+                      <Image 
+                        source={{ uri: pkg.driverPhoto }} 
+                        style={styles.packageDriverPhoto}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    </View>
                     <Text style={styles.packagePrice}>P {pkg.price}</Text>
                   </View>
                 </View>
@@ -1742,12 +1798,20 @@ function MyPackagesScreen() {
       </SafeAreaView>
 
       {/* Bids Modal */}
-      <Modal visible={showBidsModal} transparent animationType="slide">
+      <Modal visible={showBidsModal} transparent animationType="slide" onRequestClose={() => setShowBidsModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
-            <Text style={styles.modalTitle}>
-              Bids for {selectedPackage?.id}
-            </Text>
+            <View style={styles.modalTitleRow}>
+              <Text style={styles.modalTitle}>
+                Bids for {selectedPackage?.id}
+              </Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowBidsModal(false)}
+              >
+                <Text style={styles.modalCloseButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.modalSubtitle}>
               Your offer: P {selectedPackage?.price}
             </Text>
@@ -1756,7 +1820,14 @@ function MyPackagesScreen() {
               {selectedPackage?.bids.map(bid => (
                 <View key={bid.id} style={styles.bidCard}>
                   <View style={styles.bidHeader}>
-                    <View>
+                    {bid.photo && (
+                      <Image 
+                        source={{ uri: bid.photo }} 
+                        style={styles.bidDriverPhoto}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.bidDriverName}>{bid.driver}</Text>
                       <Text style={styles.bidDriverMeta}>
                         ⭐ {bid.rating} • {bid.trips} trips
@@ -2180,10 +2251,10 @@ function MyTripsScreen() {
       spacesTotal: 3,
       spacesUsed: 1,
       packages: [
-        { id: 'PKG-005', customer: 'Lesego Tau', item: 'Documents', fee: 120, status: 'accepted' }
+        { id: 'PKG-005', customer: 'Lesego Tau', photo: 'https://i.pravatar.cc/150?img=28', item: 'Documents', fee: 120, status: 'accepted' }
       ],
       suggestions: [
-        { id: 'PKG-006', customer: 'Kgosi Molefe', item: 'Electronics', suggestedFee: 150 },
+        { id: 'PKG-006', customer: 'Kgosi Molefe', photo: 'https://i.pravatar.cc/150?img=51', item: 'Electronics', suggestedFee: 150 },
       ]
     }
   ];
@@ -2273,6 +2344,13 @@ function MyTripsScreen() {
                     <Text style={styles.tripSectionTitle}>✅ Accepted Packages ({trip.packages.length})</Text>
                     {trip.packages.map(pkg => (
                       <View key={pkg.id} style={styles.tripPackageItem}>
+                        {pkg.photo && (
+                          <Image 
+                            source={{ uri: pkg.photo }} 
+                            style={styles.tripCustomerPhoto}
+                            resizeMode="cover"
+                          />
+                        )}
                         <View style={{ flex: 1 }}>
                           <Text style={styles.tripPackageCustomer}>{pkg.customer}</Text>
                           <Text style={styles.tripPackageItem}>{pkg.item}</Text>
@@ -2290,6 +2368,13 @@ function MyTripsScreen() {
                     {trip.suggestions.map(pkg => (
                       <View key={pkg.id} style={styles.suggestionCard}>
                         <View style={styles.suggestionHeader}>
+                          {pkg.photo && (
+                            <Image 
+                              source={{ uri: pkg.photo }} 
+                              style={styles.tripCustomerPhoto}
+                              resizeMode="cover"
+                            />
+                          )}
                           <View style={{ flex: 1 }}>
                             <Text style={styles.tripPackageCustomer}>{pkg.customer}</Text>
                             <Text style={styles.tripPackageItem}>{pkg.item}</Text>
@@ -3259,6 +3344,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  packageDriverPhoto: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
+  },
   packageDriver: {
     fontSize: 13,
     color: colors.textSecondary,
@@ -3605,6 +3696,26 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 8,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textSecondary,
   },
   modalInput: {
     backgroundColor: colors.background,
@@ -3991,6 +4102,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
+  bidDriverPhoto: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
   bidDriverName: {
     fontSize: 16,
     fontWeight: '700',
@@ -4098,6 +4215,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+  },
+  tripCustomerPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
   tripPackageCustomer: {
     fontSize: 15,
