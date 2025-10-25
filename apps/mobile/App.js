@@ -2138,7 +2138,8 @@ function MyBidsScreen() {
 // My Trips Screen (Driver)
 function MyTripsScreen() {
   const { goBack } = useNavigation();
-  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+  const [showCounterBidModal, setShowCounterBidModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
 
   const myTrips = [
     {
@@ -2156,10 +2157,6 @@ function MyTripsScreen() {
       ]
     }
   ];
-
-  const handleCreateTrip = () => {
-    setShowCreateTripModal(true);
-  };
 
   const handleAcceptSuggestion = (trip, pkg) => {
     if (trip.spacesUsed >= trip.spacesTotal) {
@@ -2180,9 +2177,27 @@ function MyTripsScreen() {
   };
 
   const handleCounterBid = (pkg) => {
-    Alert.alert('Counter Bid', `Enter your counter offer for ${pkg.customer}'s package`, [
-      { text: 'Cancel', style: 'cancel' }
-    ]);
+    setSelectedPackage(pkg);
+    setShowCounterBidModal(true);
+  };
+
+  const handleCounterBidSubmit = (amount) => {
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+    
+    const counterAmount = parseFloat(amount);
+    const yourEarnings = (counterAmount * 0.7).toFixed(2);
+    const platformFee = (counterAmount * 0.3).toFixed(2);
+    
+    setShowCounterBidModal(false);
+    
+    Alert.alert(
+      'Counter Offer Sent',
+      `Your counter offer of P ${counterAmount} has been sent to ${selectedPackage.customer}.\n\n• You'll receive: P ${yourEarnings}\n• Platform fee (30%): P ${platformFee}\n\nWaiting for customer to accept or reject your offer.`,
+      [{ text: 'OK', onPress: () => setSelectedPackage(null) }]
+    );
   };
 
   const handleRejectSuggestion = (pkg) => {
@@ -2198,9 +2213,7 @@ function MyTripsScreen() {
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Trips</Text>
-          <TouchableOpacity onPress={handleCreateTrip} style={styles.headerAction}>
-            <Text style={styles.headerActionText}>+ Add</Text>
-          </TouchableOpacity>
+          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
@@ -2288,14 +2301,24 @@ function MyTripsScreen() {
             <View style={styles.centerContent}>
               <Text style={styles.emptyIcon}>🚗</Text>
               <Text style={styles.emptyTitle}>No Trips Yet</Text>
-              <Text style={styles.emptyText}>Create your first trip to start receiving package suggestions</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleCreateTrip}>
-                <Text style={styles.primaryButtonText}>Create Trip</Text>
-              </TouchableOpacity>
+              <Text style={styles.emptyText}>Create a trip from your driver home screen to start receiving package suggestions</Text>
             </View>
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Counter Bid Modal */}
+      <InputModal
+        visible={showCounterBidModal}
+        title={`Counter Offer for ${selectedPackage?.customer || 'Customer'}`}
+        placeholder="Enter your counter offer (P)"
+        onSubmit={handleCounterBidSubmit}
+        onCancel={() => {
+          setShowCounterBidModal(false);
+          setSelectedPackage(null);
+        }}
+        keyboardType="numeric"
+      />
     </View>
   );
 }
