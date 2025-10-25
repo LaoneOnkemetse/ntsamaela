@@ -4,46 +4,46 @@ export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#0F172A', // Slate-900 - Professional dark
-      light: '#334155',
-      dark: '#020617',
+      main: '#75AADB', // Botswana Blue - Sky Blue
+      light: '#A3C9E8',
+      dark: '#5A8FBF',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#0EA5E9', // Sky-500 - Professional blue
-      light: '#38BDF8',
-      dark: '#0284C7',
+      main: '#1A1A1A', // Botswana Black - Deep Black
+      light: '#333333',
+      dark: '#000000',
       contrastText: '#ffffff',
     },
     success: {
-      main: '#22C55E', // Green-500
-      light: '#4ADE80',
-      dark: '#16A34A',
+      main: '#00C853', // Bright Green
+      light: '#5CFF91',
+      dark: '#009624',
     },
     warning: {
-      main: '#F59E0B', // Amber-500
-      light: '#FBBF24',
-      dark: '#D97706',
+      main: '#FFB800', // Botswana Gold
+      light: '#FFCF40',
+      dark: '#CC9300',
     },
     error: {
-      main: '#EF4444', // Red-500
-      light: '#F87171',
-      dark: '#DC2626',
+      main: '#D32F2F', // Red
+      light: '#EF5350',
+      dark: '#C62828',
     },
     info: {
-      main: '#3B82F6', // Blue-500
-      light: '#60A5FA',
-      dark: '#2563EB',
+      main: '#75AADB', // Botswana Blue
+      light: '#A3C9E8',
+      dark: '#5A8FBF',
     },
     background: {
-      default: '#F8FAFC', // Slate-50
+      default: '#F5F7FA',
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#0F172A', // Slate-900
-      secondary: '#64748B', // Slate-500
+      primary: '#1A1A1A',
+      secondary: '#666666',
     },
-    divider: '#E2E8F0', // Slate-200
+    divider: '#E0E0E0',
   },
   typography: {
     fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif',
@@ -151,17 +151,17 @@ export const theme = createTheme({
           },
         },
         containedPrimary: {
-          background: '#0F172A',
+          background: '#75AADB',
           color: '#FFFFFF',
           '&:hover': {
-            background: '#1E293B',
+            background: '#5A8FBF',
           },
         },
         containedSecondary: {
-          background: '#0EA5E9',
-          color: '#FFFFFF',
+          background: '#FFB800',
+          color: '#1A1A1A',
           '&:hover': {
-            background: '#0284C7',
+            background: '#CC9300',
           },
         },
         outlined: {
