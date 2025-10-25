@@ -178,11 +178,15 @@
   "author": "Ntsamaela Team",
   "license": "MIT",
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.15.0",
     "@tanstack/react-query-devtools": "^4.41.0",
     "bcryptjs": "^3.0.2",
+    "eslint": "^8.57.1",
     "next": "15.5.4",
     "nocache": "^4.0.0",
-    "react-native-web": "^0.19.13"
+    "react-hook-form": "^7.65.0",
+    "react-native-web": "^0.19.13",
+    "yup": "^1.7.1"
   }
 }
