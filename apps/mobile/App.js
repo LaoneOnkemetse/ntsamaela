@@ -561,12 +561,12 @@ function CustomerHomeScreen() {
 
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => navigate('trackPackage')}
+              onPress={() => navigate('availableDrivers')}
             >
               <View style={[styles.actionIcon, { backgroundColor: colors.accent }]}>
-                <Text style={styles.actionIconText}>📍</Text>
+                <Text style={styles.actionIconText}>🚗</Text>
               </View>
-              <Text style={styles.actionText}>Track Package</Text>
+              <Text style={styles.actionText}>Find Drivers</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -886,7 +886,7 @@ function CreatePackageScreen() {
   };
 
   const handleCreate = () => {
-    if (!description || !pickup || !delivery || !recipientPhone || !weight || !price) {
+    if (!description || !pickup || !delivery || !recipientPhone || !price) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -896,7 +896,7 @@ function CreatePackageScreen() {
       return;
     }
 
-    Alert.alert('Success', 'Package created successfully!\n\nRoute will be generated when a driver accepts your package.', [
+    Alert.alert('Success', 'Package created successfully!\n\nDrivers can now bid on your package.', [
       { text: 'OK', onPress: () => goBack() }
     ]);
   };
@@ -931,10 +931,10 @@ function CreatePackageScreen() {
               onChangeText={setDescription}
             />
 
-            <Text style={styles.fieldLabel}>Weight (kg) *</Text>
+            <Text style={styles.fieldLabel}>Weight (kg)</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., 2.5"
+              placeholder="e.g., 2.5 (optional)"
               placeholderTextColor={colors.textTertiary}
               value={weight}
               onChangeText={setWeight}
@@ -1119,9 +1119,38 @@ function MyPackagesScreen() {
   );
 }
 
-// Track Package Screen (Customer)
-function TrackPackageScreen() {
+// Available Drivers Screen (Customer)
+function AvailableDriversScreen() {
   const { goBack } = useNavigation();
+
+  const activeDrivers = [
+    { id: 1, name: 'Thabo Mokoena', rating: 4.8, trips: 234, active: true, currentLocation: 'Gaborone' },
+    { id: 2, name: 'Keabetswe Ditsele', rating: 4.9, trips: 189, active: true, currentLocation: 'Francistown' },
+    { id: 3, name: 'Mpho Kgosi', rating: 4.7, trips: 156, active: true, currentLocation: 'Maun' },
+  ];
+
+  const upcomingTrips = [
+    { 
+      id: 1, 
+      driver: 'Lesego Tau', 
+      rating: 4.6,
+      from: 'Gaborone', 
+      to: 'Francistown', 
+      date: 'Oct 26, 10:00 AM',
+      spacesLeft: 2,
+      price: 'P 120'
+    },
+    { 
+      id: 2, 
+      driver: 'Neo Sedimo', 
+      rating: 4.9,
+      from: 'Maun', 
+      to: 'Kasane', 
+      date: 'Oct 27, 2:00 PM',
+      spacesLeft: 1,
+      price: 'P 200'
+    },
+  ];
 
   return (
     <View style={styles.screenContainer}>
@@ -1131,20 +1160,52 @@ function TrackPackageScreen() {
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Track Package</Text>
+          <Text style={styles.headerTitle}>Available Drivers</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <View style={styles.centerContent}>
-          <Text style={styles.emptyIcon}>📍</Text>
-          <Text style={styles.emptyTitle}>Real-time Tracking</Text>
-          <Text style={styles.emptyText}>Track your package location in real-time</Text>
-          <View style={styles.trackingInfo}>
-            <Text style={styles.trackingLabel}>Package: PKG-001</Text>
-            <Text style={styles.trackingLabel}>Status: In Transit</Text>
-            <Text style={styles.trackingLabel}>ETA: 25 minutes</Text>
-          </View>
-        </View>
+        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+          <Text style={styles.sectionTitle}>🟢 Active Now</Text>
+          {activeDrivers.map(driver => (
+            <View key={driver.id} style={styles.driverCard}>
+              <View style={styles.driverHeader}>
+                <View style={styles.driverInfo}>
+                  <Text style={styles.driverName}>{driver.name}</Text>
+                  <View style={styles.driverMeta}>
+                    <Text style={styles.driverRating}>⭐ {driver.rating}</Text>
+                    <Text style={styles.driverTrips}> • {driver.trips} trips</Text>
+                  </View>
+                </View>
+                <View style={styles.activeIndicator}>
+                  <Text style={styles.activeText}>● Active</Text>
+                </View>
+              </View>
+              <Text style={styles.driverLocation}>📍 Currently in {driver.currentLocation}</Text>
+            </View>
+          ))}
+
+          <Text style={styles.sectionTitle}>🚗 Upcoming Trips</Text>
+          {upcomingTrips.map(trip => (
+            <View key={trip.id} style={styles.tripCard}>
+              <View style={styles.tripHeader}>
+                <Text style={styles.driverName}>{trip.driver}</Text>
+                <Text style={styles.driverRating}>⭐ {trip.rating}</Text>
+              </View>
+              <View style={styles.tripRoute}>
+                <Text style={styles.tripLocation}>📍 {trip.from}</Text>
+                <Text style={styles.packageArrow}>→</Text>
+                <Text style={styles.tripLocation}>📍 {trip.to}</Text>
+              </View>
+              <View style={styles.tripFooter}>
+                <Text style={styles.tripDate}>🕒 {trip.date}</Text>
+                <Text style={styles.tripSpaces}>{trip.spacesLeft} spaces left</Text>
+              </View>
+              <View style={styles.tripPrice}>
+                <Text style={styles.tripPriceText}>Starting from {trip.price}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -1347,12 +1408,12 @@ function WalletScreen() {
           </View>
 
           <View style={styles.walletActions}>
-            <TouchableOpacity style={styles.walletButton} onPress={handleDeposit}>
-              <Text style={styles.walletButtonIcon}>💳</Text>
-              <Text style={styles.walletButtonText}>Deposit</Text>
-            </TouchableOpacity>
-
-            {!isCustomer && (
+            {isCustomer ? (
+              <TouchableOpacity style={styles.walletButton} onPress={handleDeposit}>
+                <Text style={styles.walletButtonIcon}>💳</Text>
+                <Text style={styles.walletButtonText}>Deposit</Text>
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity style={styles.walletButton} onPress={handleWithdraw}>
                 <Text style={styles.walletButtonIcon}>💸</Text>
                 <Text style={styles.walletButtonText}>Withdraw</Text>
@@ -1723,7 +1784,7 @@ function AppNavigator() {
     // Customer screens (check before tabs)
     if (currentScreen === 'createPackage') return <CreatePackageScreen />;
     if (currentScreen === 'myPackages') return <MyPackagesScreen />;
-    if (currentScreen === 'trackPackage') return <TrackPackageScreen />;
+    if (currentScreen === 'availableDrivers') return <AvailableDriversScreen />;
     if (currentScreen === 'wallet') return <WalletScreen />;
 
     // Driver screens (check before tabs)
@@ -2681,6 +2742,123 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 20,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+
+  // Available Drivers Styles
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  driverCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  driverHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  driverInfo: {
+    flex: 1,
+  },
+  driverName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  driverMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  driverRating: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  driverTrips: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  activeIndicator: {
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeText: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  driverLocation: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  tripCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tripHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tripRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tripLocation: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  tripFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tripDate: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  tripSpaces: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  tripPrice: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  tripPriceText: {
+    fontSize: 14,
     color: colors.primary,
     fontWeight: '700',
   },
