@@ -180,6 +180,7 @@
   "dependencies": {
     "@prisma/client": "^6.15.0",
     "@tanstack/react-query-devtools": "^4.41.0",
+    "bcryptjs": "^3.0.2",
     "next": "15.5.4",
     "nocache": "^4.0.0",
     "react-native-web": "^0.19.13"
