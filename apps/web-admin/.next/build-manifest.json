@@ -32,6 +32,11 @@
       "static/chunks/main.js",
       "static/chunks/pages/dashboard.js"
     ],
+    "/deliveries": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/deliveries.js"
+    ],
     "/login": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -56,6 +61,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/verifications.js"
+    ],
+    "/wallets": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/wallets.js"
     ]
   },
   "ampFirstPages": []

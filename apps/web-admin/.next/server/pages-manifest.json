@@ -4,9 +4,11 @@
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
   "/login": "pages/login.js",
-  "/test": "pages/test.js",
   "/verifications": "pages/verifications.js",
+  "/test": "pages/test.js",
   "/settings": "pages/settings.js",
   "/dashboard": "pages/dashboard.js",
-  "/users": "pages/users.js"
+  "/users": "pages/users.js",
+  "/deliveries": "pages/deliveries.js",
+  "/wallets": "pages/wallets.js"
 }
