@@ -11,18 +11,21 @@ const colors = {
   primary: '#75AADB',      // Botswana Blue
   primaryDark: '#5A8FBF',
   primaryLight: '#A3C9E8',
-  secondary: '#1A1A1A',    // Deep Black
+  secondary: '#000000',    // Pure Black (Botswana flag)
+  secondaryLight: '#1A1A1A',
   accent: '#FFB800',       // Gold
   success: '#00C853',      // Green
   error: '#D32F2F',
-  background: '#F5F7FA',
-  cardBg: '#FFFFFF',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#666666',
+  background: '#F8F9FA',
+  cardBg: '#FFFFFF',       // Pure White (Botswana flag)
+  textPrimary: '#000000',  // Pure Black for better contrast
+  textSecondary: '#4A4A4A',
   textTertiary: '#999999',
   textLight: '#FFFFFF',
-  border: '#E0E0E0',
-  shadow: 'rgba(117, 170, 219, 0.15)',
+  border: '#E5E5E5',
+  borderDark: '#000000',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  shadowBlue: 'rgba(117, 170, 219, 0.12)',
 };
 
 // Navigation Context
@@ -89,6 +92,7 @@ function NavigationProvider({ children }) {
       price: 180,
       weight: '0.5 kg',
       distance: '8 km',
+      photo: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=400',
     },
     {
       id: 'PKG-003',
@@ -99,6 +103,7 @@ function NavigationProvider({ children }) {
       price: 120,
       weight: '1 kg',
       distance: '15 km',
+      photo: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400',
     },
     {
       id: 'PKG-006',
@@ -109,6 +114,7 @@ function NavigationProvider({ children }) {
       price: 100,
       weight: '2 kg',
       distance: '12 km',
+      photo: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400',
     },
     {
       id: 'PKG-007',
@@ -119,6 +125,7 @@ function NavigationProvider({ children }) {
       price: 220,
       weight: '3 kg',
       distance: '20 km',
+      photo: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400',
     },
     {
       id: 'PKG-008',
@@ -129,6 +136,7 @@ function NavigationProvider({ children }) {
       price: 90,
       weight: '1.5 kg',
       distance: '6 km',
+      photo: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
     },
   ]);
 
@@ -197,7 +205,8 @@ function NavigationProvider({ children }) {
       location: 'Gaborone CBD',
       vehicle: 'Toyota Corolla',
       totalDeliveries: 156,
-      earnings: 'P 12,500'
+      earnings: 'P 12,500',
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'
     },
     { 
       id: 102, 
@@ -206,7 +215,8 @@ function NavigationProvider({ children }) {
       location: 'Main Mall',
       vehicle: 'VW Polo',
       totalDeliveries: 203,
-      earnings: 'P 18,900'
+      earnings: 'P 18,900',
+      photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400'
     },
   ]);
 
@@ -1852,20 +1862,31 @@ function AvailableDriversScreen() {
               onPress={() => handleCreatePackageForDriver(driver)}
               activeOpacity={0.7}
             >
-              <View style={styles.driverHeader}>
-                <View style={styles.driverInfo}>
-                  <Text style={styles.driverName}>{driver.driver}</Text>
-                  <View style={styles.driverMeta}>
-                    <Text style={styles.driverRating}>⭐ {driver.rating}</Text>
-                    <Text style={styles.driverTrips}> • {driver.totalDeliveries} deliveries</Text>
+              <View style={styles.driverCardContent}>
+                {driver.photo && (
+                  <Image 
+                    source={{ uri: driver.photo }} 
+                    style={styles.driverPhoto}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={styles.driverDetails}>
+                  <View style={styles.driverHeader}>
+                    <View style={styles.driverInfo}>
+                      <Text style={styles.driverName}>{driver.driver}</Text>
+                      <View style={styles.driverMeta}>
+                        <Text style={styles.driverRating}>⭐ {driver.rating}</Text>
+                        <Text style={styles.driverTrips}> • {driver.totalDeliveries} deliveries</Text>
+                      </View>
+                    </View>
+                    <View style={styles.activeIndicator}>
+                      <Text style={styles.activeText}>● Active</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.activeIndicator}>
-                  <Text style={styles.activeText}>● Active</Text>
+                  <Text style={styles.driverLocation}>📍 {driver.location}</Text>
+                  <Text style={styles.driverVehicle}>🚗 {driver.vehicle}</Text>
                 </View>
               </View>
-              <Text style={styles.driverLocation}>📍 {driver.location}</Text>
-              <Text style={styles.driverVehicle}>🚗 {driver.vehicle}</Text>
             </TouchableOpacity>
           ))}
 
@@ -2020,33 +2041,42 @@ function AvailablePackagesScreen() {
 
         <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
           {availablePackages.map(pkg => (
-            <View key={pkg.id} style={styles.packageCard}>
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageId}>{pkg.id}</Text>
-                <Text style={styles.packagePrice}>P {pkg.price}</Text>
-              </View>
-              <Text style={styles.packageDesc}>{pkg.description}</Text>
-              <Text style={styles.packageCustomer}>Customer: {pkg.customer}</Text>
-              <View style={styles.packageRoute}>
-                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
-                <Text style={styles.packageArrow}>→</Text>
-                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
-              </View>
-              <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
-              
-              <View style={styles.packageActions}>
-                <TouchableOpacity 
-                  style={[styles.packageActionButton, styles.acceptButton]}
-                  onPress={() => handleAccept(pkg)}
-                >
-                  <Text style={styles.acceptButtonText}>Accept</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.packageActionButton, styles.counterButton]}
-                  onPress={() => handleCounterBid(pkg)}
-                >
-                  <Text style={styles.counterButtonText}>Counter Bid</Text>
-                </TouchableOpacity>
+            <View key={pkg.id} style={styles.packageCardWithPhoto}>
+              {pkg.photo && (
+                <Image 
+                  source={{ uri: pkg.photo }} 
+                  style={styles.packagePhoto}
+                  resizeMode="cover"
+                />
+              )}
+              <View style={styles.packageContent}>
+                <View style={styles.packageHeader}>
+                  <Text style={styles.packageId}>{pkg.id}</Text>
+                  <Text style={styles.packagePrice}>P {pkg.price}</Text>
+                </View>
+                <Text style={styles.packageDesc}>{pkg.description}</Text>
+                <Text style={styles.packageCustomer}>Customer: {pkg.customer}</Text>
+                <View style={styles.packageRoute}>
+                  <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                  <Text style={styles.packageArrow}>→</Text>
+                  <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+                </View>
+                <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
+                
+                <View style={styles.packageActions}>
+                  <TouchableOpacity 
+                    style={[styles.packageActionButton, styles.acceptButton]}
+                    onPress={() => handleAccept(pkg)}
+                  >
+                    <Text style={styles.acceptButtonText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.packageActionButton, styles.counterButton]}
+                    onPress={() => handleCounterBid(pkg)}
+                  >
+                    <Text style={styles.counterButtonText}>Counter Bid</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -3048,8 +3078,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.cardBg,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
   },
   backButton: {
     width: 40,
@@ -3097,9 +3128,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    fontWeight: '800',
+    color: colors.secondary,
     marginBottom: 16,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 12,
+    marginTop: -8,
   },
 
   // Actions Grid
@@ -3149,6 +3186,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  packageCardWithPhoto: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+    padding: 0,
+  },
+  packagePhoto: {
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.border,
+  },
+  packageContent: {
+    padding: 16,
   },
   packageHeader: {
     flexDirection: 'row',
@@ -3741,13 +3798,32 @@ const styles = StyleSheet.create({
   driverCard: {
     backgroundColor: colors.cardBg,
     borderRadius: 16,
-    padding: 16,
     marginBottom: 16,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    overflow: 'hidden',
+  },
+  driverCardContent: {
+    flexDirection: 'row',
+    padding: 16,
+  },
+  driverPhoto: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.border,
+    marginRight: 16,
+  },
+  driverDetails: {
+    flex: 1,
+  },
+  driverVehicle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   driverHeader: {
     flexDirection: 'row',
@@ -4189,7 +4265,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   counterButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.secondary,
   },
   counterButtonText: {
     color: colors.textLight,
