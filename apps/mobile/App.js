@@ -564,17 +564,17 @@ function HomeScreen() {
   const { userType, navigate, userProfile } = useNavigation();
   
   const customerActions = [
-    { id: 'createPackage', title: 'Send Package', icon: '📦', color: '#6366F1', gradient: ['#6366F1', '#8B5CF6'] },
-    { id: 'myPackages', title: 'My Packages', icon: '📋', color: '#10B981', gradient: ['#10B981', '#14B8A6'] },
-    { id: 'wallet', title: 'Wallet', icon: '💳', color: '#F59E0B', gradient: ['#F59E0B', '#EF4444'] },
-    { id: 'tracking', title: 'Track', icon: '📍', color: '#3B82F6', gradient: ['#3B82F6', '#8B5CF6'] },
+    { id: 'createPackage', title: 'Send Package', icon: 'package', color: colors.primary },
+    { id: 'myPackages', title: 'My Packages', icon: 'menu', color: colors.accentGreen },
+    { id: 'wallet', title: 'Wallet', icon: 'wallet', color: colors.accent },
+    { id: 'tracking', title: 'Track', icon: 'location', color: colors.accentOrange },
   ];
 
   const driverActions = [
-    { id: 'availablePackages', title: 'Find Packages', icon: '🔍', color: '#6366F1', gradient: ['#6366F1', '#8B5CF6'] },
-    { id: 'myBids', title: 'My Bids', icon: '💰', color: '#10B981', gradient: ['#10B981', '#14B8A6'] },
-    { id: 'wallet', title: 'Earnings', icon: '💵', color: '#F59E0B', gradient: ['#F59E0B', '#EF4444'] },
-    { id: 'myTrips', title: 'Active Trips', icon: '🚗', color: '#EC4899', gradient: ['#EC4899', '#8B5CF6'] },
+    { id: 'explore', title: 'Find Packages', icon: 'search', color: colors.primary },
+    { id: 'myBids', title: 'My Bids', icon: 'star', color: colors.accentGreen },
+    { id: 'wallet', title: 'Earnings', icon: 'wallet', color: colors.accent },
+    { id: 'myTrips', title: 'Active Trips', icon: 'truck', color: colors.accentOrange },
   ];
 
   const actions = userType === 'customer' ? customerActions : driverActions;
@@ -583,52 +583,130 @@ function HomeScreen() {
     <View style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Modern Header with Profile */}
-        <View style={styles.homeHeader}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.greeting}>Hello 👋</Text>
-              <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
-            </View>
-            <TouchableOpacity style={styles.notifButton} onPress={() => navigate('notifications')}>
-              <Text style={styles.notifIcon}>🔔</Text>
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>3</Text>
-              </View>
+        {/* Header with Ntsamaela Logo */}
+        <View style={{
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          paddingBottom: 16,
+          backgroundColor: colors.cardBg,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <NtsamaelaLogo size="small" showSlogan={false} />
+            <TouchableOpacity 
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: colors.background,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={() => navigate('notifications')}
+            >
+              <Icon name="bell" size={20} color={colors.textPrimary} />
+              <View style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: colors.error,
+              }} />
             </TouchableOpacity>
+          </View>
+          
+          <View>
+            <Text style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 4 }}>Welcome back</Text>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>
+              {userProfile.firstName} {userProfile.lastName}
+            </Text>
           </View>
 
           {/* Stats Cards */}
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: '#EEF2FF' }]}>
-              <Text style={[styles.statValue, { color: '#6366F1' }]}>{userProfile.totalDeliveries}</Text>
-              <Text style={styles.statLabel}>Deliveries</Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+            <View style={{
+              flex: 1,
+              backgroundColor: colors.primary + '15',
+              borderRadius: 16,
+              padding: 16,
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary, marginBottom: 4 }}>
+                {userProfile.totalDeliveries}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
+                Deliveries
+              </Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: '#ECFDF5' }]}>
-              <Text style={[styles.statValue, { color: '#10B981' }]}>P{userProfile.totalEarnings}</Text>
-              <Text style={styles.statLabel}>Earnings</Text>
+            <View style={{
+              flex: 1,
+              backgroundColor: colors.accentGreen + '15',
+              borderRadius: 16,
+              padding: 16,
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accentGreen, marginBottom: 4 }}>
+                BWP {userProfile.totalEarnings}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
+                Earnings
+              </Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[styles.statValue, { color: '#F59E0B' }]}>{userProfile.rating} ⭐</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+            <View style={{
+              flex: 1,
+              backgroundColor: colors.accent + '15',
+              borderRadius: 16,
+              padding: 16,
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: colors.accent, marginBottom: 4 }}>
+                {userProfile.rating}★
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
+                Rating
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Quick Actions Grid */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
+        <View style={{ padding: 20 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>
+            Quick Actions
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {actions.map((action) => (
               <TouchableOpacity
                 key={action.id}
-                style={styles.actionCard}
+                style={{
+                  width: (width - 52) / 2,
+                  backgroundColor: colors.cardBg,
+                  borderRadius: 16,
+                  padding: 20,
+                  alignItems: 'center',
+                  shadowColor: colors.shadowDark,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
                 onPress={() => navigate(action.id)}
               >
-                <View style={[styles.actionIconBg, { backgroundColor: `${action.color}15` }]}>
-                  <Text style={styles.actionIconLarge}>{action.icon}</Text>
+                <View style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: action.color + '15',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}>
+                  <Icon name={action.icon} size={28} color={action.color} />
                 </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
+                  {action.title}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -652,7 +730,7 @@ function HomeScreen() {
               <Text style={styles.activitySubtitle}>Gaborone → Francistown</Text>
               <Text style={styles.activityTime}>2 hours ago</Text>
             </View>
-            <Text style={styles.activityAmount}>+P250</Text>
+            <Text style={styles.activityAmount}>+BWP 250</Text>
           </View>
 
           <View style={styles.activityCard}>
@@ -664,7 +742,7 @@ function HomeScreen() {
               <Text style={styles.activitySubtitle}>Order #1234</Text>
               <Text style={styles.activityTime}>5 hours ago</Text>
             </View>
-            <Text style={styles.activityAmount}>+P180</Text>
+            <Text style={styles.activityAmount}>+BWP 180</Text>
           </View>
         </View>
       </ScrollView>
@@ -735,7 +813,7 @@ function ProfileScreen() {
           </View>
           <View style={styles.profileStatDivider} />
           <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatValue}>P{userProfile.totalEarnings}</Text>
+            <Text style={styles.profileStatValue}>BWP {userProfile.totalEarnings}</Text>
             <Text style={styles.profileStatLabel}>Earned</Text>
           </View>
         </View>
@@ -909,7 +987,7 @@ function WalletScreen() {
         {/* Wallet Card with Gradient */}
         <GradientView colors={['#6366F1', '#8B5CF6']} style={styles.walletCard}>
           <Text style={styles.walletLabel}>Available Balance</Text>
-          <Text style={styles.walletBalance}>P {balance.toFixed(2)}</Text>
+          <Text style={styles.walletBalance}>BWP {balance.toFixed(2)}</Text>
           
           <View style={styles.walletActions}>
             <TouchableOpacity style={styles.walletButton}>
@@ -956,7 +1034,7 @@ function WalletScreen() {
                 styles.transactionAmount,
                 { color: tx.type === 'fund' ? '#10B981' : '#EF4444' }
               ]}>
-                {tx.type === 'fund' ? '+' : '-'}P{tx.amount.toFixed(2)}
+                {tx.type === 'fund' ? '+' : '-'}BWP {tx.amount.toFixed(2)}
               </Text>
             </View>
           ))}
@@ -1007,7 +1085,7 @@ function ExploreScreen() {
               
               <View style={styles.packageHeader}>
                 <Text style={styles.packageTitle}>{pkg.description}</Text>
-                <Text style={styles.packagePrice}>P{pkg.price}</Text>
+                <Text style={styles.packagePrice}>BWP {pkg.price}</Text>
               </View>
 
               <View style={styles.packageRoute}>
@@ -1052,27 +1130,49 @@ function BottomTabNavigation() {
   ];
   
   return (
-    <View style={styles.bottomTabs}>
+    <View style={{
+      flexDirection: 'row',
+      backgroundColor: colors.cardBg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingBottom: 20,
+      paddingTop: 12,
+      shadowColor: colors.shadowDark,
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 10,
+    }}>
       {tabs.map((tab) => (
         <TouchableOpacity
           key={tab.id}
-          style={styles.tabItem}
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
           onPress={() => navigate(tab.id)}
         >
-          <View style={[
-            styles.tabIconContainer,
-            currentScreen === tab.id && styles.tabIconContainerActive
-          ]}>
-            <ModernIcon 
+          <View style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: currentScreen === tab.id ? colors.primary + '15' : 'transparent',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 4,
+          }}>
+            <Icon 
               name={tab.icon} 
               size={22} 
-              color={currentScreen === tab.id ? '#6366F1' : colors.textSecondary}
+              color={currentScreen === tab.id ? colors.primary : colors.textSecondary}
             />
           </View>
-          <Text style={[
-            styles.tabLabel,
-            currentScreen === tab.id && styles.tabLabelActive
-          ]}>
+          <Text style={{
+            fontSize: 11,
+            fontWeight: currentScreen === tab.id ? '600' : '400',
+            color: currentScreen === tab.id ? colors.primary : colors.textSecondary,
+          }}>
             {tab.label}
           </Text>
         </TouchableOpacity>
