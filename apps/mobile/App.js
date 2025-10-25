@@ -185,6 +185,58 @@ function NavigationProvider({ children }) {
     },
   ]);
 
+  // Active driver status
+  const [isActiveDriver, setIsActiveDriver] = useState(false);
+  
+  // Active drivers list (for customer view)
+  const [activeDrivers, setActiveDrivers] = useState([
+    { 
+      id: 101, 
+      driver: 'Thato Moeti', 
+      rating: 4.7,
+      location: 'Gaborone CBD',
+      vehicle: 'Toyota Corolla',
+      totalDeliveries: 156,
+      earnings: 'P 12,500'
+    },
+    { 
+      id: 102, 
+      driver: 'Keabetswe Mophane', 
+      rating: 4.9,
+      location: 'Main Mall',
+      vehicle: 'VW Polo',
+      totalDeliveries: 203,
+      earnings: 'P 18,900'
+    },
+  ]);
+
+  // Function to toggle active driver status and update activeDrivers list
+  const toggleActiveDriverStatus = (status) => {
+    setIsActiveDriver(status);
+    
+    if (status) {
+      // Add current driver to active drivers list
+      const currentDriverProfile = {
+        id: 999,
+        driver: `${userProfile.firstName} ${userProfile.lastName}`,
+        rating: userProfile.rating,
+        location: 'Current Location',
+        vehicle: 'My Vehicle',
+        totalDeliveries: userProfile.totalDeliveries,
+        earnings: `P ${userProfile.totalEarnings}`
+      };
+      
+      // Only add if not already in the list
+      setActiveDrivers(prev => {
+        const exists = prev.some(d => d.id === 999);
+        return exists ? prev : [...prev, currentDriverProfile];
+      });
+    } else {
+      // Remove current driver from active drivers list
+      setActiveDrivers(prev => prev.filter(d => d.id !== 999));
+    }
+  };
+
   const addTrip = (tripData) => {
     const newTrip = {
       id: upcomingTrips.length + 1,
@@ -257,6 +309,10 @@ function NavigationProvider({ children }) {
       upcomingTrips,
       setUpcomingTrips,
       addTrip,
+      isActiveDriver,
+      toggleActiveDriverStatus,
+      activeDrivers,
+      setActiveDrivers,
     }}>
       {children}
     </NavigationContext.Provider>
@@ -659,11 +715,22 @@ function CustomerHomeScreen() {
 
 // Driver Home Screen
 function DriverHomeScreen() {
-  const { navigate, availablePackages, driverWallet, userProfile } = useNavigation();
+  const { navigate, availablePackages, driverWallet, userProfile, isActiveDriver, toggleActiveDriverStatus } = useNavigation();
   const [showCreateTripModal, setShowCreateTripModal] = useState(false);
 
   const handleNotifications = () => {
     Alert.alert('Notifications', 'You have no new notifications.');
+  };
+
+  const handleToggleActiveStatus = () => {
+    const newStatus = !isActiveDriver;
+    toggleActiveDriverStatus(newStatus);
+    Alert.alert(
+      newStatus ? 'Status: Active' : 'Status: Inactive',
+      newStatus 
+        ? 'You are now visible to customers! They can send you delivery requests.'
+        : 'You are now invisible to customers. Turn on to appear in Active Drivers list.'
+    );
   };
 
   return (
@@ -694,6 +761,23 @@ function DriverHomeScreen() {
             <Text style={styles.statValue}>{userProfile.rating} ⭐</Text>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
+        </View>
+
+        {/* Active Status Toggle */}
+        <View style={styles.activeStatusContainer}>
+          <View style={styles.activeStatusLeft}>
+            <Text style={styles.activeStatusTitle}>Active Status</Text>
+            <Text style={styles.activeStatusSubtitle}>
+              {isActiveDriver ? 'Visible to customers' : 'Hidden from customers'}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={[styles.activeToggle, isActiveDriver && styles.activeToggleOn]}
+            onPress={handleToggleActiveStatus}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.activeToggleCircle, isActiveDriver && styles.activeToggleCircleOn]} />
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
@@ -1040,6 +1124,199 @@ function LocationSearchModal({ visible, title, onSelect, onCancel }) {
         </View>
       </View>
     </Modal>
+  );
+}
+
+// Create Package for Driver Modal
+function CreatePackageForDriverModal({ visible, driver, onClose }) {
+  const [description, setDescription] = useState('');
+  const [pickup, setPickup] = useState(null);
+  const [delivery, setDelivery] = useState(null);
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [weight, setWeight] = useState('');
+  const [price, setPrice] = useState('');
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
+  const driverName = driver?.driver || 'this driver';
+
+  const handleSubmit = () => {
+    if (!description || !pickup || !delivery || !recipientPhone || !price) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    
+    if (!/^[267]\d{7}$/.test(recipientPhone)) {
+      Alert.alert('Error', 'Please enter a valid Botswana phone number (e.g., 71234567)');
+      return;
+    }
+
+    const platformFee = (parseFloat(price) * 0.3).toFixed(2);
+    const driverEarnings = (parseFloat(price) * 0.7).toFixed(2);
+
+    Alert.alert(
+      'Request Sent',
+      `Package delivery request sent to ${driverName}!\n\nPackage: ${description}\nFrom: ${pickup.name}\nTo: ${delivery.name}\nOffering: P ${price}\n\n${driverName} will receive P ${driverEarnings} (after P ${platformFee} platform fee).\n\nThey can accept, reject, or counter your offer.`,
+      [
+        { text: 'OK', onPress: () => {
+          setDescription('');
+          setPickup(null);
+          setDelivery(null);
+          setRecipientPhone('');
+          setWeight('');
+          setPrice('');
+          onClose();
+        }}
+      ]
+    );
+  };
+
+  return (
+    <>
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            <View style={[styles.modalContainer, { maxHeight: '90%' }]}>
+              <Text style={styles.modalTitle}>Create Package for {driverName}</Text>
+              <Text style={styles.modalSubtitle}>
+                Send a delivery request directly to this driver
+              </Text>
+
+              <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Description *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Electronics, Documents, Clothing"
+                  placeholderTextColor={colors.textTertiary}
+                  value={description}
+                  onChangeText={setDescription}
+                />
+
+                <Text style={styles.fieldLabel}>Pickup Location *</Text>
+                <TouchableOpacity
+                  style={styles.locationButton}
+                  onPress={() => setShowPickupModal(true)}
+                >
+                  <Text style={styles.locationIcon}>📍</Text>
+                  <View style={{ flex: 1 }}>
+                    {pickup ? (
+                      <>
+                        <Text style={styles.locationSelectedName}>{pickup.name}</Text>
+                        <Text style={styles.locationSelectedAddress}>{pickup.address}</Text>
+                      </>
+                    ) : (
+                      <Text style={styles.locationPlaceholder}>Select pickup location...</Text>
+                    )}
+                  </View>
+                  <Text style={styles.locationArrow}>›</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.fieldLabel}>Delivery Location *</Text>
+                <TouchableOpacity
+                  style={styles.locationButton}
+                  onPress={() => setShowDeliveryModal(true)}
+                >
+                  <Text style={styles.locationIcon}>📍</Text>
+                  <View style={{ flex: 1 }}>
+                    {delivery ? (
+                      <>
+                        <Text style={styles.locationSelectedName}>{delivery.name}</Text>
+                        <Text style={styles.locationSelectedAddress}>{delivery.address}</Text>
+                      </>
+                    ) : (
+                      <Text style={styles.locationPlaceholder}>Select delivery location...</Text>
+                    )}
+                  </View>
+                  <Text style={styles.locationArrow}>›</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.fieldLabel}>Recipient Phone Number *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 71234567"
+                  placeholderTextColor={colors.textTertiary}
+                  value={recipientPhone}
+                  onChangeText={setRecipientPhone}
+                  keyboardType="phone-pad"
+                  maxLength={8}
+                />
+
+                <Text style={styles.fieldLabel}>Weight (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 2 kg"
+                  placeholderTextColor={colors.textTertiary}
+                  value={weight}
+                  onChangeText={setWeight}
+                />
+
+                <Text style={styles.fieldLabel}>Offering Price (P) *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 150"
+                  placeholderTextColor={colors.textTertiary}
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="numeric"
+                />
+
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    ℹ️ Platform charges 30% fee. Driver will receive 70% of your offered price. They can accept, counter, or reject your offer.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => {
+                    setDescription('');
+                    setPickup(null);
+                    setDelivery(null);
+                    setRecipientPhone('');
+                    setWeight('');
+                    setPrice('');
+                    onClose();
+                  }}
+                >
+                  <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSubmit]}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.modalButtonTextSubmit}>Send Request</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <LocationSearchModal
+        visible={showPickupModal}
+        title="Select Pickup Location"
+        onSelect={(location) => {
+          setPickup(location);
+          setShowPickupModal(false);
+        }}
+        onCancel={() => setShowPickupModal(false)}
+      />
+
+      <LocationSearchModal
+        visible={showDeliveryModal}
+        title="Select Delivery Location"
+        onSelect={(location) => {
+          setDelivery(location);
+          setShowDeliveryModal(false);
+        }}
+        onCancel={() => setShowDeliveryModal(false)}
+      />
+    </>
   );
 }
 
@@ -1514,16 +1791,12 @@ function MyPackagesScreen() {
 
 // Available Drivers Screen (Customer)
 function AvailableDriversScreen() {
-  const { goBack, myPackages, upcomingTrips } = useNavigation();
+  const { goBack, myPackages, upcomingTrips, activeDrivers } = useNavigation();
   const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [selectedPackageId, setSelectedPackageId] = useState(null);
-
-  const activeDrivers = [
-    { id: 1, name: 'Thabo Mokoena', rating: 4.8, trips: 234, active: true, currentLocation: 'Gaborone' },
-    { id: 2, name: 'Keabetswe Ditsele', rating: 4.9, trips: 189, active: true, currentLocation: 'Francistown' },
-    { id: 3, name: 'Mpho Kgosi', rating: 4.7, trips: 156, active: true, currentLocation: 'Maun' },
-  ];
+  const [showCreatePackageModal, setShowCreatePackageModal] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
   const handleSuggestPackage = (trip) => {
     if (myPackages.length === 0) {
@@ -1532,6 +1805,11 @@ function AvailableDriversScreen() {
     }
     setSelectedTrip(trip);
     setShowSuggestModal(true);
+  };
+
+  const handleCreatePackageForDriver = (driver) => {
+    setSelectedDriver(driver);
+    setShowCreatePackageModal(true);
   };
 
   const handleSubmitSuggestion = () => {
@@ -1566,31 +1844,38 @@ function AvailableDriversScreen() {
 
         <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionTitle}>🟢 Active Now</Text>
+          <Text style={styles.sectionHint}>Tap any driver to create a package delivery request</Text>
           {activeDrivers.map(driver => (
-            <View key={driver.id} style={styles.driverCard}>
+            <TouchableOpacity 
+              key={driver.id} 
+              style={styles.driverCard}
+              onPress={() => handleCreatePackageForDriver(driver)}
+              activeOpacity={0.7}
+            >
               <View style={styles.driverHeader}>
                 <View style={styles.driverInfo}>
-                  <Text style={styles.driverName}>{driver.name}</Text>
+                  <Text style={styles.driverName}>{driver.driver}</Text>
                   <View style={styles.driverMeta}>
                     <Text style={styles.driverRating}>⭐ {driver.rating}</Text>
-                    <Text style={styles.driverTrips}> • {driver.trips} trips</Text>
+                    <Text style={styles.driverTrips}> • {driver.totalDeliveries} deliveries</Text>
                   </View>
                 </View>
                 <View style={styles.activeIndicator}>
                   <Text style={styles.activeText}>● Active</Text>
                 </View>
               </View>
-              <Text style={styles.driverLocation}>📍 Currently in {driver.currentLocation}</Text>
-            </View>
+              <Text style={styles.driverLocation}>📍 {driver.location}</Text>
+              <Text style={styles.driverVehicle}>🚗 {driver.vehicle}</Text>
+            </TouchableOpacity>
           ))}
 
           <Text style={styles.sectionTitle}>🚗 Upcoming Trips</Text>
-          <Text style={styles.sectionHint}>Tap a trip to suggest your package for delivery</Text>
+          <Text style={styles.sectionHint}>Tap to create a package delivery request for this trip</Text>
           {upcomingTrips.map(trip => (
             <TouchableOpacity 
               key={trip.id} 
               style={styles.tripCard}
-              onPress={() => handleSuggestPackage(trip)}
+              onPress={() => handleCreatePackageForDriver(trip)}
               activeOpacity={0.7}
             >
               <View style={styles.tripHeader}>
@@ -1614,7 +1899,7 @@ function AvailableDriversScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Package Suggestion Modal */}
+      {/* Package Suggestion Modal - OLD, KEPT FOR REFERENCE */}
       <Modal visible={showSuggestModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -1668,6 +1953,16 @@ function AvailableDriversScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Create Package for Driver Modal */}
+      <CreatePackageForDriverModal 
+        visible={showCreatePackageModal}
+        driver={selectedDriver}
+        onClose={() => {
+          setShowCreatePackageModal(false);
+          setSelectedDriver(null);
+        }}
+      />
     </View>
   );
 }
@@ -3930,5 +4225,67 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textPrimary,
     lineHeight: 18,
+  },
+
+  // Active Status Toggle (Driver)
+  activeStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  activeStatusLeft: {
+    flex: 1,
+  },
+  activeStatusTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  activeStatusSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  activeToggle: {
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  activeToggleOn: {
+    backgroundColor: colors.success,
+  },
+  activeToggleCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.cardBg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  activeToggleCircleOn: {
+    transform: [{ translateX: 24 }],
+  },
+
+  // Driver Vehicle
+  driverVehicle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
 });
