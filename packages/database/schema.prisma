@@ -1,0 +1,249 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+  engineType    = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String        @id @default(cuid())
+  email                    String        @unique
+  passwordHash             String
+  firstName                String
+  lastName                 String
+  phone                    String
+  userType                 String
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  identityVerified         Boolean       @default(false)
+  emailVerified            Boolean       @default(false)
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
+  passwordResetToken       String?
+  passwordResetExpires     DateTime?
+  adminReviews             AdminReview[]
+  driverProfile            Driver?
+  customerPackages         Package[]
+  verification             Verification?
+  wallet                   Wallet?
+  chatRoomsAsCustomer      ChatRoom[]
+  notifications            Notification[]
+  lowBalanceNotifications  LowBalanceNotification[]
+}
+
+model Verification {
+  id                  String        @id @default(cuid())
+  userId              String        @unique
+  documentType        String
+  frontImageUrl       String
+  backImageUrl        String?
+  selfieImageUrl      String
+  status              String        @default("PENDING")
+  riskScore           Float?
+  authenticityScore   Float?
+  dataValidationScore Float?
+  facialMatchScore    Float?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  adminReviews        AdminReview[]
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Driver {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  licensePlate    String?
+  vehicleType     String?
+  vehicleCapacity String?
+  rating          Float         @default(0)
+  totalDeliveries Int           @default(0)
+  active          Boolean       @default(true)
+  bids            Bid[]
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+  chatRooms       ChatRoom[]
+  commissionReservations CommissionReservation[]
+}
+
+model Package {
+  id              String        @id @default(cuid())
+  customerId      String
+  description     String
+  imageUrl        String?
+  pickupAddress   String
+  pickupLat       Float
+  pickupLng       Float
+  deliveryAddress String
+  deliveryLat     Float
+  deliveryLng     Float
+  priceOffered    Float
+  status          String        @default("PENDING")
+  size            String?
+  weight          Float?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  bids            Bid[]
+  customer        User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  chatRoom        ChatRoom?
+  tracking        PackageTracking[]
+}
+
+model Trip {
+  id                String    @id @default(cuid())
+  driverId          String
+  startAddress      String
+  startLat          Float
+  startLng          Float
+  endAddress        String
+  endLat            Float
+  endLng            Float
+  departureTime     DateTime
+  arrivalTime       DateTime?
+  availableCapacity String
+  status            String    @default("SCHEDULED")
+  createdAt         DateTime  @default(now())
+  bids              Bid[]
+  driver            Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  packageId String
+  driverId  String
+  tripId    String?
+  amount    Float
+  status    String   @default("PENDING")
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  trip      Trip?    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+model Wallet {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  availableBalance Float   @default(0)
+  reservedBalance Float   @default(0)
+  currency        String   @default("USD")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  amount      Float
+  status      String   @default("PENDING")
+  description String
+  reference   String?
+  metadata    String?  // JSON string for additional data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  wallet      Wallet   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+}
+
+model CommissionReservation {
+  id        String   @id @default(cuid())
+  driverId  String
+  tripId    String
+  amount    Float
+  percentage Float   @default(30.0)
+  status    String   @default("PENDING") // PENDING, CONFIRMED, RELEASED, CANCELLED
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model LowBalanceNotification {
+  id             String   @id @default(cuid())
+  userId         String
+  currentBalance Float
+  threshold      Float
+  userType       String
+  notifiedAt     DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminReview {
+  id             String       @id @default(cuid())
+  verificationId String
+  adminId        String
+  decision       String
+  notes          String?
+  reviewedAt     DateTime     @default(now())
+  admin          User         @relation(fields: [adminId], references: [id])
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+}
+
+model VerificationAuditLog {
+  id             String   @id @default(cuid())
+  verificationId String
+  action         String
+  performedBy    String
+  timestamp      DateTime @default(now())
+  details        String?
+  ipAddress      String?
+  userAgent      String?
+}
+
+model ChatRoom {
+  id          String   @id @default(cuid())
+  packageId   String   @unique
+  customerId  String
+  driverId    String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    ChatMessage[]
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  customer    User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  driver      Driver?  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  chatRoomId String
+  senderId   String
+  senderType String   // 'CUSTOMER' or 'DRIVER'
+  message    String
+  messageType String  @default("TEXT") // 'TEXT', 'IMAGE', 'FILE'
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+}
+
+model PackageTracking {
+  id          String   @id @default(cuid())
+  packageId   String
+  status      String
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  timestamp   DateTime @default(now())
+  notes       String?
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // 'BID_RECEIVED', 'BID_ACCEPTED', 'BID_REJECTED', 'PACKAGE_STATUS', 'DELIVERY_UPDATE', 'DELIVERY_STARTED', 'DELIVERY_COMPLETED', 'CHAT_MESSAGE'
+  title     String
+  message   String
+  data      String?    // Additional data for the notification
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

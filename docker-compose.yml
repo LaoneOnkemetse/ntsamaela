@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ntsamaela-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ntsamaela
+      POSTGRES_USER: ntsamaela_user
+      POSTGRES_PASSWORD: ntsamaela_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - ntsamaela-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ntsamaela_user -d ntsamaela"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and real-time features
+  redis:
+    image: redis:7-alpine
+    container_name: ntsamaela-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ntsamaela-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ntsamaela-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://ntsamaela_user:ntsamaela_password@postgres:5432/ntsamaela
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: development-jwt-secret
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ntsamaela-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web Admin Dashboard
+  web-admin:
+    build:
+      context: .
+      dockerfile: apps/web-admin/Dockerfile
+    container_name: ntsamaela-web-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://api:3000/api
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./apps/web-admin:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - ntsamaela-network
+
+  # Mobile App Development Server
+  mobile-dev:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+    container_name: ntsamaela-mobile-dev
+    restart: unless-stopped
+    environment:
+      EXPO_PUBLIC_API_URL: http://api:3000/api
+    ports:
+      - "19000:19000"  # Expo DevTools
+      - "19001:19001"  # Expo CLI
+      - "19002:19002"  # Expo Web
+    volumes:
+      - ./apps/mobile:/app
+      - /app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - ntsamaela-network
+
+  # Database Management Tool (Optional)
+  adminer:
+    image: adminer:latest
+    container_name: ntsamaela-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ntsamaela-network
+
+  # Redis Management Tool (Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ntsamaela-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ntsamaela-network
+
+  # Mailhog for Email Testing (Optional)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ntsamaela-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - ntsamaela-network
+
+  # MinIO for S3-compatible storage (Optional)
+  minio:
+    image: minio/minio:latest
+    container_name: ntsamaela-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - ntsamaela-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  ntsamaela-network:
+    driver: bridge
+
+

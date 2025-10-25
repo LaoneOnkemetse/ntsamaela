@@ -1,0 +1,890 @@
+// Shared types for the Ntsamaela platform
+import { Request } from 'express';
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  userType: 'CUSTOMER' | 'DRIVER' | 'ADMIN';
+  identityVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthUser extends User {
+  token?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  userType: 'CUSTOMER' | 'DRIVER';
+}
+
+export interface Package {
+  id: string;
+  customerId: string;
+  description: string;
+  imageUrl?: string;
+  pickupAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  deliveryAddress: string;
+  deliveryLat: number;
+  deliveryLng: number;
+  priceOffered: number;
+  status: PackageStatus;
+  size?: PackageSize;
+  weight?: number;
+  createdAt: string;
+  updatedAt: string;
+  customer?: User;
+  bids?: Bid[];
+}
+
+export type PackageStatus = 'PENDING' | 'ACCEPTED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+export type PackageSize = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA_LARGE';
+
+export interface Trip {
+  id: string;
+  driverId: string;
+  startAddress: string;
+  startLat: number;
+  startLng: number;
+  endAddress: string;
+  endLat: number;
+  endLng: number;
+  departureTime: string;
+  arrivalTime?: string;
+  availableCapacity: TripCapacity;
+  status: TripStatus;
+  createdAt: string;
+  driver?: Driver;
+  bids?: Bid[];
+}
+
+export type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TripCapacity = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA_LARGE';
+
+export interface Bid {
+  id: string;
+  packageId: string;
+  driverId: string;
+  tripId?: string;
+  amount: number;
+  status: BidStatus;
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+  driver?: Driver;
+  package?: Package;
+  trip?: Trip;
+}
+
+export type BidStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+
+export interface Wallet {
+  id: string;
+  userId: string;
+  balance: number;
+  reservedBalance: number;
+}
+
+export interface Transaction {
+  id: string;
+  driverId: string;
+  packageId?: string;
+  type: 'RECHARGE' | 'COMMISSION_HOLD' | 'COMMISSION_DEDUCTION' | 'REFUND';
+  amount: number;
+  balanceAfter: number;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  createdAt: string;
+}
+
+export interface Verification {
+  id: string;
+  userId: string;
+  documentType: 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
+  frontImageUrl: string;
+  backImageUrl?: string;
+  selfieImageUrl: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  riskScore?: number;
+  authenticityScore?: number;
+  dataValidationScore?: number;
+  facialMatchScore?: number;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Driver {
+  id: string;
+  userId: string;
+  licensePlate?: string;
+  vehicleType?: string;
+  vehicleCapacity?: string;
+  rating: number;
+  totalDeliveries: number;
+  active: boolean;
+}
+
+export interface Theme {
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    text: string;
+    textSecondary: string;
+    error: string;
+    success: string;
+    warning: string;
+    info: string;
+    border: string;
+    disabled: string;
+  };
+  spacing: {
+    xs: number;
+    sm: number;
+    md: number;
+    lg: number;
+    xl: number;
+  };
+  borderRadius: {
+    sm: number;
+    md: number;
+    lg: number;
+  };
+}
+
+// Request/Response types
+
+export interface CreateTripRequest {
+  driverId: string;
+  startAddress: string;
+  startLat: number;
+  startLng: number;
+  endAddress: string;
+  endLat: number;
+  endLng: number;
+  departureTime: string;
+  availableCapacity: TripCapacity;
+}
+
+export interface CreateBidRequest {
+  packageId: string;
+  tripId?: string;
+  amount: number;
+  message?: string;
+}
+
+export interface SubmitVerificationRequest {
+  documentType: 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
+  frontImage: File;
+  backImage?: File;
+  selfieImage: File;
+}
+
+export interface VerificationRequest extends SubmitVerificationRequest {
+  userId: string;
+}
+
+// Password reset types
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequest {
+  token: string;
+  newPassword: string;
+}
+
+// Address types
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  lat: number;
+  lng: number;
+}
+
+// Package dimensions
+export interface PackageDimensions {
+  length: number;
+  width: number;
+  height: number;
+}
+
+// Package creation request
+export interface CreatePackageRequest {
+  pickupAddress: Address;
+  pickupLat: number;
+  pickupLng: number;
+  deliveryAddress: Address;
+  deliveryLat: number;
+  deliveryLng: number;
+  dimensions: PackageDimensions | string;
+  weight: number;
+  description: string;
+  priceOffered?: number;
+  estimatedValue?: number;
+  specialInstructions?: string;
+}
+
+export interface WalletRechargeRequest {
+  amount: number;
+  paymentMethodId: string;
+}
+
+// Location types
+export interface Location {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+export interface Route {
+  start: Location;
+  end: Location;
+  distance: number;
+  duration: number;
+  waypoints?: Location[];
+}
+
+// Notification types
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  message: string;
+  type: 'PACKAGE_UPDATE' | 'BID_RECEIVED' | 'BID_ACCEPTED' | 'BID_REJECTED' | 'VERIFICATION_STATUS' | 'PAYMENT_RECEIVED' | 'PACKAGE_STATUS' | 'DELIVERY_UPDATE' | 'CHAT_MESSAGE';
+  data?: Record<string, any>;
+  read: boolean;
+  isRead: boolean;
+  createdAt: Date | string;
+}
+
+// Error types
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: ValidationError[];
+}
+
+// Filter and search types
+export interface PackageFilters {
+  status?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  pickupLocation?: Location;
+  deliveryLocation?: Location;
+  radius?: number;
+}
+
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Additional types for verification service
+export type DocumentType = 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
+export type UserType = 'CUSTOMER' | 'DRIVER' | 'ADMIN';
+
+export interface DocumentData {
+  documentType: DocumentType;
+  frontImage: File;
+  backImage?: File;
+  selfieImage: File;
+}
+
+export interface VerificationResult {
+  success: boolean;
+  riskScore: number;
+  authenticityScore: number;
+  dataValidationScore: number;
+  facialMatchScore: number;
+  status: 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  message?: string;
+}
+
+export interface RiskScore {
+  overall: number;
+  authenticity: number;
+  dataValidation: number;
+  facialMatch: number;
+  flags: string[];
+}
+
+// Additional types for middleware and authentication
+export interface JWTPayload {
+  id: string;
+  email: string;
+  userType: string;
+  iat?: number;
+  exp?: number;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: JWTPayload;
+}
+
+export interface AppError extends Error {
+  statusCode: number;
+  isOperational: boolean;
+  code?: string;
+}
+
+// Enhanced verification types for AI-powered system
+export interface DocumentVerificationRequest {
+  userId: string;
+  documentType: DocumentType;
+  frontImageBase64: string;
+  backImageBase64?: string;
+  selfieImageBase64: string;
+  userType: UserType;
+}
+
+export interface DocumentAuthenticityResult {
+  isAuthentic: boolean;
+  confidence: number;
+  securityFeatures: SecurityFeature[];
+  anomalies: Anomaly[];
+  documentType: DocumentType;
+  issuer: string;
+  expiryDate?: string;
+  issueDate?: string;
+}
+
+export interface SecurityFeature {
+  name: string;
+  detected: boolean;
+  confidence: number;
+  description: string;
+}
+
+export interface Anomaly {
+  type: 'TAMPERING' | 'FORGERY' | 'BLUR' | 'LOW_QUALITY' | 'WRONG_DOCUMENT_TYPE';
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description: string;
+  confidence: number;
+  location?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface OCRResult {
+  extractedData: ExtractedDocumentData;
+  confidence: number;
+  processingTime: number;
+  errors: string[];
+}
+
+export interface ExtractedDocumentData {
+  documentNumber: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  expiryDate?: string;
+  issueDate?: string;
+  address?: string;
+  nationality?: string;
+  gender?: string;
+  issuer?: string;
+  documentType: DocumentType;
+}
+
+export interface FacialRecognitionResult {
+  match: boolean;
+  confidence: number;
+  faceDetected: boolean;
+  faceQuality: number;
+  landmarks: FaceLandmark[];
+  processingTime: number;
+  liveness?: boolean;
+  livenessConfidence?: number;
+  spoofingIndicators?: string[];
+}
+
+export interface FaceLandmark {
+  type: 'EYE' | 'NOSE' | 'MOUTH' | 'EAR' | 'CHIN';
+  x: number;
+  y: number;
+  confidence: number;
+}
+
+export interface RiskAssessment {
+  overallRisk: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  factors: RiskFactor[];
+  recommendations: string[];
+  requiresManualReview: boolean;
+}
+
+export interface RiskFactor {
+  category: 'DOCUMENT_AUTHENTICITY' | 'DATA_CONSISTENCY' | 'FACIAL_MATCH' | 'BEHAVIORAL' | 'TECHNICAL';
+  score: number;
+  weight: number;
+  description: string;
+  evidence: string[];
+}
+
+export interface VerificationDecision {
+  decision: 'APPROVE' | 'REJECT' | 'FLAG_FOR_REVIEW';
+  confidence: number;
+  reasoning: string[];
+  automated: boolean;
+  requiresManualReview: boolean;
+  nextSteps: string[];
+}
+
+export interface VerificationWorkflow {
+  steps: VerificationStep[];
+  currentStep: number;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  results: VerificationStepResult[];
+}
+
+export interface VerificationStep {
+  id: string;
+  name: string;
+  type: 'DOCUMENT_AUTHENTICITY' | 'OCR_EXTRACTION' | 'FACIAL_RECOGNITION' | 'RISK_ASSESSMENT' | 'DECISION_ENGINE';
+  required: boolean;
+  timeout: number;
+  retryCount: number;
+}
+
+export interface VerificationStepResult {
+  stepId: string;
+  success: boolean;
+  result: any;
+  error?: string;
+  processingTime: number;
+  timestamp: Date;
+}
+
+export interface VerificationConfig {
+  documentTypes: DocumentTypeConfig[];
+  riskThresholds: RiskThresholds;
+  facialRecognition: FacialRecognitionConfig;
+  ocr: OCRConfig;
+  aws: AWSConfig;
+}
+
+export interface DocumentTypeConfig {
+  type: DocumentType;
+  requiredForUserTypes: UserType[];
+  requiresBackImage: boolean;
+  securityFeatures: string[];
+  validationRules: ValidationRule[];
+}
+
+export interface ValidationRule {
+  field: string;
+  required: boolean;
+  pattern?: string;
+  minLength?: number;
+  maxLength?: number;
+  customValidator?: string;
+}
+
+export interface RiskThresholds {
+  low: number;
+  medium: number;
+  high: number;
+  critical: number;
+}
+
+export interface FacialRecognitionConfig {
+  minConfidence: number;
+  maxProcessingTime: number;
+  faceQualityThreshold: number;
+  landmarkDetectionRequired: boolean;
+}
+
+export interface OCRConfig {
+  minConfidence: number;
+  maxProcessingTime: number;
+  supportedLanguages: string[];
+  customFields: string[];
+}
+
+export interface AWSConfig {
+  region: string;
+  rekognitionCollectionId: string;
+  textractRoleArn: string;
+  s3Bucket: string;
+}
+
+export interface VerificationMetrics {
+  totalVerifications: number;
+  approvedCount: number;
+  rejectedCount: number;
+  flaggedCount: number;
+  averageProcessingTime: number;
+  successRate: number;
+  accuracyRate: number;
+  lastUpdated: Date;
+}
+
+export interface VerificationAuditLog {
+  id: string;
+  verificationId: string;
+  action: 'SUBMITTED' | 'PROCESSED' | 'APPROVED' | 'REJECTED' | 'FLAGGED' | 'MANUAL_REVIEW';
+  performedBy: string;
+  timestamp: Date;
+  details: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+// Wallet and Financial Types
+export type TransactionType = 
+  | 'RECHARGE' 
+  | 'DEBIT' 
+  | 'COMMISSION_RESERVATION' 
+  | 'COMMISSION_REFUND' 
+  | 'PAYMENT' 
+  | 'REFUND' 
+  | 'TRANSFER';
+
+export type TransactionStatus = 
+  | 'PENDING' 
+  | 'COMPLETED' 
+  | 'FAILED' 
+  | 'CANCELLED';
+
+export interface WalletBalance {
+  userId: string;
+  availableBalance: number;
+  reservedBalance: number;
+  totalBalance: number;
+  currency: string;
+  lastUpdated: Date;
+}
+
+
+export interface CommissionReservation {
+  id: string;
+  driverId: string;
+  tripId: string;
+  amount: number;
+  percentage: number;
+  status: 'PENDING' | 'CONFIRMED' | 'RELEASED' | 'CANCELLED';
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+export interface RechargeRequest {
+  userId: string;
+  amount: number;
+  paymentMethod: 'CARD' | 'BANK_TRANSFER' | 'MOBILE_MONEY';
+  paymentReference?: string;
+  description?: string;
+}
+
+export interface LowBalanceNotification {
+  userId: string;
+  currentBalance: number;
+  threshold: number;
+  userType: UserType;
+  notifiedAt: Date;
+}
+
+// Trip Management Interfaces - Updated versions
+export interface UpdateTripRequest {
+  startAddress?: string;
+  startLat?: number;
+  startLng?: number;
+  endAddress?: string;
+  endLat?: number;
+  endLng?: number;
+  departureTime?: string;
+  arrivalTime?: string;
+  availableCapacity?: TripCapacity;
+  status?: TripStatus;
+}
+
+export interface TripFilters {
+  driverId?: string;
+  status?: TripStatus;
+  startDate?: string;
+  endDate?: string;
+  startLat?: number;
+  startLng?: number;
+  endLat?: number;
+  endLng?: number;
+  radius?: number; // in kilometers
+  capacity?: TripCapacity;
+  limit?: number;
+  offset?: number;
+  origin?: string;
+  destination?: string;
+  departureDate?: string;
+}
+
+// Bidding System Interfaces
+export interface CreateBidRequest {
+  packageId: string;
+  driverId: string;
+  tripId?: string;
+  amount: number;
+  message?: string;
+}
+
+export interface UpdateBidRequest {
+  amount?: number;
+  message?: string;
+  status?: BidStatus;
+}
+
+export interface BidFilters {
+  packageId?: string;
+  driverId?: string;
+  tripId?: string;
+  status?: BidStatus;
+  minAmount?: number;
+  maxAmount?: number;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Matching Algorithm Interfaces
+export interface PackageTripMatch {
+  packageId: string;
+  tripId: string;
+  driverId: string;
+  matchScore: number;
+  distance: number; // in kilometers
+  timeCompatibility: number; // 0-1 score
+  capacityCompatibility: boolean;
+  routeCompatibility: number; // 0-1 score
+  estimatedDeliveryTime: string;
+}
+
+export interface MatchingCriteria {
+  maxDistance?: number; // in kilometers
+  timeWindow?: number; // in hours
+  minMatchScore?: number; // 0-1
+  capacityRequired?: TripCapacity;
+  driverRating?: number;
+}
+
+export interface BidAcceptanceRequest {
+  bidId: string;
+  customerId: string;
+  commissionAmount: number;
+}
+
+export interface BidRejectionRequest {
+  bidId: string;
+  reason?: string;
+}
+
+// Commission and Financial Interfaces
+export interface CommissionCalculation {
+  tripAmount: number;
+  commissionPercentage: number;
+  commissionAmount: number;
+  driverEarnings: number;
+  platformFee: number;
+}
+
+export interface BidWithCommission extends Bid {
+  commissionAmount: number;
+  driverEarnings: number;
+  platformFee: number;
+  reservationId?: string;
+}
+
+// Extended Request interface for authenticated routes
+
+// Chat and Real-time Communication Types
+export interface ChatRoom {
+  id: string;
+  packageId: string;
+  customerId: string;
+  driverId?: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'CLOSED';
+  createdAt: string;
+  updatedAt: string;
+  messages?: ChatMessage[];
+  package?: Package;
+  customer?: User;
+  driver?: Driver;
+}
+
+export interface ChatMessage {
+  id: string;
+  chatRoomId: string;
+  senderId: string;
+  senderType: 'CUSTOMER' | 'DRIVER';
+  message: string;
+  messageType: 'TEXT' | 'IMAGE' | 'FILE';
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface CreateChatMessageRequest {
+  chatRoomId: string;
+  message: string;
+  messageType?: 'TEXT' | 'IMAGE' | 'FILE';
+}
+
+export interface ChatRoomFilters {
+  customerId?: string;
+  driverId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Package Tracking Types
+export interface PackageTracking {
+  id: string;
+  packageId: string;
+  status: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  timestamp: string;
+  notes?: string;
+}
+
+export interface CreateTrackingUpdateRequest {
+  packageId: string;
+  status: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
+}
+
+export interface TrackingFilters {
+  packageId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// Notification Types (duplicate removed - using the one above)
+
+export interface CreateNotificationRequest {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: any;
+}
+
+export interface NotificationFilters {
+  userId?: string;
+  type?: string;
+  isRead?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+// Socket.IO Event Types
+export interface SocketEvents {
+  // Connection events
+  'user:connect': { userId: string; userType: string };
+  'user:disconnect': { userId: string };
+  
+  // Chat events
+  'chat:join': { chatRoomId: string };
+  'chat:leave': { chatRoomId: string };
+  'chat:message': { chatRoomId: string; message: string; messageType?: string };
+  'chat:message:received': { message: ChatMessage };
+  'chat:typing': { chatRoomId: string; isTyping: boolean };
+  
+  // Bid events
+  'bid:received': { packageId: string; bid: Bid };
+  'bid:accepted': { packageId: string; bidId: string };
+  'bid:rejected': { packageId: string; bidId: string };
+  
+  // Package tracking events
+  'package:status:update': { packageId: string; status: string; tracking: PackageTracking };
+  'package:location:update': { packageId: string; latitude: number; longitude: number };
+  
+  // Notification events
+  'notification:new': { notification: Notification };
+  'notification:read': { notificationId: string };
+  
+  // Delivery events
+  'delivery:started': { packageId: string; driverId: string };
+  'delivery:completed': { packageId: string; driverId: string };
+  'delivery:failed': { packageId: string; driverId: string; reason: string };
+}
+
+// Real-time service interfaces
+export interface RealtimeService {
+  // Chat methods
+  createChatRoom(packageId: string, customerId: string, driverId?: string): Promise<ChatRoom>;
+  sendMessage(chatRoomId: string, senderId: string, senderType: string, message: string, messageType?: string): Promise<ChatMessage>;
+  getChatMessages(chatRoomId: string, limit?: number, offset?: number): Promise<ChatMessage[]>;
+  markMessageAsRead(messageId: string): Promise<void>;
+  
+  // Tracking methods
+  createTrackingUpdate(packageId: string, status: string, location?: string, latitude?: number, longitude?: number, notes?: string): Promise<PackageTracking>;
+  getPackageTracking(packageId: string): Promise<PackageTracking[]>;
+  
+  // Notification methods
+  createNotification(userId: string, type: string, title: string, message: string, data?: any): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
+  markNotificationAsRead(notificationId: string): Promise<void>;
+  
+  // Socket.IO methods
+  emitToUser(userId: string, event: string, data: any): void;
+  emitToRoom(roomId: string, event: string, data: any): void;
+  joinRoom(socketId: string, roomId: string): void;
+  leaveRoom(socketId: string, roomId: string): void;
+}
+
+

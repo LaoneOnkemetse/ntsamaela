@@ -1,0 +1,12 @@
+{
+  "name": "ntsamaela-image-optimizer",
+  "version": "1.0.0",
+  "description": "Lambda@Edge function for image optimization",
+  "main": "index.js",
+  "dependencies": {
+    "sharp": "^0.32.6"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}

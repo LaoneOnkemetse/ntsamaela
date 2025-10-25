@@ -1,0 +1,608 @@
+name: Ntsamaela CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  ECS_CLUSTER: ntsamaela-cluster
+  ECS_SERVICE_API: ntsamaela-api
+  ECS_SERVICE_WEB: ntsamaela-web
+
+jobs:
+  # Job 1: Code Quality and Security Checks
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+          cd ../web && npm ci
+
+      - name: Run ESLint
+        run: |
+          npm run lint
+          cd apps/api && npm run lint
+          cd ../web && npm run lint
+
+      - name: Run Prettier check
+        run: |
+          npm run format:check
+          cd apps/api && npm run format:check
+          cd ../web && npm run format:check
+
+      - name: Run TypeScript check
+        run: |
+          npm run type-check
+          cd apps/api && npm run type-check
+          cd ../web && npm run type-check
+
+      - name: Security audit
+        run: |
+          npm audit --audit-level=moderate
+          cd apps/api && npm audit --audit-level=moderate
+          cd ../web && npm audit --audit-level=moderate
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Job 2: Unit Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ntsamaela_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env.test
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_test" >> apps/api/.env.test
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.test
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.test
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
+
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          npm run migrate:test
+
+      - name: Run unit tests
+        run: |
+          cd apps/api
+          npm run test:unit -- --coverage --watchAll=false
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./apps/api/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Job 3: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ntsamaela_integration_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env.integration
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test" >> apps/api/.env.integration
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.integration
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.integration
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.integration
+
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          npm run migrate:test
+
+      - name: Run integration tests
+        run: |
+          cd apps/api
+          npm run test:integration -- --watchAll=false
+
+      - name: Run API tests
+        run: |
+          cd apps/api
+          npm run test:api -- --watchAll=false
+
+  # Job 4: E2E Tests
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ntsamaela_e2e_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+          cd ../web && npm ci
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env.e2e
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_e2e_test" >> apps/api/.env.e2e
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.e2e
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.e2e
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.e2e
+
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          npm run migrate:test
+
+      - name: Build and start API server
+        run: |
+          cd apps/api
+          npm run build
+          npm start &
+          sleep 10
+
+      - name: Build and start Web server
+        run: |
+          cd apps/web
+          npm run build
+          npm start &
+          sleep 10
+
+      - name: Run E2E tests
+        run: |
+          cd apps/api
+          npm run test:e2e -- --watchAll=false
+
+  # Job 5: Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ntsamaela_perf_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+
+      - name: Setup test environment
+        run: |
+          cp apps/api/.env.example apps/api/.env.performance
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test" >> apps/api/.env.performance
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.performance
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.performance
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.performance
+
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          npm run migrate:test
+
+      - name: Run performance tests
+        run: |
+          cd apps/api
+          npm run test:performance -- --watchAll=false
+
+  # Job 6: Build Docker Images
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: github.event_name == 'push'
+    outputs:
+      api-image: ${{ steps.api-image.outputs.image }}
+      web-image: ${{ steps.web-image.outputs.image }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push API image
+        id: api-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/ntsamaela-api:$IMAGE_TAG -f apps/api/Dockerfile .
+          docker tag $ECR_REGISTRY/ntsamaela-api:$IMAGE_TAG $ECR_REGISTRY/ntsamaela-api:latest
+          docker push $ECR_REGISTRY/ntsamaela-api:$IMAGE_TAG
+          docker push $ECR_REGISTRY/ntsamaela-api:latest
+          echo "image=$ECR_REGISTRY/ntsamaela-api:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build, tag, and push Web image
+        id: web-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/ntsamaela-web:$IMAGE_TAG -f apps/web/Dockerfile .
+          docker tag $ECR_REGISTRY/ntsamaela-web:$IMAGE_TAG $ECR_REGISTRY/ntsamaela-web:latest
+          docker push $ECR_REGISTRY/ntsamaela-web:$IMAGE_TAG
+          docker push $ECR_REGISTRY/ntsamaela-web:latest
+          echo "image=$ECR_REGISTRY/ntsamaela-web:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # Job 7: Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-images, performance-tests]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Update ECS task definitions with new images
+          aws ecs update-service \
+            --cluster ntsamaela-staging-cluster \
+            --service ntsamaela-api-staging \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          aws ecs update-service \
+            --cluster ntsamaela-staging-cluster \
+            --service ntsamaela-web-staging \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Run database migrations (staging)
+        run: |
+          echo "Running database migrations for staging..."
+          # Run migrations using ECS task
+          aws ecs run-task \
+            --cluster ntsamaela-staging-cluster \
+            --task-definition ntsamaela-migration-staging \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[subnet-12345],securityGroups=[sg-12345],assignPublicIp=ENABLED}" \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for staging deployment to complete..."
+          aws ecs wait services-stable \
+            --cluster ntsamaela-staging-cluster \
+            --services ntsamaela-api-staging ntsamaela-web-staging \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Run staging health checks
+        run: |
+          echo "Running staging health checks..."
+          # Wait for services to be ready
+          sleep 30
+          
+          # Check API health
+          curl -f https://api-staging.ntsamaela.com/health || exit 1
+          
+          # Check Web app
+          curl -f https://staging.ntsamaela.com || exit 1
+          
+          echo "Staging deployment successful!"
+
+      - name: Run smoke tests on staging
+        run: |
+          echo "Running smoke tests on staging..."
+          # Run basic smoke tests
+          npm run test:smoke -- --base-url=https://staging.ntsamaela.com
+
+      - name: Notify staging deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: 'Staging deployment completed for commit ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Job 8: Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images, performance-tests]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Pre-deployment backup
+        run: |
+          echo "Creating pre-deployment backup..."
+          # Create RDS snapshot
+          aws rds create-db-snapshot \
+            --db-instance-identifier ntsamaela-db \
+            --db-snapshot-identifier ntsamaela-pre-deploy-$(date +%Y%m%d-%H%M%S) \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Update ECS task definitions with new images
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE_API }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE_WEB }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Run database migrations (production)
+        run: |
+          echo "Running database migrations for production..."
+          # Run migrations using ECS task
+          aws ecs run-task \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --task-definition ntsamaela-migration-prod \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[subnet-12345],securityGroups=[sg-12345],assignPublicIp=ENABLED}" \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for production deployment to complete..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE_API }} ${{ env.ECS_SERVICE_WEB }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Run production health checks
+        run: |
+          echo "Running production health checks..."
+          # Wait for services to be ready
+          sleep 30
+          
+          # Check API health
+          curl -f https://api.ntsamaela.com/health || exit 1
+          
+          # Check Web app
+          curl -f https://ntsamaela.com || exit 1
+          
+          echo "Production deployment successful!"
+
+      - name: Run smoke tests on production
+        run: |
+          echo "Running smoke tests on production..."
+          # Run basic smoke tests
+          npm run test:smoke -- --base-url=https://ntsamaela.com
+
+      - name: Notify production deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: 'Production deployment completed for commit ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Job 9: Post-deployment monitoring
+  post-deployment-monitoring:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Monitor deployment health
+        run: |
+          echo "Monitoring deployment health for 5 minutes..."
+          for i in {1..10}; do
+            echo "Health check $i/10"
+            
+            # Check CloudWatch metrics
+            aws cloudwatch get-metric-statistics \
+              --namespace AWS/ECS \
+              --metric-name CPUUtilization \
+              --dimensions Name=ServiceName,Value=${{ env.ECS_SERVICE_API }} Name=ClusterName,Value=${{ env.ECS_CLUSTER }} \
+              --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
+              --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+              --period 300 \
+              --statistics Average \
+              --region ${{ env.AWS_REGION }}
+            
+            sleep 30
+          done
+
+      - name: Check for errors in logs
+        run: |
+          echo "Checking for errors in application logs..."
+          # Check for ERROR level logs in the last 10 minutes
+          aws logs filter-log-events \
+            --log-group-name /aws/ecs/ntsamaela/application \
+            --start-time $(date -d '10 minutes ago' +%s)000 \
+            --filter-pattern "ERROR" \
+            --region ${{ env.AWS_REGION }} || echo "No errors found"
