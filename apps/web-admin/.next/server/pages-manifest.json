@@ -4,7 +4,6 @@
   "/_document": "pages/_document.js",
   "/dashboard": "pages/dashboard.js",
   "/users": "pages/users.js",
-  "/deliveries": "pages/deliveries.js",
-  "/verifications": "pages/verifications.js",
-  "/wallets": "pages/wallets.js"
+  "/wallets": "pages/wallets.js",
+  "/settings": "pages/settings.js"
 }
