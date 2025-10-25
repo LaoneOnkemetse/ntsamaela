@@ -43,11 +43,11 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, gradient, chang
                 icon={isPositive ? <TrendingUp /> : <TrendingDown />}
                 label={`${isPositive ? '+' : ''}${change}%`}
                 sx={{
-                  background: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  color: isPositive ? '#10B981' : '#EF4444',
+                  background: isPositive ? 'rgba(0, 200, 83, 0.1)' : 'rgba(211, 47, 47, 0.1)',
+                  color: isPositive ? '#00C853' : '#D32F2F',
                   fontWeight: 600,
                   '& .MuiChip-icon': {
-                    color: isPositive ? '#10B981' : '#EF4444',
+                    color: isPositive ? '#00C853' : '#D32F2F',
                   },
                 }}
               />
@@ -57,7 +57,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, gradient, chang
             width: 56, 
             height: 56,
             background: gradient,
-            boxShadow: '0px 8px 20px rgba(99, 102, 241, 0.25)',
+            boxShadow: '0px 8px 20px rgba(117, 170, 219, 0.25)',
           }}>
             {icon}
           </Avatar>
@@ -78,7 +78,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, gradient, chang
               sx={{
                 height: 6,
                 borderRadius: 3,
-                background: 'rgba(99, 102, 241, 0.1)',
+                background: 'rgba(117, 170, 219, 0.1)',
                 '& .MuiLinearProgress-bar': {
                   background: gradient,
                   borderRadius: 3,
@@ -186,10 +186,10 @@ export default function Dashboard() {
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {[
-                  { label: 'Review Verifications', count: 12, color: '#F59E0B' },
-                  { label: 'Pending Approvals', count: 8, color: '#EC4899' },
-                  { label: 'Support Tickets', count: 5, color: '#6366F1' },
-                  { label: 'New Users', count: 24, color: '#10B981' },
+                  { label: 'Review Verifications', count: 12, color: '#FFB800' },
+                  { label: 'Pending Approvals', count: 8, color: '#FF6D00' },
+                  { label: 'Support Tickets', count: 5, color: '#75AADB' },
+                  { label: 'New Users', count: 24, color: '#00C853' },
                 ].map((item, index) => (
                   <Box 
                     key={index}
