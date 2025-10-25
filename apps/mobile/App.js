@@ -1,180 +1,146 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, BackHandler, PermissionsAndroid, Image, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, BackHandler, Image, Modal, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 
-// NTSAMAELA 2025 DESIGN SYSTEM - Botswana Pride
+// Botswana-Inspired Color Palette
 const colors = {
-  // Botswana Flag Colors - Primary Palette
-  botswanaBlue: '#75AADB',
-  botswanaBlack: '#000000',
-  botswanaWhite: '#FFFFFF',
-  
-  // Primary - Sky Blue (Botswana Blue)
-  primary: '#75AADB',
+  primary: '#75AADB',      // Botswana Blue
   primaryDark: '#5A8FBF',
   primaryLight: '#A3C9E8',
-  
-  // Secondary - Deep Black
-  secondary: '#1A1A1A',
-  secondaryLight: '#333333',
-  
-  // Accent Colors (2025 Trends)
-  accent: '#FFB800', // Warm Gold
-  accentGreen: '#00C853', // Success Green
-  accentOrange: '#FF6D00', // Energy Orange
-  
-  // Backgrounds
+  secondary: '#1A1A1A',    // Deep Black
+  accent: '#FFB800',       // Gold
+  success: '#00C853',      // Green
+  error: '#D32F2F',
   background: '#F5F7FA',
   cardBg: '#FFFFFF',
-  darkBg: '#0A0A0A',
-  
-  // Text
   textPrimary: '#1A1A1A',
   textSecondary: '#666666',
   textTertiary: '#999999',
   textLight: '#FFFFFF',
-  textMuted: '#CCCCCC',
-  
-  // Status
-  success: '#00C853',
-  warning: '#FFB800',
-  error: '#D32F2F',
-  info: '#75AADB',
-  
-  // Borders & Shadows
   border: '#E0E0E0',
-  borderLight: '#F0F0F0',
   shadow: 'rgba(117, 170, 219, 0.15)',
-  shadowDark: 'rgba(0, 0, 0, 0.08)',
 };
 
-// Custom Navigation System
+// Navigation Context
 const NavigationContext = React.createContext();
 
 function NavigationProvider({ children }) {
-  const [currentScreen, setCurrentScreen] = useState('login');
-  const [screenHistory, setScreenHistory] = useState(['login']);
-  const [showBottomTabs, setShowBottomTabs] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState('loading');
+  const [screenHistory, setScreenHistory] = useState(['loading']);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userType, setUserType] = useState(null);
-  const [screenParams, setScreenParams] = useState({});
-  const [permissionsGranted, setPermissionsGranted] = useState(true);
-  const [hasActivePackage, setHasActivePackage] = useState(false);
-  const [showPermissionsOnStartup, setShowPermissionsOnStartup] = useState(false);
-
-  const [customerWalletBalance, setCustomerWalletBalance] = useState(250.00);
-  const [customerReservedBalance, setCustomerReservedBalance] = useState(0.00);
-  const [driverWalletBalance, setDriverWalletBalance] = useState(850.00);
-  const [transactions, setTransactions] = useState([
-    { id: 1, type: 'fund', amount: 150.00, description: 'Wallet funded', date: '2024-01-10', status: 'completed' },
-  ]);
-
+  const [activeTab, setActiveTab] = useState('home');
+  
   const [userProfile, setUserProfile] = useState({
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@example.com',
+    phone: '+267 71234567',
     profilePhoto: null,
     rating: 4.8,
     totalDeliveries: 42,
-    totalEarnings: 2850
+    totalEarnings: 2850,
   });
 
-  const [driverActive, setDriverActive] = useState(true);
-  const [availablePackages, setAvailablePackages] = useState([
+  const [customerWallet, setCustomerWallet] = useState(250);
+  const [driverWallet, setDriverWallet] = useState(850);
+  
+  const [myPackages, setMyPackages] = useState([
     {
       id: 'PKG-001',
-      customerName: 'Sarah M.',
-      description: 'Electronics package',
+      description: 'Electronics',
       pickup: 'Gaborone CBD',
       delivery: 'Airport Junction',
       price: 250,
-      weight: '2.5 kg',
-      urgent: true,
-      distance: '12 km',
-      bids: 3
+      status: 'in-transit',
+      driver: 'Mike K.',
     },
+  ]);
+
+  const [availablePackages, setAvailablePackages] = useState([
     {
       id: 'PKG-002',
-      customerName: 'Mike K.',
-      description: 'Important documents',
+      customer: 'Sarah M.',
+      description: 'Documents',
       pickup: 'Broadhurst',
       delivery: 'Main Mall',
       price: 180,
       weight: '0.5 kg',
-      urgent: false,
       distance: '8 km',
-      bids: 5
-    }
+    },
+    {
+      id: 'PKG-003',
+      customer: 'David L.',
+      description: 'Small parcel',
+      pickup: 'Game City',
+      delivery: 'Mogoditshane',
+      price: 120,
+      weight: '1 kg',
+      distance: '15 km',
+    },
   ]);
 
-  const [packageBids, setPackageBids] = useState([]);
-
-  const navigate = (screenName, params = {}) => {
+  const [myBids, setMyBids] = useState([]);
+  
+  const navigate = (screenName, replace = false) => {
+    if (replace) {
+      setScreenHistory([screenName]);
+    } else {
+      setScreenHistory(prev => [...prev, screenName]);
+    }
     setCurrentScreen(screenName);
-    setScreenHistory(prev => [...prev, screenName]);
-    setScreenParams(params);
-    
-    const mainScreens = ['home', 'explore', 'profile', 'settings'];
-    setShowBottomTabs(isAuthenticated && mainScreens.includes(screenName));
   };
 
-  const login = (userType) => {
+  const login = (type) => {
     setIsAuthenticated(true);
-    setUserType(userType);
-    setCurrentScreen('home');
-    setScreenHistory(['home']);
-    setShowBottomTabs(true);
+    setUserType(type);
+    navigate('home', true);
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setUserType(null);
-    setCurrentScreen('login');
-    setScreenHistory(['login']);
-    setShowBottomTabs(false);
+    setActiveTab('home');
+    navigate('login', true);
   };
 
   const goBack = () => {
     if (screenHistory.length > 1) {
       const newHistory = screenHistory.slice(0, -1);
       setScreenHistory(newHistory);
-      const previousScreen = newHistory[newHistory.length - 1];
-      setCurrentScreen(previousScreen);
-      
-      const mainScreens = ['home', 'explore', 'profile', 'settings'];
-      setShowBottomTabs(mainScreens.includes(previousScreen));
+      setCurrentScreen(newHistory[newHistory.length - 1]);
+      return true;
     }
+    return false;
   };
 
   return (
-    <NavigationContext.Provider value={{ 
-      currentScreen, 
-      navigate, 
-      goBack, 
-      canGoBack: screenHistory.length > 1,
-      showBottomTabs,
+    <NavigationContext.Provider value={{
+      currentScreen,
+      navigate,
+      goBack,
       isAuthenticated,
       userType,
       login,
       logout,
-      screenParams,
-      customerWalletBalance,
-      driverWalletBalance,
-      transactions,
-      availablePackages,
-      packageBids,
-      permissionsGranted,
-      setPermissionsGranted,
-      hasActivePackage,
-      setHasActivePackage,
-      driverActive,
-      setDriverActive,
+      activeTab,
+      setActiveTab,
       userProfile,
-      setUserProfile
+      setUserProfile,
+      customerWallet,
+      setCustomerWallet,
+      driverWallet,
+      setDriverWallet,
+      myPackages,
+      setMyPackages,
+      availablePackages,
+      setAvailablePackages,
+      myBids,
+      setMyBids,
     }}>
       {children}
     </NavigationContext.Provider>
@@ -185,118 +151,83 @@ function useNavigation() {
   return React.useContext(NavigationContext);
 }
 
-// Modern Gradient Effect using overlapping views
-function GradientView({ colors, style, children }) {
-  return (
-    <View style={[{ position: 'relative' }, style]}>
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: colors[0],
-      }} />
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: '20%',
-        right: 0,
-        bottom: 0,
-        backgroundColor: colors[1],
-        opacity: 0.6,
-      }} />
-      <View style={{
-        position: 'absolute',
-        top: '40%',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: colors[1],
-        opacity: 0.3,
-      }} />
-      {children}
-    </View>
-  );
-}
+// Loading Screen with Big N Logo
+function LoadingScreen() {
+  const { navigate } = useNavigation();
 
-// Ntsamaela Logo Component
-function NtsamaelaLogo({ size = 'large', showSlogan = true }) {
-  const logoSize = size === 'large' ? 48 : size === 'medium' ? 32 : 24;
-  const sloganSize = size === 'large' ? 16 : size === 'medium' ? 14 : 12;
-  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navigate('login', true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <View style={{ alignItems: 'center' }}>
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: showSlogan ? 8 : 0,
-      }}>
-        <View style={{
-          width: logoSize * 1.2,
-          height: logoSize * 1.2,
-          borderRadius: logoSize * 0.6,
-          backgroundColor: colors.primary,
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginRight: 12,
-        }}>
-          <Text style={{
-            fontSize: logoSize * 0.6,
-            color: colors.textLight,
-            fontWeight: '900',
-          }}>N</Text>
-        </View>
-        <Text style={{
-          fontSize: logoSize,
-          fontWeight: '800',
-          color: colors.secondary,
-          letterSpacing: 1,
-        }}>
-          NTSAMAELA
-        </Text>
+    <View style={styles.loadingContainer}>
+      <StatusBar style="light" />
+      <View style={styles.logoBigContainer}>
+        <Text style={styles.logoBigN}>N</Text>
       </View>
-      {showSlogan && (
-        <Text style={{
-          fontSize: sloganSize,
-          color: colors.textSecondary,
-          fontStyle: 'italic',
-          letterSpacing: 0.5,
-        }}>
-          roma mongwe ka wena
-        </Text>
-      )}
+      <Text style={styles.logoTextBig}>NTSAMAELA</Text>
+      <Text style={styles.sloganBig}>roma mongwe ka wena</Text>
     </View>
   );
 }
 
-// Modern Icon Component
-function Icon({ name, size = 24, color = colors.textPrimary }) {
-  const icons = {
-    home: '⌂',
-    search: '⌕',
-    user: '●',
-    settings: '⚙',
-    package: '◫',
-    wallet: '▬',
-    truck: '▮',
-    location: '◉',
-    bell: '◔',
-    star: '★',
-    check: '✓',
-    arrow: '→',
-    send: '↗',
-    menu: '☰',
+// Custom Input Modal Component (Android-compatible)
+function InputModal({ visible, title, placeholder, onSubmit, onCancel, keyboardType = 'default' }) {
+  const [value, setValue] = useState('');
+
+  const handleSubmit = () => {
+    onSubmit(value);
+    setValue('');
   };
-  
+
+  const handleCancel = () => {
+    setValue('');
+    onCancel();
+  };
+
   return (
-    <Text style={{ fontSize: size, color, fontWeight: '600' }}>
-      {icons[name] || '●'}
-    </Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textTertiary}
+            value={value}
+            onChangeText={setValue}
+            keyboardType={keyboardType}
+            autoFocus
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={handleCancel}
+            >
+              <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.modalButtonSubmit]}
+              onPress={handleSubmit}
+            >
+              <Text style={styles.modalButtonTextSubmit}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
-// New 2025 Login Screen - Clean & Minimal
+// Login Screen - Conventional Structure
 function LoginScreen() {
   const { login } = useNavigation();
   const [isLogin, setIsLogin] = useState(true);
@@ -305,575 +236,991 @@ function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [devMode, setDevMode] = useState('customer');
+  const [userType, setUserType] = useState('customer');
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Reset Password',
+      'Enter your email address to receive a password reset link.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Send Link',
+          onPress: () => {
+            if (email) {
+              Alert.alert('Success', `Password reset link sent to ${email}`);
+            } else {
+              Alert.alert('Error', 'Please enter your email address first');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleAuth = () => {
-    if (!isLogin && password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-    
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
     
-    login(devMode);
+    if (!isLogin) {
+      if (!firstName || !lastName) {
+        Alert.alert('Error', 'Please enter your name');
+        return;
+      }
+      if (password !== confirmPassword) {
+        Alert.alert('Error', 'Passwords do not match');
+        return;
+      }
+    }
+    
+    login(userType);
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       <StatusBar style="dark" />
-      
       <ScrollView 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}
+        contentContainerStyle={{ flexGrow: 1 }}
       >
-        <View style={{ marginBottom: 48, alignItems: 'center' }}>
-          <NtsamaelaLogo size="large" showSlogan={true} />
-        </View>
+        <SafeAreaView style={styles.loginContainer}>
+          {/* Professional Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoN}>N</Text>
+            </View>
+            <Text style={styles.logoText}>NTSAMAELA</Text>
+            <Text style={styles.slogan}>roma mongwe ka wena</Text>
+          </View>
 
-        <View style={{
-          backgroundColor: colors.cardBg,
-          borderRadius: 20,
-          padding: 24,
-          shadowColor: colors.shadowDark,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 12,
-          elevation: 5,
-        }}>
-          <View style={{
-            flexDirection: 'row',
-            backgroundColor: colors.background,
-            borderRadius: 12,
-            padding: 4,
-            marginBottom: 24,
-          }}>
+          {/* Login/Signup Toggle */}
+          <View style={styles.toggleContainer}>
             <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 10,
-                backgroundColor: isLogin ? colors.primary : 'transparent',
-              }}
+              style={[styles.toggleButton, isLogin && styles.toggleButtonActive]}
               onPress={() => setIsLogin(true)}
             >
-              <Text style={{
-                textAlign: 'center',
-                fontWeight: '600',
-                color: isLogin ? colors.textLight : colors.textSecondary,
-              }}>
+              <Text style={[styles.toggleText, isLogin && styles.toggleTextActive]}>
                 Sign In
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 10,
-                backgroundColor: !isLogin ? colors.primary : 'transparent',
-              }}
+              style={[styles.toggleButton, !isLogin && styles.toggleButtonActive]}
               onPress={() => setIsLogin(false)}
             >
-              <Text style={{
-                textAlign: 'center',
-                fontWeight: '600',
-                color: !isLogin ? colors.textLight : colors.textSecondary,
-              }}>
+              <Text style={[styles.toggleText, !isLogin && styles.toggleTextActive]}>
                 Sign Up
               </Text>
             </TouchableOpacity>
           </View>
 
-          {!isLogin && (
-            <View style={{ flexDirection: 'row', marginBottom: 16, gap: 12 }}>
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  padding: 16,
-                  fontSize: 16,
-                  color: colors.textPrimary,
-                }}
-                placeholder="First Name"
-                placeholderTextColor={colors.textTertiary}
-                value={firstName}
-                onChangeText={setFirstName}
-              />
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  padding: 16,
-                  fontSize: 16,
-                  color: colors.textPrimary,
-                }}
-                placeholder="Last Name"
-                placeholderTextColor={colors.textTertiary}
-                value={lastName}
-                onChangeText={setLastName}
-              />
+          {/* Form Card */}
+          <View style={styles.formCard}>
+            {/* User Type Selector - Always visible */}
+            <View style={styles.userTypeSelector}>
+              <Text style={styles.userTypeLabel}>
+                {isLogin ? 'Sign in as' : 'Create account as'}
+              </Text>
+              <View style={styles.userTypeButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeButton,
+                    userType === 'customer' && styles.userTypeButtonActive
+                  ]}
+                  onPress={() => setUserType('customer')}
+                >
+                  <Text style={[
+                    styles.userTypeButtonText,
+                    userType === 'customer' && styles.userTypeButtonTextActive
+                  ]}>
+                    Customer
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeButton,
+                    userType === 'driver' && styles.userTypeButtonActive
+                  ]}
+                  onPress={() => setUserType('driver')}
+                >
+                  <Text style={[
+                    styles.userTypeButtonText,
+                    userType === 'driver' && styles.userTypeButtonTextActive
+                  ]}>
+                    Driver
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          )}
 
-          <TextInput
-            style={{
-              backgroundColor: colors.background,
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-              fontSize: 16,
-              color: colors.textPrimary,
-            }}
-            placeholder="Email Address"
-            placeholderTextColor={colors.textTertiary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+            {!isLogin && (
+              <View style={styles.nameRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginRight: 8 }]}
+                  placeholder="First Name"
+                  placeholderTextColor={colors.textTertiary}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, marginLeft: 8 }]}
+                  placeholder="Last Name"
+                  placeholderTextColor={colors.textTertiary}
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </View>
+            )}
 
-          <TextInput
-            style={{
-              backgroundColor: colors.background,
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-              fontSize: 16,
-              color: colors.textPrimary,
-            }}
-            placeholder="Password"
-            placeholderTextColor={colors.textTertiary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          {!isLogin && (
             <TextInput
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-                fontSize: 16,
-                color: colors.textPrimary,
-              }}
-              placeholder="Confirm Password"
+              style={styles.input}
+              placeholder="Email Address"
               placeholderTextColor={colors.textTertiary}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textTertiary}
+              value={password}
+              onChangeText={setPassword}
               secureTextEntry
             />
-          )}
 
-          {/* Login Button */}
-          <TouchableOpacity 
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 12,
-              padding: 18,
-              alignItems: 'center',
-              marginTop: 8,
-            }}
-            onPress={handleAuth}
-          >
-            <Text style={{
-              color: colors.textLight,
-              fontSize: 16,
-              fontWeight: '700',
-            }}>
-              {isLogin ? 'Sign In' : 'Create Account'}
-            </Text>
+            {!isLogin && (
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                placeholderTextColor={colors.textTertiary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+            )}
+
+            {isLogin && (
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.primaryButton} onPress={handleAuth}>
+              <Text style={styles.primaryButtonText}>
+                {isLogin ? 'Sign In' : 'Create Account'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+// Customer Home Screen
+function CustomerHomeScreen() {
+  const { navigate, myPackages, customerWallet, userProfile } = useNavigation();
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hello,</Text>
+            <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
+          </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Text style={styles.notificationIcon}>🔔</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Dev Mode Toggle */}
-        <View style={{
-          marginTop: 32,
-          padding: 20,
-          backgroundColor: colors.cardBg,
-          borderRadius: 16,
-          borderWidth: 2,
-          borderColor: colors.accent,
-          borderStyle: 'dashed',
-        }}>
-          <Text style={{
-            fontSize: 14,
-            fontWeight: '600',
-            color: colors.textSecondary,
-            marginBottom: 12,
-            textAlign: 'center',
-          }}>
-            🔧 Development Mode
-          </Text>
-          <View style={{
-            flexDirection: 'row',
-            backgroundColor: colors.background,
-            borderRadius: 10,
-            padding: 4,
-          }}>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 8,
-                backgroundColor: devMode === 'customer' ? colors.accent : 'transparent',
-              }}
-              onPress={() => setDevMode('customer')}
+        {/* Quick Stats */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
+            <Text style={styles.statValue}>{myPackages.length}</Text>
+            <Text style={styles.statLabel}>Active Packages</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.success }]}>
+            <Text style={styles.statValue}>P {customerWallet}</Text>
+            <Text style={styles.statLabel}>Wallet Balance</Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('createPackage')}
             >
-              <Text style={{
-                textAlign: 'center',
-                fontWeight: '600',
-                fontSize: 14,
-                color: devMode === 'customer' ? colors.textLight : colors.textSecondary,
-              }}>
-                Customer View
-              </Text>
+              <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
+                <Text style={styles.actionIconText}>📦</Text>
+              </View>
+              <Text style={styles.actionText}>Create Package</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 8,
-                backgroundColor: devMode === 'driver' ? colors.accent : 'transparent',
-              }}
-              onPress={() => setDevMode('driver')}
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('myPackages')}
             >
-              <Text style={{
-                textAlign: 'center',
-                fontWeight: '600',
-                fontSize: 14,
-                color: devMode === 'driver' ? colors.textLight : colors.textSecondary,
-              }}>
-                Driver View
-              </Text>
+              <View style={[styles.actionIcon, { backgroundColor: colors.success }]}>
+                <Text style={styles.actionIconText}>📋</Text>
+              </View>
+              <Text style={styles.actionText}>My Packages</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('trackPackage')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.accent }]}>
+                <Text style={styles.actionIconText}>📍</Text>
+              </View>
+              <Text style={styles.actionText}>Track Package</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('wallet')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FF6D00' }]}>
+                <Text style={styles.actionIconText}>💰</Text>
+              </View>
+              <Text style={styles.actionText}>Add Funds</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Recent Packages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Packages</Text>
+          {myPackages.map(pkg => (
+            <TouchableOpacity 
+              key={pkg.id}
+              style={styles.packageCard}
+              onPress={() => navigate('packageDetails', pkg)}
+            >
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageId}>{pkg.id}</Text>
+                <View style={[styles.statusBadge, getStatusColor(pkg.status)]}>
+                  <Text style={styles.statusText}>{pkg.status}</Text>
+                </View>
+              </View>
+              <Text style={styles.packageDesc}>{pkg.description}</Text>
+              <View style={styles.packageRoute}>
+                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                <Text style={styles.packageArrow}>→</Text>
+                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+              </View>
+              <View style={styles.packageFooter}>
+                <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                <Text style={styles.packagePrice}>P {pkg.price}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-// Modern Home Screen with Cards
-function HomeScreen() {
-  const { userType, navigate, userProfile } = useNavigation();
-  
-  const customerActions = [
-    { id: 'createPackage', title: 'Send Package', icon: 'package', color: colors.primary },
-    { id: 'myPackages', title: 'My Packages', icon: 'menu', color: colors.accentGreen },
-    { id: 'wallet', title: 'Wallet', icon: 'wallet', color: colors.accent },
-    { id: 'tracking', title: 'Track', icon: 'location', color: colors.accentOrange },
-  ];
-
-  const driverActions = [
-    { id: 'explore', title: 'Find Packages', icon: 'search', color: colors.primary },
-    { id: 'myBids', title: 'My Bids', icon: 'star', color: colors.accentGreen },
-    { id: 'wallet', title: 'Earnings', icon: 'wallet', color: colors.accent },
-    { id: 'myTrips', title: 'Active Trips', icon: 'truck', color: colors.accentOrange },
-  ];
-
-  const actions = userType === 'customer' ? customerActions : driverActions;
+// Driver Home Screen
+function DriverHomeScreen() {
+  const { navigate, availablePackages, driverWallet, userProfile } = useNavigation();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.screenContainer}>
       <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with Ntsamaela Logo */}
-        <View style={{
-          paddingHorizontal: 20,
-          paddingTop: 20,
-          paddingBottom: 16,
-          backgroundColor: colors.cardBg,
-        }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <NtsamaelaLogo size="small" showSlogan={false} />
-            <TouchableOpacity 
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: colors.background,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              onPress={() => navigate('notifications')}
-            >
-              <Icon name="bell" size={20} color={colors.textPrimary} />
-              <View style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: colors.error,
-              }} />
-            </TouchableOpacity>
-          </View>
-          
+        <View style={styles.header}>
           <View>
-            <Text style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 4 }}>Welcome back</Text>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.textPrimary }}>
-              {userProfile.firstName} {userProfile.lastName}
-            </Text>
+            <Text style={styles.greeting}>Hello,</Text>
+            <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
           </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Text style={styles.notificationIcon}>🔔</Text>
+          </TouchableOpacity>
+        </View>
 
-          {/* Stats Cards */}
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-            <View style={{
-              flex: 1,
-              backgroundColor: colors.primary + '15',
-              borderRadius: 16,
-              padding: 16,
-              alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: colors.primary, marginBottom: 4 }}>
-                {userProfile.totalDeliveries}
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
-                Deliveries
-              </Text>
-            </View>
-            <View style={{
-              flex: 1,
-              backgroundColor: colors.accentGreen + '15',
-              borderRadius: 16,
-              padding: 16,
-              alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.accentGreen, marginBottom: 4 }}>
-                BWP {userProfile.totalEarnings}
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
-                Earnings
-              </Text>
-            </View>
-            <View style={{
-              flex: 1,
-              backgroundColor: colors.accent + '15',
-              borderRadius: 16,
-              padding: 16,
-              alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: colors.accent, marginBottom: 4 }}>
-                {userProfile.rating}★
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
-                Rating
-              </Text>
-            </View>
+        {/* Driver Stats */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
+            <Text style={styles.statValue}>{userProfile.totalDeliveries}</Text>
+            <Text style={styles.statLabel}>Deliveries</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.success }]}>
+            <Text style={styles.statValue}>P {driverWallet}</Text>
+            <Text style={styles.statLabel}>Balance</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
+            <Text style={styles.statValue}>{userProfile.rating} ⭐</Text>
+            <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
 
-        {/* Quick Actions Grid */}
-        <View style={{ padding: 20 }}>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 16 }}>
-            Quick Actions
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {actions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={{
-                  width: (width - 52) / 2,
-                  backgroundColor: colors.cardBg,
-                  borderRadius: 16,
-                  padding: 20,
-                  alignItems: 'center',
-                  shadowColor: colors.shadowDark,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 8,
-                  elevation: 3,
-                }}
-                onPress={() => navigate(action.id)}
-              >
-                <View style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: action.color + '15',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginBottom: 12,
-                }}>
-                  <Icon name={action.icon} size={28} color={action.color} />
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
-                  {action.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('availablePackages')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
+                <Text style={styles.actionIconText}>📦</Text>
+              </View>
+              <Text style={styles.actionText}>Browse Packages</Text>
+            </TouchableOpacity>
 
-        {/* Recent Activity */}
-        <View style={styles.activitySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('myBids')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.accent }]}>
+                <Text style={styles.actionIconText}>💬</Text>
+              </View>
+              <Text style={styles.actionText}>My Bids</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('myTrips')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.success }]}>
+                <Text style={styles.actionIconText}>🚗</Text>
+              </View>
+              <Text style={styles.actionText}>My Trips</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigate('wallet')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FF6D00' }]}>
+                <Text style={styles.actionIconText}>💰</Text>
+              </View>
+              <Text style={styles.actionText}>Wallet</Text>
             </TouchableOpacity>
           </View>
+        </View>
 
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Text style={styles.activityIconText}>📦</Text>
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Package Delivered</Text>
-              <Text style={styles.activitySubtitle}>Gaborone → Francistown</Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
-            </View>
-            <Text style={styles.activityAmount}>+BWP 250</Text>
-          </View>
-
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Text style={styles.activityIconText}>💰</Text>
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Payment Received</Text>
-              <Text style={styles.activitySubtitle}>Order #1234</Text>
-              <Text style={styles.activityTime}>5 hours ago</Text>
-            </View>
-            <Text style={styles.activityAmount}>+BWP 180</Text>
-          </View>
+        {/* Available Packages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Available Packages</Text>
+          {availablePackages.slice(0, 3).map(pkg => (
+            <TouchableOpacity 
+              key={pkg.id}
+              style={styles.packageCard}
+              onPress={() => navigate('packageDetails', pkg)}
+            >
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageId}>{pkg.id}</Text>
+                <Text style={styles.packagePrice}>P {pkg.price}</Text>
+              </View>
+              <Text style={styles.packageDesc}>{pkg.description}</Text>
+              <View style={styles.packageRoute}>
+                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                <Text style={styles.packageArrow}>→</Text>
+                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+              </View>
+              <View style={styles.packageFooter}>
+                <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
+                <TouchableOpacity 
+                  style={styles.bidButton}
+                  onPress={() => Alert.alert('Bid', `Place your bid for ${pkg.id}`)}
+                >
+                  <Text style={styles.bidButtonText}>Place Bid</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-// Modern Profile Screen
-function ProfileScreen() {
-  const { navigate, userType, userProfile, setUserProfile, logout } = useNavigation();
+// Create Package Screen (Customer)
+function CreatePackageScreen() {
+  const { navigate, goBack } = useNavigation();
+  const [description, setDescription] = useState('');
+  const [pickup, setPickup] = useState('');
+  const [delivery, setDelivery] = useState('');
+  const [weight, setWeight] = useState('');
+  const [price, setPrice] = useState('');
 
-  const showPhotoActionSheet = () => {
+  const handleCreate = () => {
+    if (!description || !pickup || !delivery || !weight || !price) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    Alert.alert('Success', 'Package created successfully!', [
+      { text: 'OK', onPress: () => goBack() }
+    ]);
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create Package</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+          <TextInput
+            style={styles.input}
+            placeholder="Package Description"
+            placeholderTextColor={colors.textTertiary}
+            value={description}
+            onChangeText={setDescription}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Pickup Location"
+            placeholderTextColor={colors.textTertiary}
+            value={pickup}
+            onChangeText={setPickup}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Delivery Location"
+            placeholderTextColor={colors.textTertiary}
+            value={delivery}
+            onChangeText={setDelivery}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Weight (kg)"
+            placeholderTextColor={colors.textTertiary}
+            value={weight}
+            onChangeText={setWeight}
+            keyboardType="decimal-pad"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Offering Price (P)"
+            placeholderTextColor={colors.textTertiary}
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="decimal-pad"
+          />
+
+          <TouchableOpacity style={styles.primaryButton} onPress={handleCreate}>
+            <Text style={styles.primaryButtonText}>Create Package</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// My Packages Screen (Customer)
+function MyPackagesScreen() {
+  const { goBack, myPackages } = useNavigation();
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Packages</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+          {myPackages.map(pkg => (
+            <View key={pkg.id} style={styles.packageCard}>
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageId}>{pkg.id}</Text>
+                <View style={[styles.statusBadge, getStatusColor(pkg.status)]}>
+                  <Text style={styles.statusText}>{pkg.status}</Text>
+                </View>
+              </View>
+              <Text style={styles.packageDesc}>{pkg.description}</Text>
+              <View style={styles.packageRoute}>
+                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                <Text style={styles.packageArrow}>→</Text>
+                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+              </View>
+              <View style={styles.packageFooter}>
+                <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                <Text style={styles.packagePrice}>P {pkg.price}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// Track Package Screen (Customer)
+function TrackPackageScreen() {
+  const { goBack } = useNavigation();
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Track Package</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyIcon}>📍</Text>
+          <Text style={styles.emptyTitle}>Real-time Tracking</Text>
+          <Text style={styles.emptyText}>Track your package location in real-time</Text>
+          <View style={styles.trackingInfo}>
+            <Text style={styles.trackingLabel}>Package: PKG-001</Text>
+            <Text style={styles.trackingLabel}>Status: In Transit</Text>
+            <Text style={styles.trackingLabel}>ETA: 25 minutes</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// Available Packages Screen (Driver)
+function AvailablePackagesScreen() {
+  const { goBack, availablePackages } = useNavigation();
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+
+  const handlePlaceBid = (pkg) => {
+    setSelectedPackage(pkg);
+    setShowBidModal(true);
+  };
+
+  const handleBidSubmit = (amount) => {
+    setShowBidModal(false);
+    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+      Alert.alert('Success', `Bid of P ${amount} placed for ${selectedPackage.id}!`);
+    } else {
+      Alert.alert('Error', 'Please enter a valid bid amount');
+    }
+    setSelectedPackage(null);
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Available Packages</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+          {availablePackages.map(pkg => (
+            <View key={pkg.id} style={styles.packageCard}>
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageId}>{pkg.id}</Text>
+                <Text style={styles.packagePrice}>P {pkg.price}</Text>
+              </View>
+              <Text style={styles.packageDesc}>{pkg.description}</Text>
+              <Text style={styles.packageCustomer}>Customer: {pkg.customer}</Text>
+              <View style={styles.packageRoute}>
+                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                <Text style={styles.packageArrow}>→</Text>
+                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+              </View>
+              <View style={styles.packageFooter}>
+                <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
+                <TouchableOpacity 
+                  style={styles.bidButton}
+                  onPress={() => handlePlaceBid(pkg)}
+                >
+                  <Text style={styles.bidButtonText}>Place Bid</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+
+      <InputModal
+        visible={showBidModal}
+        title={selectedPackage ? `Place Bid for ${selectedPackage.id}` : 'Place Bid'}
+        placeholder="Enter bid amount (P)"
+        keyboardType="decimal-pad"
+        onSubmit={handleBidSubmit}
+        onCancel={() => {
+          setShowBidModal(false);
+          setSelectedPackage(null);
+        }}
+      />
+    </View>
+  );
+}
+
+// My Bids Screen (Driver)
+function MyBidsScreen() {
+  const { goBack, myBids } = useNavigation();
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Bids</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyIcon}>💬</Text>
+          <Text style={styles.emptyTitle}>No Active Bids</Text>
+          <Text style={styles.emptyText}>Your bids will appear here</Text>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// My Trips Screen (Driver)
+function MyTripsScreen() {
+  const { goBack } = useNavigation();
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Trips</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyIcon}>🚗</Text>
+          <Text style={styles.emptyTitle}>No Active Trips</Text>
+          <Text style={styles.emptyText}>Your trips will appear here</Text>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// Wallet Screen
+function WalletScreen() {
+  const { goBack, userType, customerWallet, driverWallet, setCustomerWallet, setDriverWallet } = useNavigation();
+  const isCustomer = userType === 'customer';
+  const balance = isCustomer ? customerWallet : driverWallet;
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  const handleDepositSubmit = (amount) => {
+    setShowDepositModal(false);
+    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+      const newBalance = balance + parseFloat(amount);
+      if (isCustomer) {
+        setCustomerWallet(newBalance);
+      } else {
+        setDriverWallet(newBalance);
+      }
+      Alert.alert('Success', `P ${amount} deposited successfully!`);
+    } else {
+      Alert.alert('Error', 'Please enter a valid amount');
+    }
+  };
+
+  const handleWithdrawSubmit = (amount) => {
+    setShowWithdrawModal(false);
+    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+      if (parseFloat(amount) > balance) {
+        Alert.alert('Error', 'Insufficient balance');
+        return;
+      }
+      const newBalance = balance - parseFloat(amount);
+      setDriverWallet(newBalance);
+      Alert.alert('Success', `P ${amount} withdrawn successfully!`);
+    } else {
+      Alert.alert('Error', 'Please enter a valid amount');
+    }
+  };
+
+  const handleDeposit = () => {
+    setShowDepositModal(true);
+  };
+
+  const handleWithdraw = () => {
+    if (isCustomer) {
+      Alert.alert('Info', 'Customers can only deposit funds');
+      return;
+    }
+    setShowWithdrawModal(true);
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Wallet</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.walletContainer}>
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <Text style={styles.balanceAmount}>P {balance.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.walletActions}>
+            <TouchableOpacity style={styles.walletButton} onPress={handleDeposit}>
+              <Text style={styles.walletButtonIcon}>💳</Text>
+              <Text style={styles.walletButtonText}>Deposit</Text>
+            </TouchableOpacity>
+
+            {!isCustomer && (
+              <TouchableOpacity style={styles.walletButton} onPress={handleWithdraw}>
+                <Text style={styles.walletButtonIcon}>💸</Text>
+                <Text style={styles.walletButtonText}>Withdraw</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <View style={styles.transactionCard}>
+              <View>
+                <Text style={styles.transactionDesc}>Wallet Deposit</Text>
+                <Text style={styles.transactionDate}>Jan 10, 2024</Text>
+              </View>
+              <Text style={styles.transactionAmount}>+P 150.00</Text>
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <InputModal
+        visible={showDepositModal}
+        title="Deposit Funds"
+        placeholder="Enter amount (P)"
+        keyboardType="decimal-pad"
+        onSubmit={handleDepositSubmit}
+        onCancel={() => setShowDepositModal(false)}
+      />
+
+      <InputModal
+        visible={showWithdrawModal}
+        title="Withdraw Funds"
+        placeholder="Enter amount (P)"
+        keyboardType="decimal-pad"
+        onSubmit={handleWithdrawSubmit}
+        onCancel={() => setShowWithdrawModal(false)}
+      />
+    </View>
+  );
+}
+
+// Profile Screen
+function ProfileScreen() {
+  const { userProfile, setUserProfile } = useNavigation();
+  const [isEditing, setIsEditing] = useState(false);
+  const [firstName, setFirstName] = useState(userProfile.firstName);
+  const [lastName, setLastName] = useState(userProfile.lastName);
+  const [email, setEmail] = useState(userProfile.email);
+  const [phone, setPhone] = useState(userProfile.phone);
+
+  const requestPermissions = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted' || cameraStatus.status !== 'granted') {
+        Alert.alert('Permission Needed', 'Camera and photo library access is required to update profile picture');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleProfilePhoto = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
     Alert.alert(
-      'Update Profile Photo',
+      'Profile Picture',
       'Choose an option',
       [
-        { text: 'Take Photo', onPress: () => Alert.alert('Camera', 'Camera functionality') },
-        { text: 'Choose from Library', onPress: () => Alert.alert('Gallery', 'Gallery functionality') },
-        { text: 'Cancel', style: 'cancel' }
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+
+            if (!result.canceled) {
+              setUserProfile({ ...userProfile, profilePhoto: result.assets[0].uri });
+            }
+          },
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+
+            if (!result.canceled) {
+              setUserProfile({ ...userProfile, profilePhoto: result.assets[0].uri });
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
+  const handleSave = () => {
+    setUserProfile({
+      ...userProfile,
+      firstName,
+      lastName,
+      email,
+      phone,
+    });
+    setIsEditing(false);
+    Alert.alert('Success', 'Profile updated successfully!');
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={styles.screenContainer}>
+      <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Header with Gradient */}
-        <GradientView colors={['#6366F1', '#8B5CF6']} style={styles.profileHeader}>
-          <TouchableOpacity style={styles.editProfileButton}>
-            <Text style={styles.editProfileText}>Edit Profile</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.profilePhotoSection}>
+        <View style={styles.profileHeader}>
+          <TouchableOpacity onPress={handleProfilePhoto} style={styles.profilePhotoContainer}>
             {userProfile.profilePhoto ? (
-              <Image source={{ uri: userProfile.profilePhoto }} style={styles.profilePhotoLarge} />
+              <Image source={{ uri: userProfile.profilePhoto }} style={styles.profilePhoto} />
             ) : (
-              <View style={styles.profilePhotoLarge}>
-                <Text style={styles.profileInitials}>
-                  {userProfile.firstName[0]}{userProfile.lastName[0]}
+              <View style={styles.profilePhotoPlaceholder}>
+                <Text style={styles.profilePhotoText}>
+                  {userProfile.firstName.charAt(0)}{userProfile.lastName.charAt(0)}
                 </Text>
               </View>
             )}
-            <TouchableOpacity style={styles.cameraButton} onPress={showPhotoActionSheet}>
-              <Text style={styles.cameraButtonText}>📷</Text>
-            </TouchableOpacity>
-          </View>
-
+            <View style={styles.editPhotoButton}>
+              <Text style={styles.editPhotoIcon}>📷</Text>
+            </View>
+          </TouchableOpacity>
+          
           <Text style={styles.profileName}>{userProfile.firstName} {userProfile.lastName}</Text>
           <Text style={styles.profileEmail}>{userProfile.email}</Text>
-          <View style={styles.profileBadge}>
-            <Text style={styles.profileBadgeText}>
-              {userType === 'customer' ? '👤 Customer' : '🚗 Driver'}
-            </Text>
-          </View>
-        </GradientView>
-
-        {/* Profile Stats */}
-        <View style={styles.profileStats}>
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatValue}>{userProfile.totalDeliveries}</Text>
-            <Text style={styles.profileStatLabel}>Completed</Text>
-          </View>
-          <View style={styles.profileStatDivider} />
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatValue}>{userProfile.rating}</Text>
-            <Text style={styles.profileStatLabel}>Rating</Text>
-          </View>
-          <View style={styles.profileStatDivider} />
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatValue}>BWP {userProfile.totalEarnings}</Text>
-            <Text style={styles.profileStatLabel}>Earned</Text>
-          </View>
         </View>
 
-        {/* Profile Actions */}
-        <View style={styles.profileActions}>
-          <TouchableOpacity style={styles.profileActionItem} onPress={() => navigate('wallet')}>
-            <View style={[styles.profileActionIcon, { backgroundColor: '#EEF2FF' }]}>
-              <Text style={styles.profileActionIconText}>💳</Text>
-            </View>
-            <View style={styles.profileActionContent}>
-              <Text style={styles.profileActionTitle}>Wallet</Text>
-              <Text style={styles.profileActionSubtitle}>Manage payments</Text>
-            </View>
-            <Text style={styles.profileActionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.profileActionItem} onPress={() => navigate('verification')}>
-            <View style={[styles.profileActionIcon, { backgroundColor: '#ECFDF5' }]}>
-              <Text style={styles.profileActionIconText}>✓</Text>
-            </View>
-            <View style={styles.profileActionContent}>
-              <Text style={styles.profileActionTitle}>Verification</Text>
-              <Text style={styles.profileActionSubtitle}>ID verification status</Text>
-            </View>
-            <Text style={styles.profileActionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.profileActionItem} onPress={() => navigate('reviews')}>
-            <View style={[styles.profileActionIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={styles.profileActionIconText}>⭐</Text>
-            </View>
-            <View style={styles.profileActionContent}>
-              <Text style={styles.profileActionTitle}>Reviews</Text>
-              <Text style={styles.profileActionSubtitle}>View your reviews</Text>
-            </View>
-            <Text style={styles.profileActionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.profileActionItem} onPress={() => navigate('settings')}>
-            <View style={[styles.profileActionIcon, { backgroundColor: '#F3F4F6' }]}>
-              <Text style={styles.profileActionIconText}>⚙️</Text>
-            </View>
-            <View style={styles.profileActionContent}>
-              <Text style={styles.profileActionTitle}>Settings</Text>
-              <Text style={styles.profileActionSubtitle}>App preferences</Text>
-            </View>
-            <Text style={styles.profileActionArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.profileActionItem, { marginTop: 16 }]} onPress={logout}>
-            <View style={[styles.profileActionIcon, { backgroundColor: '#FEE2E2' }]}>
-              <Text style={styles.profileActionIconText}>🚪</Text>
-            </View>
-            <View style={styles.profileActionContent}>
-              <Text style={[styles.profileActionTitle, { color: '#EF4444' }]}>Logout</Text>
-              <Text style={styles.profileActionSubtitle}>Sign out of your account</Text>
-            </View>
-            <Text style={styles.profileActionArrow}>›</Text>
-          </TouchableOpacity>
+        <View style={styles.profileSection}>
+          {isEditing ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Phone"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+              <View style={styles.editButtons}>
+                <TouchableOpacity 
+                  style={[styles.editButton, { backgroundColor: colors.border }]}
+                  onPress={() => setIsEditing(false)}
+                >
+                  <Text style={[styles.editButtonText, { color: colors.textPrimary }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.editButton, { backgroundColor: colors.primary }]}
+                  onPress={handleSave}
+                >
+                  <Text style={styles.editButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.profileField}>
+                <Text style={styles.profileFieldLabel}>First Name</Text>
+                <Text style={styles.profileFieldValue}>{userProfile.firstName}</Text>
+              </View>
+              <View style={styles.profileField}>
+                <Text style={styles.profileFieldLabel}>Last Name</Text>
+                <Text style={styles.profileFieldValue}>{userProfile.lastName}</Text>
+              </View>
+              <View style={styles.profileField}>
+                <Text style={styles.profileFieldLabel}>Email</Text>
+                <Text style={styles.profileFieldValue}>{userProfile.email}</Text>
+              </View>
+              <View style={styles.profileField}>
+                <Text style={styles.profileFieldLabel}>Phone</Text>
+                <Text style={styles.profileFieldValue}>{userProfile.phone}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={() => setIsEditing(true)}
+              >
+                <Text style={styles.primaryButtonText}>Edit Profile</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -882,91 +1229,66 @@ function ProfileScreen() {
 
 // Settings Screen
 function SettingsScreen() {
-  const { navigate, logout } = useNavigation();
-  const [notifications, setNotifications] = useState(true);
-  const [location, setLocation] = useState(true);
+  const { logout } = useNavigation();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', onPress: logout, style: 'destructive' },
+      ]
+    );
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.screenContainer}>
       <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.settingsHeader}>
+        <View style={styles.settingsContainer}>
           <Text style={styles.settingsTitle}>Settings</Text>
-          <Text style={styles.settingsSubtitle}>Manage your preferences</Text>
-        </View>
 
-        {/* Settings Sections */}
-        <View style={styles.settingsSection}>
-          <Text style={styles.settingsSectionTitle}>Preferences</Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIconBg, { backgroundColor: '#EEF2FF' }]}>
-                <Text style={styles.settingIconText}>🔔</Text>
-              </View>
-              <View>
-                <Text style={styles.settingTitle}>Notifications</Text>
-                <Text style={styles.settingSubtitle}>Push notifications</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={[styles.toggle, notifications && styles.toggleActive]}
-              onPress={() => setNotifications(!notifications)}
-            >
-              <View style={[styles.toggleThumb, notifications && styles.toggleThumbActive]} />
+          <View style={styles.settingsSection}>
+            <Text style={styles.settingsSectionTitle}>Account</Text>
+            
+            <TouchableOpacity style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>🔔 Notifications</Text>
+              <Text style={styles.settingsItemArrow}>→</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>🔒 Privacy</Text>
+              <Text style={styles.settingsItemArrow}>→</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>❓ Help & Support</Text>
+              <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIconBg, { backgroundColor: '#ECFDF5' }]}>
-                <Text style={styles.settingIconText}>📍</Text>
-              </View>
-              <View>
-                <Text style={styles.settingTitle}>Location</Text>
-                <Text style={styles.settingSubtitle}>GPS tracking</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={[styles.toggle, location && styles.toggleActive]}
-              onPress={() => setLocation(!location)}
-            >
-              <View style={[styles.toggleThumb, location && styles.toggleThumbActive]} />
+          <View style={styles.settingsSection}>
+            <Text style={styles.settingsSectionTitle}>About</Text>
+            
+            <TouchableOpacity style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>📄 Terms of Service</Text>
+              <Text style={styles.settingsItemArrow}>→</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>🔐 Privacy Policy</Text>
+              <Text style={styles.settingsItemArrow}>→</Text>
+            </TouchableOpacity>
+
+            <View style={styles.settingsItem}>
+              <Text style={styles.settingsItemText}>ℹ️ Version</Text>
+              <Text style={styles.settingsItemValue}>1.0.0</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.settingsSection}>
-          <Text style={styles.settingsSectionTitle}>More</Text>
-          
-          <TouchableOpacity style={styles.settingButton} onPress={() => navigate('about')}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIconBg, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={styles.settingIconText}>ℹ️</Text>
-              </View>
-              <Text style={styles.settingTitle}>About</Text>
-            </View>
-            <Text style={styles.settingArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingButton} onPress={() => navigate('contact')}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIconBg, { backgroundColor: '#E0E7FF' }]}>
-                <Text style={styles.settingIconText}>📧</Text>
-              </View>
-              <Text style={styles.settingTitle}>Contact Support</Text>
-            </View>
-            <Text style={styles.settingArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.settingButton, { marginTop: 16 }]} onPress={logout}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.settingIconBg, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={styles.settingIconText}>🚪</Text>
-              </View>
-              <Text style={[styles.settingTitle, { color: '#EF4444' }]}>Logout</Text>
-            </View>
-            <Text style={styles.settingArrow}>›</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -974,205 +1296,34 @@ function SettingsScreen() {
   );
 }
 
-// Wallet Screen
-function WalletScreen() {
-  const { goBack, customerWalletBalance, driverWalletBalance, userType, transactions } = useNavigation();
+// Bottom Navigation
+function BottomNav() {
+  const { activeTab, setActiveTab } = useNavigation();
 
-  const balance = userType === 'customer' ? customerWalletBalance : driverWalletBalance;
-
-  return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Wallet Card with Gradient */}
-        <GradientView colors={['#6366F1', '#8B5CF6']} style={styles.walletCard}>
-          <Text style={styles.walletLabel}>Available Balance</Text>
-          <Text style={styles.walletBalance}>BWP {balance.toFixed(2)}</Text>
-          
-          <View style={styles.walletActions}>
-            <TouchableOpacity style={styles.walletButton}>
-              <Text style={styles.walletButtonIcon}>↓</Text>
-              <Text style={styles.walletButtonText}>Add Money</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.walletButton}>
-              <Text style={styles.walletButtonIcon}>↑</Text>
-              <Text style={styles.walletButtonText}>Withdraw</Text>
-            </TouchableOpacity>
-          </View>
-        </GradientView>
-
-        {/* Quick Stats */}
-        <View style={styles.walletStats}>
-          <View style={styles.walletStatItem}>
-            <Text style={styles.walletStatValue}>P1,250</Text>
-            <Text style={styles.walletStatLabel}>This Month</Text>
-          </View>
-          <View style={styles.walletStatItem}>
-            <Text style={styles.walletStatValue}>P2,850</Text>
-            <Text style={styles.walletStatLabel}>Total Earnings</Text>
-          </View>
-        </View>
-
-        {/* Recent Transactions */}
-        <View style={styles.transactionsSection}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          
-          {transactions.map((tx) => (
-            <View key={tx.id} style={styles.transactionCard}>
-              <View style={[styles.transactionIcon, {
-                backgroundColor: tx.type === 'fund' ? '#ECFDF5' : '#FEE2E2'
-              }]}>
-                <Text style={styles.transactionIconText}>
-                  {tx.type === 'fund' ? '↓' : '↑'}
-                </Text>
-              </View>
-              <View style={styles.transactionContent}>
-                <Text style={styles.transactionTitle}>{tx.description}</Text>
-                <Text style={styles.transactionDate}>{tx.date}</Text>
-              </View>
-              <Text style={[
-                styles.transactionAmount,
-                { color: tx.type === 'fund' ? '#10B981' : '#EF4444' }
-              ]}>
-                {tx.type === 'fund' ? '+' : '-'}BWP {tx.amount.toFixed(2)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-// Explore/Available Packages Screen
-function ExploreScreen() {
-  const { availablePackages, navigate } = useNavigation();
-
-  return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.exploreHeader}>
-          <Text style={styles.exploreTitle}>Available Packages</Text>
-          <Text style={styles.exploreSubtitle}>Find delivery opportunities</Text>
-        </View>
-
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
-          <TouchableOpacity style={[styles.filterChip, styles.filterChipActive]}>
-            <Text style={[styles.filterChipText, styles.filterChipTextActive]}>All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterChip}>
-            <Text style={styles.filterChipText}>Urgent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterChip}>
-            <Text style={styles.filterChipText}>Nearby</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterChip}>
-            <Text style={styles.filterChipText}>High Value</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Package Cards */}
-        <View style={styles.packagesGrid}>
-          {availablePackages.map((pkg) => (
-            <View key={pkg.id} style={styles.packageCard}>
-              {pkg.urgent && (
-                <View style={styles.urgentBadge}>
-                  <Text style={styles.urgentBadgeText}>🚨 Urgent</Text>
-                </View>
-              )}
-              
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageTitle}>{pkg.description}</Text>
-                <Text style={styles.packagePrice}>BWP {pkg.price}</Text>
-              </View>
-
-              <View style={styles.packageRoute}>
-                <View style={styles.routePoint}>
-                  <View style={[styles.routeDot, { backgroundColor: '#6366F1' }]} />
-                  <Text style={styles.routeText}>{pkg.pickup}</Text>
-                </View>
-                <View style={styles.routeLine} />
-                <View style={styles.routePoint}>
-                  <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
-                  <Text style={styles.routeText}>{pkg.delivery}</Text>
-                </View>
-              </View>
-
-              <View style={styles.packageFooter}>
-                <View style={styles.packageInfo}>
-                  <Text style={styles.packageInfoText}>📦 {pkg.weight}</Text>
-                  <Text style={styles.packageInfoText}>📍 {pkg.distance}</Text>
-                  <Text style={styles.packageInfoText}>💬 {pkg.bids} bids</Text>
-                </View>
-                <TouchableOpacity style={styles.bidButton}>
-                  <Text style={styles.bidButtonText}>Place Bid</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-// Bottom Tab Navigation
-function BottomTabNavigation() {
-  const { currentScreen, navigate } = useNavigation();
-  
   const tabs = [
-    { id: 'home', label: 'Home', icon: 'home' },
-    { id: 'explore', label: 'Explore', icon: 'search' },
-    { id: 'profile', label: 'Profile', icon: 'user' },
-    { id: 'settings', label: 'Settings', icon: 'settings' }
+    { id: 'home', label: 'Home', icon: '🏠' },
+    { id: 'profile', label: 'Profile', icon: '👤' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
-  
+
   return (
-    <View style={{
-      flexDirection: 'row',
-      backgroundColor: colors.cardBg,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingBottom: 20,
-      paddingTop: 12,
-      shadowColor: colors.shadowDark,
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 10,
-    }}>
-      {tabs.map((tab) => (
+    <View style={styles.bottomNav}>
+      {tabs.map(tab => (
         <TouchableOpacity
           key={tab.id}
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onPress={() => navigate(tab.id)}
+          style={styles.bottomNavItem}
+          onPress={() => setActiveTab(tab.id)}
         >
-          <View style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: currentScreen === tab.id ? colors.primary + '15' : 'transparent',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 4,
-          }}>
-            <Icon 
-              name={tab.icon} 
-              size={22} 
-              color={currentScreen === tab.id ? colors.primary : colors.textSecondary}
-            />
+          <View style={[
+            styles.bottomNavIcon,
+            activeTab === tab.id && styles.bottomNavIconActive
+          ]}>
+            <Text style={styles.bottomNavIconText}>{tab.icon}</Text>
           </View>
-          <Text style={{
-            fontSize: 11,
-            fontWeight: currentScreen === tab.id ? '600' : '400',
-            color: currentScreen === tab.id ? colors.primary : colors.textSecondary,
-          }}>
+          <Text style={[
+            styles.bottomNavLabel,
+            activeTab === tab.id && styles.bottomNavLabelActive
+          ]}>
             {tab.label}
           </Text>
         </TouchableOpacity>
@@ -1181,307 +1332,331 @@ function BottomTabNavigation() {
   );
 }
 
-// Main App Component
-export default function App() {
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <NavigationProvider>
-        <AppNavigator />
-      </NavigationProvider>
-    </SafeAreaView>
-  );
-}
-
+// Main App Navigator
 function AppNavigator() {
-  const { currentScreen, showBottomTabs } = useNavigation();
+  const { currentScreen, isAuthenticated, userType, activeTab, goBack } = useNavigation();
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      return goBack();
+    });
+
+    return () => backHandler.remove();
+  }, [goBack]);
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'login':
-        return <LoginScreen />;
-      case 'home':
-        return <HomeScreen />;
-      case 'explore':
-        return <ExploreScreen />;
-      case 'profile':
-        return <ProfileScreen />;
-      case 'settings':
-        return <SettingsScreen />;
-      case 'wallet':
-        return <WalletScreen />;
-      default:
-        return <HomeScreen />;
+    if (!isAuthenticated) {
+      if (currentScreen === 'loading') return <LoadingScreen />;
+      return <LoginScreen />;
     }
+
+    // Main tab screens
+    if (activeTab === 'profile') return <ProfileScreen />;
+    if (activeTab === 'settings') return <SettingsScreen />;
+    if (activeTab === 'home') {
+      return userType === 'customer' ? <CustomerHomeScreen /> : <DriverHomeScreen />;
+    }
+
+    // Customer screens
+    if (currentScreen === 'createPackage') return <CreatePackageScreen />;
+    if (currentScreen === 'myPackages') return <MyPackagesScreen />;
+    if (currentScreen === 'trackPackage') return <TrackPackageScreen />;
+    if (currentScreen === 'wallet') return <WalletScreen />;
+
+    // Driver screens
+    if (currentScreen === 'availablePackages') return <AvailablePackagesScreen />;
+    if (currentScreen === 'myBids') return <MyBidsScreen />;
+    if (currentScreen === 'myTrips') return <MyTripsScreen />;
+
+    return userType === 'customer' ? <CustomerHomeScreen /> : <DriverHomeScreen />;
   };
 
   return (
     <View style={{ flex: 1 }}>
       {renderScreen()}
-      {showBottomTabs && <BottomTabNavigation />}
+      {isAuthenticated && <BottomNav />}
     </View>
   );
 }
 
-// MODERN TRENDY STYLES
+// Helper Functions
+function getStatusColor(status) {
+  const statusColors = {
+    'pending': { backgroundColor: colors.accent },
+    'in-transit': { backgroundColor: colors.primary },
+    'delivered': { backgroundColor: colors.success },
+    'cancelled': { backgroundColor: colors.error },
+  };
+  return statusColors[status] || { backgroundColor: colors.textTertiary };
+}
+
+// Main App
+export default function App() {
+  return (
+    <NavigationProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <AppNavigator />
+      </SafeAreaView>
+    </NavigationProvider>
+  );
+}
+
+// Styles
 const styles = StyleSheet.create({
-  container: {
+  // Loading Screen
+  loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoBigContainer: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.cardBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  logoBigN: {
+    fontSize: 100,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  logoTextBig: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: colors.cardBg,
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  sloganBig: {
+    fontSize: 18,
+    color: colors.cardBg,
+    fontStyle: 'italic',
+    opacity: 0.9,
   },
 
-  // LOGIN SCREEN - Modern Gradient Design
+  // Login Screen
   loginContainer: {
     flex: 1,
-    backgroundColor: '#6366F1',
-  },
-  gradientBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#6366F1',
-  },
-  loginScroll: {
-    flexGrow: 1,
     padding: 24,
-    paddingTop: 60,
+    justifyContent: 'center',
   },
-  loginHeader: {
+  logoSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 48,
   },
-  appIconContainer: {
+  logoCircle: {
     width: 80,
     height: 80,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 40,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  appIcon: {
-    fontSize: 40,
+  logoN: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: colors.cardBg,
   },
-  loginTitle: {
+  logoText: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: colors.secondary,
+    letterSpacing: 1,
     marginBottom: 8,
   },
-  loginSubtitle: {
+  slogan: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
-  
-  // Glass Card Effect
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  
-  authTabs: {
+  toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.cardBg,
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
-  },
-  authTab: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  authTabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  authTabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  authTabTextActive: {
-    color: colors.textPrimary,
-  },
-
-  userTypeContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  userTypeButton: {
+  toggleButton: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: colors.borderLight,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
-  userTypeActive: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#6366F1',
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
   },
-  userTypeIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  userTypeText: {
-    fontSize: 15,
+  toggleText: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  userTypeTextActive: {
-    color: '#6366F1',
+  toggleTextActive: {
+    color: colors.textLight,
   },
-
-  modernInput: {
-    backgroundColor: colors.borderLight,
+  formCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: colors.background,
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    padding: 16,
     fontSize: 16,
     color: colors.textPrimary,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'transparent',
   },
-
-  nameRow: {
+  userTypeSelector: {
+    marginBottom: 16,
+  },
+  userTypeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  userTypeButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
-
-  forgotPassword: {
+  userTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  userTypeButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  userTypeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  userTypeButtonTextActive: {
+    color: colors.textLight,
+  },
+  forgotButton: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  forgotPasswordText: {
-    color: '#6366F1',
+  forgotText: {
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
-
-  gradientButton: {
-    backgroundColor: '#6366F1',
+  primaryButton: {
+    backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 16,
+    padding: 18,
     alignItems: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 24,
   },
-  gradientButtonText: {
-    color: '#FFFFFF',
+  primaryButtonText: {
+    color: colors.textLight,
     fontSize: 16,
     fontWeight: '700',
   },
 
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
+  // Screen Container
+  screenContainer: {
     flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: colors.textSecondary,
+    backgroundColor: colors.background,
   },
 
-  socialButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialIcon: {
-    fontSize: 24,
-  },
-
-  // HOME SCREEN - Modern Card Design
-  homeHeader: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    paddingTop: 16,
-    marginBottom: 8,
-  },
-  headerTop: {
+  // Header
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 16,
   },
   greeting: {
     fontSize: 16,
     color: colors.textSecondary,
-    marginBottom: 4,
   },
   userName: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  notifButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.borderLight,
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.cardBg,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  notifIcon: {
+  notificationIcon: {
     fontSize: 20,
   },
-  notifBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#EF4444',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
+
+  // Header Bar
+  headerBar: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+  },
+  backButtonText: {
+    fontSize: 28,
+    color: colors.textPrimary,
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
 
+  // Stats
   statsRow: {
     flexDirection: 'row',
+    paddingHorizontal: 20,
     gap: 12,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
@@ -1490,24 +1665,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
+    color: colors.textLight,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textLight,
+    opacity: 0.9,
   },
 
-  actionsSection: {
+  // Section
+  section: {
     padding: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
     marginBottom: 16,
   },
+
+  // Actions Grid
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1515,666 +1695,401 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: (width - 52) / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.cardBg,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
-  actionIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  actionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
-  actionIconLarge: {
-    fontSize: 32,
+  actionIconText: {
+    fontSize: 28,
   },
-  actionTitle: {
+  actionText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
     textAlign: 'center',
   },
 
-  activitySection: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6366F1',
-  },
-  activityCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  activityIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  activityIconText: {
-    fontSize: 20,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  activitySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  activityTime: {
-    fontSize: 12,
-    color: colors.textTertiary,
-  },
-  activityAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-
-  // PROFILE SCREEN
-  profileHeader: {
-    backgroundColor: '#6366F1',
-    paddingTop: 60,
-    paddingBottom: 40,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  profileGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#6366F1',
-  },
-  editProfileButton: {
-    position: 'absolute',
-    top: 16,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  editProfileText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  profilePhotoSection: {
-    marginBottom: 16,
-    position: 'relative',
-  },
-  profilePhotoLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-  },
-  profileInitials: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#6366F1',
-  },
-  cameraButtonText: {
-    fontSize: 16,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 12,
-  },
-  profileBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  profileBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  profileStats: {
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    padding: 20,
-    marginHorizontal: 20,
-    marginTop: -20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  profileStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  profileStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  profileStatLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  profileStatDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: 12,
-  },
-
-  profileActions: {
-    padding: 20,
-  },
-  profileActionItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  profileActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  profileActionIconText: {
-    fontSize: 20,
-  },
-  profileActionContent: {
-    flex: 1,
-  },
-  profileActionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  profileActionSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  profileActionArrow: {
-    fontSize: 24,
-    color: colors.textTertiary,
-  },
-
-  // SETTINGS SCREEN
-  settingsHeader: {
-    padding: 20,
-    paddingTop: 16,
-  },
-  settingsTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  settingsSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  settingsSection: {
-    padding: 20,
-    paddingTop: 8,
-  },
-  settingsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-  settingItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  settingIconText: {
-    fontSize: 18,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  settingSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  toggle: {
-    width: 52,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.border,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleActive: {
-    backgroundColor: '#10B981',
-  },
-  toggleThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
-  settingButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  settingArrow: {
-    fontSize: 24,
-    color: colors.textTertiary,
-  },
-
-  // WALLET SCREEN
-  walletCard: {
-    margin: 20,
-    borderRadius: 24,
-    padding: 24,
-    backgroundColor: '#6366F1',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  walletGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 24,
-    backgroundColor: '#6366F1',
-  },
-  walletLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
-  },
-  walletBalance: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 24,
-  },
-  walletActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  walletButton: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  walletButtonIcon: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  walletButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-
-  walletStats: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    gap: 12,
-  },
-  walletStatItem: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  walletStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  walletStatLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-
-  transactionsSection: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  transactionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  transactionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  transactionIconText: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  transactionContent: {
-    flex: 1,
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  transactionDate: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  // EXPLORE SCREEN
-  exploreHeader: {
-    padding: 20,
-    paddingTop: 16,
-  },
-  exploreTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  exploreSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  filtersScroll: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  filterChip: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
-  },
-  filterChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-  },
-
-  packagesGrid: {
-    padding: 20,
-    paddingTop: 8,
-  },
+  // Package Card
   packageCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.cardBg,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    position: 'relative',
-  },
-  urgentBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  urgentBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#EF4444',
+    marginBottom: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   packageHeader: {
-    marginBottom: 16,
-  },
-  packageTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  packagePrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-  packageRoute: {
-    marginBottom: 16,
-  },
-  routePoint: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  routeText: {
-    fontSize: 15,
+  packageId: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.textPrimary,
   },
-  routeLine: {
-    width: 2,
-    height: 16,
-    backgroundColor: colors.border,
-    marginLeft: 5,
-    marginVertical: -4,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textLight,
+  },
+  packageDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  packageCustomer: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  packageRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  packageLocation: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  packageArrow: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    marginHorizontal: 8,
   },
   packageFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
   },
-  packageInfo: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  packageInfoText: {
+  packageDriver: {
     fontSize: 13,
     color: colors.textSecondary,
   },
+  packageInfo: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  packagePrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+  },
   bidButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  bidButtonText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Form Container
+  formContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  listContainer: {
+    flex: 1,
+    padding: 20,
+  },
+
+  // Center Content
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  trackingInfo: {
+    marginTop: 24,
+    padding: 20,
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    width: '100%',
+  },
+  trackingLabel: {
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+
+  // Wallet
+  walletContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  balanceCard: {
+    backgroundColor: colors.primary,
     borderRadius: 20,
-    shadowColor: '#6366F1',
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: colors.textLight,
+    opacity: 0.9,
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: colors.textLight,
+  },
+  walletActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  walletButton: {
+    flex: 1,
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  bidButtonText: {
-    color: '#FFFFFF',
+  walletButtonIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  walletButtonText: {
     fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  transactionCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    padding: 16,
+    borderRadius: 12,
+  },
+  transactionDesc: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.success,
+  },
+
+  // Profile
+  profileHeader: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: colors.cardBg,
+  },
+  profilePhotoContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  profilePhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  profilePhotoPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profilePhotoText: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: colors.textLight,
+  },
+  editPhotoButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editPhotoIcon: {
+    fontSize: 20,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  profileSection: {
+    padding: 20,
+  },
+  profileField: {
+    marginBottom: 20,
+  },
+  profileFieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  profileFieldValue: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  editButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  editButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: colors.textLight,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Settings
+  settingsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  settingsTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 24,
+  },
+  settingsSection: {
+    marginBottom: 24,
+  },
+  settingsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  settingsItemText: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  settingsItemArrow: {
+    fontSize: 18,
+    color: colors.textTertiary,
+  },
+  settingsItemValue: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  logoutButton: {
+    backgroundColor: colors.error,
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  logoutButtonText: {
+    color: colors.textLight,
+    fontSize: 16,
     fontWeight: '700',
   },
 
-  // BOTTOM TAB NAVIGATION
-  bottomTabs: {
+  // Bottom Nav
+  bottomNav: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 12,
-    paddingBottom: 8,
-    paddingHorizontal: 20,
+    backgroundColor: colors.cardBg,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
+    borderTopColor: colors.border,
+    paddingVertical: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 8,
   },
-  tabItem: {
+  bottomNavItem: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 8,
   },
-  tabIconContainer: {
+  bottomNavIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -2182,18 +2097,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  tabIconContainerActive: {
-    backgroundColor: '#EEF2FF',
+  bottomNavIconActive: {
+    backgroundColor: colors.primary,
   },
-  tabIcon: {
-    fontSize: 22,
+  bottomNavIconText: {
+    fontSize: 24,
   },
-  tabLabel: {
-    fontSize: 11,
+  bottomNavLabel: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  bottomNavLabelActive: {
+    color: colors.primary,
     fontWeight: '600',
-    color: colors.textSecondary,
   },
-  tabLabelActive: {
-    color: '#6366F1',
+
+  // Input Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.border,
+  },
+  modalButtonSubmit: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonTextCancel: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextSubmit: {
+    color: colors.textLight,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
