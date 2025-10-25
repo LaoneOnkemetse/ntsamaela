@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             width: 40, 
             height: 40, 
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+            background: '#0EA5E9',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -107,7 +107,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           }}>
             🚚
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#0F172A' }}>
             Ntsamaela
           </Typography>
         </Box>
@@ -130,10 +130,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   py: 1.5,
                   px: 2,
                   transition: 'all 0.2s ease',
-                  background: isActive ? 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)' : 'transparent',
+                  background: isActive ? '#0F172A' : 'transparent',
                   color: isActive ? '#FFFFFF' : 'text.primary',
                   '&:hover': {
-                    background: isActive ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'rgba(99, 102, 241, 0.08)',
+                    background: isActive ? '#1E293B' : '#F0F9FF',
                   },
                 }}
               >
@@ -157,10 +157,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Box sx={{ 
           p: 2, 
           borderRadius: 2, 
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          background: '#F0F9FF',
+          border: '1px solid #BAE6FD',
         }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: '#6366F1', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#0EA5E9', mb: 0.5 }}>
             Need Help?
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -222,9 +222,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Avatar sx={{ 
                 width: 38, 
                 height: 38, 
-                background: 'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+                background: '#0EA5E9',
                 fontWeight: 600,
                 fontSize: '0.9rem',
+                color: '#FFFFFF',
               }}>
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </Avatar>

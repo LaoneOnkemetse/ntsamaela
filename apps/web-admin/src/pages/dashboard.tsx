@@ -100,7 +100,7 @@ export default function Dashboard() {
       title: 'Total Users',
       value: '1,234',
       icon: <People />,
-      gradient: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+      gradient: '#0EA5E9',
       change: 12.5,
       progress: 75,
     },
@@ -108,7 +108,7 @@ export default function Dashboard() {
       title: 'Active Packages',
       value: '567',
       icon: <LocalShipping />,
-      gradient: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+      gradient: '#22C55E',
       change: 8.2,
       progress: 62,
     },
@@ -116,7 +116,7 @@ export default function Dashboard() {
       title: 'Pending Verifications',
       value: '89',
       icon: <VerifiedUser />,
-      gradient: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
+      gradient: '#F59E0B',
       change: -3.1,
       progress: 45,
     },
@@ -124,7 +124,7 @@ export default function Dashboard() {
       title: 'Revenue',
       value: '$12,345',
       icon: <AttachMoney />,
-      gradient: 'linear-gradient(135deg, #EC4899 0%, #F472B6 100%)',
+      gradient: '#8B5CF6',
       change: 15.8,
       progress: 88,
     },
@@ -166,11 +166,12 @@ export default function Dashboard() {
                 alignItems: 'center', 
                 justifyContent: 'center',
                 height: 300,
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                background: '#F8FAFC',
                 borderRadius: 2,
+                border: '2px dashed #E2E8F0',
               }}>
-                <Typography color="text.secondary">
-                  Activity chart would go here
+                <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Activity chart will display here
                 </Typography>
               </Box>
             </CardContent>

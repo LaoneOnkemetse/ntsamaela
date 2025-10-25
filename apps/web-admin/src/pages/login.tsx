@@ -67,7 +67,7 @@ export default function Login() {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
         position: 'relative',
         overflow: 'hidden',
         '&::before': {
@@ -77,7 +77,7 @@ export default function Login() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255, 135, 205, 0.3), transparent 50%)',
+          background: 'radial-gradient(circle at 20% 50%, rgba(14, 165, 233, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15), transparent 50%)',
         },
       }}
     >
@@ -221,9 +221,9 @@ export default function Login() {
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                       sx={{
-                        color: '#6366F1',
+                        color: '#0EA5E9',
                         '&.Mui-checked': {
-                          color: '#6366F1',
+                          color: '#0EA5E9',
                         },
                       }}
                     />
@@ -238,10 +238,10 @@ export default function Login() {
                   variant="text"
                   size="small"
                   sx={{
-                    color: '#6366F1',
+                    color: '#0EA5E9',
                     fontWeight: 600,
                     '&:hover': {
-                      background: 'rgba(99, 102, 241, 0.08)',
+                      background: 'rgba(14, 165, 233, 0.08)',
                     },
                   }}
                 >
@@ -260,9 +260,11 @@ export default function Login() {
                   py: 1.5,
                   fontSize: '1rem',
                   fontWeight: 600,
-                  boxShadow: '0px 8px 20px rgba(99, 102, 241, 0.3)',
+                  background: '#0EA5E9',
+                  color: '#FFFFFF',
                   '&:hover': {
-                    boxShadow: '0px 12px 28px rgba(99, 102, 241, 0.4)',
+                    background: '#0284C7',
+                    boxShadow: '0px 8px 20px rgba(14, 165, 233, 0.4)',
                   },
                 }}
               >
