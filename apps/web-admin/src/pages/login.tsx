@@ -109,13 +109,15 @@ export default function Login() {
               width: 80,
               height: 80,
               borderRadius: '20px',
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: '#75AADB',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.2)',
-              fontSize: '3rem',
+              fontSize: '3.5rem',
+              fontWeight: 900,
+              color: '#FFFFFF',
               mb: 3,
             }}>
-              🚚
+              N
             </Box>
             <Typography
               variant="h3"
