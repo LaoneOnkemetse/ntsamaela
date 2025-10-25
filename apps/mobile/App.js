@@ -139,7 +139,8 @@ function NavigationProvider({ children }) {
       amount: 150,
       status: 'pending',
       description: 'Documents',
-      route: 'Broadhurst → Main Mall',
+      pickup: 'Broadhurst',
+      delivery: 'Main Mall',
     },
     {
       id: 'BID-002',
@@ -147,7 +148,8 @@ function NavigationProvider({ children }) {
       amount: 100,
       status: 'accepted',
       description: 'Small parcel',
-      route: 'Game City → Mogoditshane',
+      pickup: 'Game City',
+      delivery: 'Mogoditshane',
     },
     {
       id: 'BID-003',
@@ -155,9 +157,47 @@ function NavigationProvider({ children }) {
       amount: 85,
       status: 'rejected',
       description: 'Books',
-      route: 'University → Block 8',
+      pickup: 'University',
+      delivery: 'Block 8',
     },
   ]);
+
+  const [upcomingTrips, setUpcomingTrips] = useState([
+    { 
+      id: 1, 
+      driver: 'Lesego Tau', 
+      rating: 4.6,
+      from: 'Gaborone', 
+      to: 'Francistown', 
+      date: 'Oct 26, 10:00 AM',
+      spacesLeft: 2,
+      price: 'P 120'
+    },
+    { 
+      id: 2, 
+      driver: 'Neo Sedimo', 
+      rating: 4.9,
+      from: 'Maun', 
+      to: 'Kasane', 
+      date: 'Oct 27, 2:00 PM',
+      spacesLeft: 1,
+      price: 'P 200'
+    },
+  ]);
+
+  const addTrip = (tripData) => {
+    const newTrip = {
+      id: upcomingTrips.length + 1,
+      driver: `${userProfile.firstName} ${userProfile.lastName}`,
+      rating: userProfile.rating,
+      from: tripData.from.name,
+      to: tripData.to.name,
+      date: `${tripData.date}, ${tripData.time}`,
+      spacesLeft: 3,
+      price: 'P 100'
+    };
+    setUpcomingTrips(prev => [...prev, newTrip]);
+  };
   
   const navigate = (screenName, replace = false) => {
     if (replace) {
@@ -214,6 +254,9 @@ function NavigationProvider({ children }) {
       setAvailablePackages,
       myBids,
       setMyBids,
+      upcomingTrips,
+      setUpcomingTrips,
+      addTrip,
     }}>
       {children}
     </NavigationContext.Provider>
@@ -617,6 +660,7 @@ function CustomerHomeScreen() {
 // Driver Home Screen
 function DriverHomeScreen() {
   const { navigate, availablePackages, driverWallet, userProfile } = useNavigation();
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
 
   const handleNotifications = () => {
     Alert.alert('Notifications', 'You have no new notifications.');
@@ -656,6 +700,16 @@ function DriverHomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => setShowCreateTripModal(true)}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#00C853' }]}>
+                <Text style={styles.actionIconText}>➕</Text>
+              </View>
+              <Text style={styles.actionText}>Create Trip</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity 
               style={styles.actionCard}
               onPress={() => navigate('availablePackages')}
@@ -698,6 +752,11 @@ function DriverHomeScreen() {
           </View>
         </View>
 
+      <CreateTripModal 
+        visible={showCreateTripModal}
+        onClose={() => setShowCreateTripModal(false)}
+      />
+
         {/* Available Packages */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available Packages</Text>
@@ -731,6 +790,160 @@ function DriverHomeScreen() {
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+// Create Trip Modal
+function CreateTripModal({ visible, onClose }) {
+  const { addTrip } = useNavigation();
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [showFromModal, setShowFromModal] = useState(false);
+  const [showToModal, setShowToModal] = useState(false);
+
+  const handleCreate = () => {
+    if (!from || !to || !date || !time) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    addTrip({ from, to, date, time });
+
+    Alert.alert(
+      'Trip Created',
+      `Your trip from ${from.name} to ${to.name} on ${date} at ${time} has been created!\n\nCustomers can now suggest packages for this route.`,
+      [
+        { text: 'OK', onPress: () => {
+          setFrom(null);
+          setTo(null);
+          setDate('');
+          setTime('');
+          onClose();
+        }}
+      ]
+    );
+  };
+
+  return (
+    <>
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
+            <Text style={styles.modalTitle}>Create Trip</Text>
+            <Text style={styles.modalSubtitle}>
+              Create a trip so customers can suggest packages
+            </Text>
+
+            <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+              <Text style={styles.fieldLabel}>From *</Text>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={() => setShowFromModal(true)}
+              >
+                <Text style={styles.locationIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  {from ? (
+                    <>
+                      <Text style={styles.locationSelectedName}>{from.name}</Text>
+                      <Text style={styles.locationSelectedAddress}>{from.address}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.locationPlaceholder}>Select departure location...</Text>
+                  )}
+                </View>
+                <Text style={styles.locationArrow}>›</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.fieldLabel}>To *</Text>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={() => setShowToModal(true)}
+              >
+                <Text style={styles.locationIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  {to ? (
+                    <>
+                      <Text style={styles.locationSelectedName}>{to.name}</Text>
+                      <Text style={styles.locationSelectedAddress}>{to.address}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.locationPlaceholder}>Select destination...</Text>
+                  )}
+                </View>
+                <Text style={styles.locationArrow}>›</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.fieldLabel}>Date *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., Oct 28, 2025"
+                placeholderTextColor={colors.textTertiary}
+                value={date}
+                onChangeText={setDate}
+              />
+
+              <Text style={styles.fieldLabel}>Time *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 10:00 AM"
+                placeholderTextColor={colors.textTertiary}
+                value={time}
+                onChangeText={setTime}
+              />
+
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  ℹ️ Maximum 3 packages per trip. Customers will suggest packages for your route and you can accept, counter, or reject.
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setFrom(null);
+                  setTo(null);
+                  setDate('');
+                  setTime('');
+                  onClose();
+                }}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSubmit]}
+                onPress={handleCreate}
+              >
+                <Text style={styles.modalButtonTextSubmit}>Create Trip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <LocationSearchModal
+        visible={showFromModal}
+        title="Select Departure Location"
+        onSelect={(location) => {
+          setFrom(location);
+          setShowFromModal(false);
+        }}
+        onCancel={() => setShowFromModal(false)}
+      />
+
+      <LocationSearchModal
+        visible={showToModal}
+        title="Select Destination"
+        onSelect={(location) => {
+          setTo(location);
+          setShowToModal(false);
+        }}
+        onCancel={() => setShowToModal(false)}
+      />
+    </>
   );
 }
 
@@ -1301,7 +1514,10 @@ function MyPackagesScreen() {
 
 // Available Drivers Screen (Customer)
 function AvailableDriversScreen() {
-  const { goBack } = useNavigation();
+  const { goBack, myPackages, upcomingTrips } = useNavigation();
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
 
   const activeDrivers = [
     { id: 1, name: 'Thabo Mokoena', rating: 4.8, trips: 234, active: true, currentLocation: 'Gaborone' },
@@ -1309,28 +1525,32 @@ function AvailableDriversScreen() {
     { id: 3, name: 'Mpho Kgosi', rating: 4.7, trips: 156, active: true, currentLocation: 'Maun' },
   ];
 
-  const upcomingTrips = [
-    { 
-      id: 1, 
-      driver: 'Lesego Tau', 
-      rating: 4.6,
-      from: 'Gaborone', 
-      to: 'Francistown', 
-      date: 'Oct 26, 10:00 AM',
-      spacesLeft: 2,
-      price: 'P 120'
-    },
-    { 
-      id: 2, 
-      driver: 'Neo Sedimo', 
-      rating: 4.9,
-      from: 'Maun', 
-      to: 'Kasane', 
-      date: 'Oct 27, 2:00 PM',
-      spacesLeft: 1,
-      price: 'P 200'
-    },
-  ];
+  const handleSuggestPackage = (trip) => {
+    if (myPackages.length === 0) {
+      Alert.alert('No Packages', 'You need to create a package first before suggesting it to drivers.');
+      return;
+    }
+    setSelectedTrip(trip);
+    setShowSuggestModal(true);
+  };
+
+  const handleSubmitSuggestion = () => {
+    if (!selectedPackageId) {
+      Alert.alert('Error', 'Please select a package to suggest');
+      return;
+    }
+    
+    const pkg = myPackages.find(p => p.id === selectedPackageId);
+    setShowSuggestModal(false);
+    
+    Alert.alert(
+      'Suggestion Sent',
+      `Your package "${pkg.description}" has been suggested to ${selectedTrip.driver}.\n\nThey will review and respond to your request.`
+    );
+    
+    setSelectedTrip(null);
+    setSelectedPackageId(null);
+  };
 
   return (
     <View style={styles.screenContainer}>
@@ -1365,8 +1585,14 @@ function AvailableDriversScreen() {
           ))}
 
           <Text style={styles.sectionTitle}>🚗 Upcoming Trips</Text>
+          <Text style={styles.sectionHint}>Tap a trip to suggest your package for delivery</Text>
           {upcomingTrips.map(trip => (
-            <View key={trip.id} style={styles.tripCard}>
+            <TouchableOpacity 
+              key={trip.id} 
+              style={styles.tripCard}
+              onPress={() => handleSuggestPackage(trip)}
+              activeOpacity={0.7}
+            >
               <View style={styles.tripHeader}>
                 <Text style={styles.driverName}>{trip.driver}</Text>
                 <Text style={styles.driverRating}>⭐ {trip.rating}</Text>
@@ -1383,10 +1609,65 @@ function AvailableDriversScreen() {
               <View style={styles.tripPrice}>
                 <Text style={styles.tripPriceText}>Starting from {trip.price}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Package Suggestion Modal */}
+      <Modal visible={showSuggestModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Suggest Package</Text>
+            <Text style={styles.modalSubtitle}>
+              Select which package to suggest to {selectedTrip?.driver}
+            </Text>
+
+            <ScrollView style={{ maxHeight: 300 }}>
+              {myPackages.map(pkg => (
+                <TouchableOpacity
+                  key={pkg.id}
+                  style={[
+                    styles.packageSelectItem,
+                    selectedPackageId === pkg.id && styles.packageSelectItemActive
+                  ]}
+                  onPress={() => setSelectedPackageId(pkg.id)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.packageSelectId}>{pkg.id}</Text>
+                    <Text style={styles.packageSelectDesc}>{pkg.description}</Text>
+                    <Text style={styles.packageSelectRoute}>
+                      {pkg.pickup} → {pkg.delivery}
+                    </Text>
+                  </View>
+                  {selectedPackageId === pkg.id && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowSuggestModal(false);
+                  setSelectedTrip(null);
+                  setSelectedPackageId(null);
+                }}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSubmit]}
+                onPress={handleSubmitSuggestion}
+              >
+                <Text style={styles.modalButtonTextSubmit}>Suggest</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1397,7 +1678,24 @@ function AvailablePackagesScreen() {
   const [showBidModal, setShowBidModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
-  const handlePlaceBid = (pkg) => {
+  const handleAccept = (pkg) => {
+    const yourEarnings = (pkg.price * 0.7).toFixed(2);
+    const platformFee = (pkg.price * 0.3).toFixed(2);
+    
+    Alert.alert(
+      'Accept Package',
+      `Accept ${pkg.id} for P ${pkg.price}?\n\nYou get: P ${yourEarnings}\nPlatform fee: P ${platformFee} (30%)`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Accept', 
+          onPress: () => Alert.alert('Success', `Package ${pkg.id} accepted! Customer will be notified.`)
+        }
+      ]
+    );
+  };
+
+  const handleCounterBid = (pkg) => {
     setSelectedPackage(pkg);
     setShowBidModal(true);
   };
@@ -1405,7 +1703,8 @@ function AvailablePackagesScreen() {
   const handleBidSubmit = (amount) => {
     setShowBidModal(false);
     if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
-      Alert.alert('Success', `Bid of P ${amount} placed for ${selectedPackage.id}!`);
+      const yourEarnings = (parseFloat(amount) * 0.7).toFixed(2);
+      Alert.alert('Success', `Counter bid of P ${amount} placed!\n\nIf accepted, you'll receive P ${yourEarnings} (after 30% platform fee)`);
     } else {
       Alert.alert('Error', 'Please enter a valid bid amount');
     }
@@ -1438,13 +1737,20 @@ function AvailablePackagesScreen() {
                 <Text style={styles.packageArrow}>→</Text>
                 <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
               </View>
-              <View style={styles.packageFooter}>
-                <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
+              <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
+              
+              <View style={styles.packageActions}>
                 <TouchableOpacity 
-                  style={styles.bidButton}
-                  onPress={() => handlePlaceBid(pkg)}
+                  style={[styles.packageActionButton, styles.acceptButton]}
+                  onPress={() => handleAccept(pkg)}
                 >
-                  <Text style={styles.bidButtonText}>Place Bid</Text>
+                  <Text style={styles.acceptButtonText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.packageActionButton, styles.counterButton]}
+                  onPress={() => handleCounterBid(pkg)}
+                >
+                  <Text style={styles.counterButtonText}>Counter Bid</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1454,8 +1760,8 @@ function AvailablePackagesScreen() {
 
       <InputModal
         visible={showBidModal}
-        title={selectedPackage ? `Place Bid for ${selectedPackage.id}` : 'Place Bid'}
-        placeholder="Enter bid amount (P)"
+        title={selectedPackage ? `Counter Bid for ${selectedPackage.id}` : 'Counter Bid'}
+        placeholder="Enter your bid amount (P)"
         keyboardType="decimal-pad"
         onSubmit={handleBidSubmit}
         onCancel={() => {
@@ -3542,5 +3848,87 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.success,
+  },
+
+  // Available Packages - Action Buttons
+  packageActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  packageActionButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  acceptButton: {
+    backgroundColor: colors.primary,
+  },
+  acceptButtonText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  counterButton: {
+    backgroundColor: colors.accent,
+  },
+  counterButtonText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Section Hint
+  sectionHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+
+  // Package Select Item (for suggestion modal)
+  packageSelectItem: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  packageSelectItemActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  packageSelectId: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  packageSelectDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  packageSelectRoute: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+
+  // Info Box
+  infoBox: {
+    backgroundColor: colors.primary + '15',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
   },
 });
