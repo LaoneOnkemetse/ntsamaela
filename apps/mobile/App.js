@@ -6,43 +6,50 @@ import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 
-// MODERN TRENDY DESIGN SYSTEM - 2025 Style
-const trendyColors = {
-  // Vibrant Gradient Primaries
-  gradientStart: '#6366F1', // Vibrant Indigo
-  gradientEnd: '#8B5CF6', // Purple
+// NTSAMAELA 2025 DESIGN SYSTEM - Botswana Pride
+const colors = {
+  // Botswana Flag Colors - Primary Palette
+  botswanaBlue: '#75AADB',
+  botswanaBlack: '#000000',
+  botswanaWhite: '#FFFFFF',
   
-  // Accent Gradients
-  accentStart: '#EC4899', // Pink
-  accentEnd: '#EF4444', // Red
+  // Primary - Sky Blue (Botswana Blue)
+  primary: '#75AADB',
+  primaryDark: '#5A8FBF',
+  primaryLight: '#A3C9E8',
   
-  // Success/Action Gradients
-  successStart: '#10B981', // Emerald
-  successEnd: '#14B8A6', // Teal
+  // Secondary - Deep Black
+  secondary: '#1A1A1A',
+  secondaryLight: '#333333',
   
-  // Modern Neutrals
-  background: '#F8FAFC',
+  // Accent Colors (2025 Trends)
+  accent: '#FFB800', // Warm Gold
+  accentGreen: '#00C853', // Success Green
+  accentOrange: '#FF6D00', // Energy Orange
+  
+  // Backgrounds
+  background: '#F5F7FA',
   cardBg: '#FFFFFF',
-  glassBg: 'rgba(255, 255, 255, 0.7)',
-  darkGlass: 'rgba(0, 0, 0, 0.05)',
+  darkBg: '#0A0A0A',
   
   // Text
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textTertiary: '#94A3B8',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#666666',
+  textTertiary: '#999999',
   textLight: '#FFFFFF',
+  textMuted: '#CCCCCC',
+  
+  // Status
+  success: '#00C853',
+  warning: '#FFB800',
+  error: '#D32F2F',
+  info: '#75AADB',
   
   // Borders & Shadows
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  shadow: 'rgba(99, 102, 241, 0.2)',
-  shadowDark: 'rgba(0, 0, 0, 0.1)',
-  
-  // Status Colors
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
+  border: '#E0E0E0',
+  borderLight: '#F0F0F0',
+  shadow: 'rgba(117, 170, 219, 0.15)',
+  shadowDark: 'rgba(0, 0, 0, 0.08)',
 };
 
 // Custom Navigation System
@@ -213,146 +220,199 @@ function GradientView({ colors, style, children }) {
   );
 }
 
-// Modern Icon Component with Unicode symbols (no emojis)
-function ModernIcon({ name, size = 24, color = '#FFFFFF', bgColor }) {
-  const icons = {
-    home: '⌂',        // House symbol
-    search: '⌕',      // Search symbol
-    user: '⚪',        // Circle for user
-    settings: '⚙',    // Gear symbol
-    package: '◫',     // Box symbol
-    wallet: '▬',      // Card symbol
-    truck: '▮',       // Truck/vehicle symbol
-    location: '◉',    // Location pin
-    bell: '◔',        // Bell/notification
-    star: '★',        // Star symbol
-    check: '✓',       // Checkmark
-    arrow: '→',       // Arrow
-    camera: '◉',      // Camera
-    email: '✉',       // Mail symbol
-    phone: '☎',       // Phone symbol
-    logout: '⎋',      // Logout symbol
-    info: 'ⓘ',        // Info symbol
-    money: '$',       // Dollar sign
-    chart: '◢',       // Chart/stats
-    menu: '☰',        // Menu bars
-    plus: '+',        // Plus sign
-  };
+// Ntsamaela Logo Component
+function NtsamaelaLogo({ size = 'large', showSlogan = true }) {
+  const logoSize = size === 'large' ? 48 : size === 'medium' ? 32 : 24;
+  const sloganSize = size === 'large' ? 16 : size === 'medium' ? 14 : 12;
   
   return (
-    <View style={bgColor ? {
-      backgroundColor: bgColor,
-      width: size * 1.8,
-      height: size * 1.8,
-      borderRadius: size * 0.9,
-      justifyContent: 'center',
-      alignItems: 'center',
-    } : null}>
-      <Text style={{ fontSize: size, color, fontWeight: '700' }}>
-        {icons[name] || '◉'}
-      </Text>
+    <View style={{ alignItems: 'center' }}>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: showSlogan ? 8 : 0,
+      }}>
+        <View style={{
+          width: logoSize * 1.2,
+          height: logoSize * 1.2,
+          borderRadius: logoSize * 0.6,
+          backgroundColor: colors.primary,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginRight: 12,
+        }}>
+          <Text style={{
+            fontSize: logoSize * 0.6,
+            color: colors.textLight,
+            fontWeight: '900',
+          }}>N</Text>
+        </View>
+        <Text style={{
+          fontSize: logoSize,
+          fontWeight: '800',
+          color: colors.secondary,
+          letterSpacing: 1,
+        }}>
+          NTSAMAELA
+        </Text>
+      </View>
+      {showSlogan && (
+        <Text style={{
+          fontSize: sloganSize,
+          color: colors.textSecondary,
+          fontStyle: 'italic',
+          letterSpacing: 0.5,
+        }}>
+          roma mongwe ka wena
+        </Text>
+      )}
     </View>
   );
 }
 
-// Modern Login/Register Screen with Gradient
+// Modern Icon Component
+function Icon({ name, size = 24, color = colors.textPrimary }) {
+  const icons = {
+    home: '⌂',
+    search: '⌕',
+    user: '●',
+    settings: '⚙',
+    package: '◫',
+    wallet: '▬',
+    truck: '▮',
+    location: '◉',
+    bell: '◔',
+    star: '★',
+    check: '✓',
+    arrow: '→',
+    send: '↗',
+    menu: '☰',
+  };
+  
+  return (
+    <Text style={{ fontSize: size, color, fontWeight: '600' }}>
+      {icons[name] || '●'}
+    </Text>
+  );
+}
+
+// New 2025 Login Screen - Clean & Minimal
 function LoginScreen() {
-  const { login, navigate } = useNavigation();
+  const { login } = useNavigation();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [userType, setUserType] = useState('customer');
+  const [devMode, setDevMode] = useState('customer');
 
   const handleAuth = () => {
-    if (isLogin) {
-      login(userType);
-    } else {
-      if (password !== confirmPassword) {
-        Alert.alert('Error', 'Passwords do not match');
-        return;
-      }
-      login(userType);
+    if (!isLogin && password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
     }
+    
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    
+    login(devMode);
   };
 
   return (
-    <GradientView colors={['#6366F1', '#8B5CF6']} style={{ flex: 1 }}>
-      <StatusBar style="light" />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style="dark" />
       
       <ScrollView 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.loginScroll}
+        contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}
       >
-        {/* Header */}
-        <View style={styles.loginHeader}>
-          <View style={styles.appIconContainer}>
-            <Text style={styles.appIcon}>🚚</Text>
-          </View>
-          <Text style={styles.loginTitle}>Ntsamaela</Text>
-          <Text style={styles.loginSubtitle}>Your trusted delivery partner</Text>
+        <View style={{ marginBottom: 48, alignItems: 'center' }}>
+          <NtsamaelaLogo size="large" showSlogan={true} />
         </View>
 
-        {/* Glass Card */}
-        <View style={styles.glassCard}>
-          {/* Tab Switcher */}
-          <View style={styles.authTabs}>
+        <View style={{
+          backgroundColor: colors.cardBg,
+          borderRadius: 20,
+          padding: 24,
+          shadowColor: colors.shadowDark,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          elevation: 5,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            backgroundColor: colors.background,
+            borderRadius: 12,
+            padding: 4,
+            marginBottom: 24,
+          }}>
             <TouchableOpacity
-              style={[styles.authTab, isLogin && styles.authTabActive]}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 10,
+                backgroundColor: isLogin ? colors.primary : 'transparent',
+              }}
               onPress={() => setIsLogin(true)}
             >
-              <Text style={[styles.authTabText, isLogin && styles.authTabTextActive]}>
+              <Text style={{
+                textAlign: 'center',
+                fontWeight: '600',
+                color: isLogin ? colors.textLight : colors.textSecondary,
+              }}>
                 Sign In
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.authTab, !isLogin && styles.authTabActive]}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 10,
+                backgroundColor: !isLogin ? colors.primary : 'transparent',
+              }}
               onPress={() => setIsLogin(false)}
             >
-              <Text style={[styles.authTabText, !isLogin && styles.authTabTextActive]}>
+              <Text style={{
+                textAlign: 'center',
+                fontWeight: '600',
+                color: !isLogin ? colors.textLight : colors.textSecondary,
+              }}>
                 Sign Up
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* User Type Selector */}
-          <View style={styles.userTypeContainer}>
-            <TouchableOpacity
-              style={[styles.userTypeButton, userType === 'customer' && styles.userTypeActive]}
-              onPress={() => setUserType('customer')}
-            >
-              <ModernIcon name="user" size={18} color={userType === 'customer' ? '#6366F1' : trendyColors.textSecondary} />
-              <Text style={[styles.userTypeText, userType === 'customer' && styles.userTypeTextActive]}>
-                Customer
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.userTypeButton, userType === 'driver' && styles.userTypeActive]}
-              onPress={() => setUserType('driver')}
-            >
-              <ModernIcon name="truck" size={18} color={userType === 'driver' ? '#6366F1' : trendyColors.textSecondary} />
-              <Text style={[styles.userTypeText, userType === 'driver' && styles.userTypeTextActive]}>
-                Driver
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Form Fields */}
           {!isLogin && (
-            <View style={styles.nameRow}>
+            <View style={{ flexDirection: 'row', marginBottom: 16, gap: 12 }}>
               <TextInput
-                style={[styles.modernInput, { flex: 1, marginRight: 8 }]}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.background,
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  color: colors.textPrimary,
+                }}
                 placeholder="First Name"
-                placeholderTextColor={trendyColors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={firstName}
                 onChangeText={setFirstName}
               />
               <TextInput
-                style={[styles.modernInput, { flex: 1 }]}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.background,
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  color: colors.textPrimary,
+                }}
                 placeholder="Last Name"
-                placeholderTextColor={trendyColors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 value={lastName}
                 onChangeText={setLastName}
               />
@@ -360,9 +420,16 @@ function LoginScreen() {
           )}
 
           <TextInput
-            style={styles.modernInput}
+            style={{
+              backgroundColor: colors.background,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              fontSize: 16,
+              color: colors.textPrimary,
+            }}
             placeholder="Email Address"
-            placeholderTextColor={trendyColors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -370,9 +437,16 @@ function LoginScreen() {
           />
 
           <TextInput
-            style={styles.modernInput}
+            style={{
+              backgroundColor: colors.background,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              fontSize: 16,
+              color: colors.textPrimary,
+            }}
             placeholder="Password"
-            placeholderTextColor={trendyColors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -380,51 +454,108 @@ function LoginScreen() {
 
           {!isLogin && (
             <TextInput
-              style={styles.modernInput}
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+                fontSize: 16,
+                color: colors.textPrimary,
+              }}
               placeholder="Confirm Password"
-              placeholderTextColor={trendyColors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
             />
           )}
 
-          {isLogin && (
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Submit Button */}
-          <TouchableOpacity style={styles.gradientButton} onPress={handleAuth}>
-            <View style={styles.gradientButtonInner} />
-            <Text style={styles.gradientButtonText}>
+          {/* Login Button */}
+          <TouchableOpacity 
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              padding: 18,
+              alignItems: 'center',
+              marginTop: 8,
+            }}
+            onPress={handleAuth}
+          >
+            <Text style={{
+              color: colors.textLight,
+              fontSize: 16,
+              fontWeight: '700',
+            }}>
               {isLogin ? 'Sign In' : 'Create Account'}
             </Text>
           </TouchableOpacity>
+        </View>
 
-          {/* Social Login Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Buttons */}
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>G</Text>
+        {/* Dev Mode Toggle */}
+        <View style={{
+          marginTop: 32,
+          padding: 20,
+          backgroundColor: colors.cardBg,
+          borderRadius: 16,
+          borderWidth: 2,
+          borderColor: colors.accent,
+          borderStyle: 'dashed',
+        }}>
+          <Text style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: colors.textSecondary,
+            marginBottom: 12,
+            textAlign: 'center',
+          }}>
+            🔧 Development Mode
+          </Text>
+          <View style={{
+            flexDirection: 'row',
+            backgroundColor: colors.background,
+            borderRadius: 10,
+            padding: 4,
+          }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 8,
+                backgroundColor: devMode === 'customer' ? colors.accent : 'transparent',
+              }}
+              onPress={() => setDevMode('customer')}
+            >
+              <Text style={{
+                textAlign: 'center',
+                fontWeight: '600',
+                fontSize: 14,
+                color: devMode === 'customer' ? colors.textLight : colors.textSecondary,
+              }}>
+                Customer View
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>f</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialIcon}>🍎</Text>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 8,
+                backgroundColor: devMode === 'driver' ? colors.accent : 'transparent',
+              }}
+              onPress={() => setDevMode('driver')}
+            >
+              <Text style={{
+                textAlign: 'center',
+                fontWeight: '600',
+                fontSize: 14,
+                color: devMode === 'driver' ? colors.textLight : colors.textSecondary,
+              }}>
+                Driver View
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-    </GradientView>
+    </View>
   );
 }
 
@@ -935,7 +1066,7 @@ function BottomTabNavigation() {
             <ModernIcon 
               name={tab.icon} 
               size={22} 
-              color={currentScreen === tab.id ? '#6366F1' : trendyColors.textSecondary}
+              color={currentScreen === tab.id ? '#6366F1' : colors.textSecondary}
             />
           </View>
           <Text style={[
@@ -995,7 +1126,7 @@ function AppNavigator() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: trendyColors.background,
+    backgroundColor: colors.background,
   },
 
   // LOGIN SCREEN - Modern Gradient Design
@@ -1057,7 +1188,7 @@ const styles = StyleSheet.create({
   
   authTabs: {
     flexDirection: 'row',
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
@@ -1079,10 +1210,10 @@ const styles = StyleSheet.create({
   authTabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   authTabTextActive: {
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
   },
 
   userTypeContainer: {
@@ -1097,7 +1228,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -1112,19 +1243,19 @@ const styles = StyleSheet.create({
   userTypeText: {
     fontSize: 15,
     fontWeight: '600',
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   userTypeTextActive: {
     color: '#6366F1',
   },
 
   modernInput: {
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -1171,12 +1302,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: trendyColors.border,
+    backgroundColor: colors.border,
   },
   dividerText: {
     paddingHorizontal: 16,
     fontSize: 14,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
 
   socialButtons: {
@@ -1188,7 +1319,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1211,19 +1342,19 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   userName: {
     fontSize: 24,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
   },
   notifButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -1265,7 +1396,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
 
   actionsSection: {
@@ -1274,7 +1405,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   actionsGrid: {
@@ -1308,7 +1439,7 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 
@@ -1344,7 +1475,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: trendyColors.borderLight,
+    backgroundColor: colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1358,17 +1489,17 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   activitySubtitle: {
     fontSize: 14,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   activityTime: {
     fontSize: 12,
-    color: trendyColors.textTertiary,
+    color: colors.textTertiary,
   },
   activityAmount: {
     fontSize: 16,
@@ -1484,16 +1615,16 @@ const styles = StyleSheet.create({
   profileStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   profileStatLabel: {
     fontSize: 12,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   profileStatDivider: {
     width: 1,
-    backgroundColor: trendyColors.border,
+    backgroundColor: colors.border,
     marginHorizontal: 12,
   },
 
@@ -1530,16 +1661,16 @@ const styles = StyleSheet.create({
   profileActionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   profileActionSubtitle: {
     fontSize: 13,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   profileActionArrow: {
     fontSize: 24,
-    color: trendyColors.textTertiary,
+    color: colors.textTertiary,
   },
 
   // SETTINGS SCREEN
@@ -1550,12 +1681,12 @@ const styles = StyleSheet.create({
   settingsTitle: {
     fontSize: 32,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   settingsSubtitle: {
     fontSize: 16,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   settingsSection: {
     padding: 20,
@@ -1564,7 +1695,7 @@ const styles = StyleSheet.create({
   settingsSectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 12,
     letterSpacing: 1,
@@ -1601,18 +1732,18 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
   },
   settingSubtitle: {
     fontSize: 13,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   toggle: {
     width: 52,
     height: 32,
     borderRadius: 16,
-    backgroundColor: trendyColors.border,
+    backgroundColor: colors.border,
     padding: 2,
     justifyContent: 'center',
   },
@@ -1649,7 +1780,7 @@ const styles = StyleSheet.create({
   },
   settingArrow: {
     fontSize: 24,
-    color: trendyColors.textTertiary,
+    color: colors.textTertiary,
   },
 
   // WALLET SCREEN
@@ -1726,12 +1857,12 @@ const styles = StyleSheet.create({
   walletStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   walletStatLabel: {
     fontSize: 13,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
 
   transactionsSection: {
@@ -1769,12 +1900,12 @@ const styles = StyleSheet.create({
   transactionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   transactionDate: {
     fontSize: 13,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   transactionAmount: {
     fontSize: 16,
@@ -1789,12 +1920,12 @@ const styles = StyleSheet.create({
   exploreTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   exploreSubtitle: {
     fontSize: 16,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   filtersScroll: {
     paddingHorizontal: 20,
@@ -1807,7 +1938,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: trendyColors.border,
+    borderColor: colors.border,
   },
   filterChipActive: {
     backgroundColor: '#6366F1',
@@ -1816,7 +1947,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   filterChipTextActive: {
     color: '#FFFFFF',
@@ -1858,7 +1989,7 @@ const styles = StyleSheet.create({
   packageTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   packagePrice: {
@@ -1882,12 +2013,12 @@ const styles = StyleSheet.create({
   },
   routeText: {
     fontSize: 15,
-    color: trendyColors.textPrimary,
+    color: colors.textPrimary,
   },
   routeLine: {
     width: 2,
     height: 16,
-    backgroundColor: trendyColors.border,
+    backgroundColor: colors.border,
     marginLeft: 5,
     marginVertical: -4,
   },
@@ -1897,7 +2028,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: trendyColors.borderLight,
+    borderTopColor: colors.borderLight,
   },
   packageInfo: {
     flexDirection: 'row',
@@ -1905,7 +2036,7 @@ const styles = StyleSheet.create({
   },
   packageInfoText: {
     fontSize: 13,
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   bidButton: {
     backgroundColor: '#6366F1',
@@ -1932,7 +2063,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: trendyColors.borderLight,
+    borderTopColor: colors.borderLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
@@ -1960,7 +2091,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: trendyColors.textSecondary,
+    color: colors.textSecondary,
   },
   tabLabelActive: {
     color: '#6366F1',
