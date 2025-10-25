@@ -8,8 +8,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  generateBuildId: async () => {
+    return 'replit-build-' + Date.now();
+  },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY || 'default-key',
+    NEXT_PUBLIC_DEPLOYMENT_ID: 'replit-deployment',
   },
   images: {
     domains: ['localhost', 'your-s3-bucket.s3.amazonaws.com'],
@@ -35,7 +39,10 @@ const nextConfig = {
       },
     ];
   },
-  distDir: '../../.next',
+  distDir: '.next',
+  experimental: {
+    webpackBuildWorker: false,
+  },
 };
 
 module.exports = nextConfig;
