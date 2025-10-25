@@ -1350,23 +1350,23 @@ function AppNavigator() {
       return <LoginScreen />;
     }
 
-    // Main tab screens
-    if (activeTab === 'profile') return <ProfileScreen />;
-    if (activeTab === 'settings') return <SettingsScreen />;
-    if (activeTab === 'home') {
-      return userType === 'customer' ? <CustomerHomeScreen /> : <DriverHomeScreen />;
-    }
-
-    // Customer screens
+    // Customer screens (check before tabs)
     if (currentScreen === 'createPackage') return <CreatePackageScreen />;
     if (currentScreen === 'myPackages') return <MyPackagesScreen />;
     if (currentScreen === 'trackPackage') return <TrackPackageScreen />;
     if (currentScreen === 'wallet') return <WalletScreen />;
 
-    // Driver screens
+    // Driver screens (check before tabs)
     if (currentScreen === 'availablePackages') return <AvailablePackagesScreen />;
     if (currentScreen === 'myBids') return <MyBidsScreen />;
     if (currentScreen === 'myTrips') return <MyTripsScreen />;
+
+    // Main tab screens (checked after specific screens)
+    if (activeTab === 'profile') return <ProfileScreen />;
+    if (activeTab === 'settings') return <SettingsScreen />;
+    if (activeTab === 'home') {
+      return userType === 'customer' ? <CustomerHomeScreen /> : <DriverHomeScreen />;
+    }
 
     return userType === 'customer' ? <CustomerHomeScreen /> : <DriverHomeScreen />;
   };

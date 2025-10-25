@@ -239,6 +239,12 @@ export default function Login() {
                 <Button
                   variant="text"
                   size="small"
+                  onClick={() => {
+                    toast('Please contact your administrator to reset your password.', {
+                      icon: 'ℹ️',
+                      duration: 4000,
+                    });
+                  }}
                   sx={{
                     color: '#0EA5E9',
                     fontWeight: 600,
