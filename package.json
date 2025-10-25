@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web-admin\" \"npm run dev:mobile\"",
     "dev:api": "cd apps/api && npm run dev",
-    "dev:web-admin": "cd apps/web-admin && npm run dev -- --port 3000",
+    "dev:web-admin": "cd apps/web-admin && npm run dev",
     "dev:mobile": "cd apps/mobile && npx expo start --port 8081",
     "build": "npm run build:api && npm run build:web-admin && npm run build:mobile",
     "build:api": "cd apps/api && npm run build",
