@@ -1079,6 +1079,59 @@ function CreatePackageScreen() {
 // My Packages Screen (Customer)
 function MyPackagesScreen() {
   const { goBack, myPackages } = useNavigation();
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [showBidsModal, setShowBidsModal] = useState(false);
+
+  const pendingPackages = [
+    { 
+      id: 'PKG-004', 
+      description: 'Laptop and accessories', 
+      pickup: 'Gaborone', 
+      delivery: 'Francistown',
+      price: 250,
+      status: 'pending',
+      bids: [
+        { id: 1, driver: 'Thabo Mokoena', rating: 4.8, amount: 220, trips: 234 },
+        { id: 2, driver: 'Neo Sedimo', rating: 4.9, amount: 200, trips: 189 },
+        { id: 3, driver: 'Mpho Kgosi', rating: 4.7, amount: 240, trips: 156 },
+      ]
+    },
+  ];
+
+  const inTransitPackages = myPackages.filter(p => p.status === 'in-transit').map(p => ({
+    ...p,
+    currentLocation: 'Palapye',
+    eta: '45 minutes',
+    progress: 65
+  }));
+
+  const deliveredPackages = myPackages.filter(p => p.status === 'delivered');
+
+  const handleViewBids = (pkg) => {
+    setSelectedPackage(pkg);
+    setShowBidsModal(true);
+  };
+
+  const handleAcceptBid = (bid) => {
+    Alert.alert(
+      'Accept Bid',
+      `Accept ${bid.driver}'s bid of P ${bid.amount}?\n\n• Platform fee (30%): P ${(bid.amount * 0.3).toFixed(2)}\n• You pay: P ${bid.amount}\n• Driver receives: P ${(bid.amount * 0.7).toFixed(2)}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Accept',
+          onPress: () => {
+            setShowBidsModal(false);
+            Alert.alert('Success', `Bid accepted! Driver ${bid.driver} will be notified.`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRejectBid = (bid) => {
+    Alert.alert('Bid Rejected', `${bid.driver}'s bid has been rejected.`);
+  };
 
   return (
     <View style={styles.screenContainer}>
@@ -1093,28 +1146,155 @@ function MyPackagesScreen() {
         </View>
 
         <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-          {myPackages.map(pkg => (
-            <View key={pkg.id} style={styles.packageCard}>
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageId}>{pkg.id}</Text>
-                <View style={[styles.statusBadge, getStatusColor(pkg.status)]}>
-                  <Text style={styles.statusText}>{pkg.status}</Text>
+          {/* Pending Packages */}
+          {pendingPackages.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>⏳ Pending ({pendingPackages.length})</Text>
+              {pendingPackages.map(pkg => (
+                <TouchableOpacity
+                  key={pkg.id}
+                  style={styles.packageCard}
+                  onPress={() => handleViewBids(pkg)}
+                >
+                  <View style={styles.packageHeader}>
+                    <Text style={styles.packageId}>{pkg.id}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: '#FFA500' }]}>
+                      <Text style={styles.statusText}>{pkg.bids.length} bids</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.packageDesc}>{pkg.description}</Text>
+                  <View style={styles.packageRoute}>
+                    <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                    <Text style={styles.packageArrow}>→</Text>
+                    <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+                  </View>
+                  <View style={styles.packageFooter}>
+                    <Text style={styles.packageDriver}>Your offer: P {pkg.price}</Text>
+                    <Text style={styles.viewBidsText}>Tap to view bids →</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {/* In Transit Packages */}
+          {inTransitPackages.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>🚚 In Transit ({inTransitPackages.length})</Text>
+              {inTransitPackages.map(pkg => (
+                <View key={pkg.id} style={styles.packageCard}>
+                  <View style={styles.packageHeader}>
+                    <Text style={styles.packageId}>{pkg.id}</Text>
+                    <View style={[styles.statusBadge, getStatusColor('in-transit')]}>
+                      <Text style={styles.statusText}>In Transit</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.packageDesc}>{pkg.description}</Text>
+                  <View style={styles.packageRoute}>
+                    <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                    <Text style={styles.packageArrow}>→</Text>
+                    <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+                  </View>
+                  <View style={styles.trackingBox}>
+                    <Text style={styles.trackingText}>📍 Current: {pkg.currentLocation}</Text>
+                    <Text style={styles.trackingText}>🕒 ETA: {pkg.eta}</Text>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${pkg.progress}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>{pkg.progress}% complete</Text>
+                  </View>
+                  <View style={styles.packageFooter}>
+                    <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    <Text style={styles.packagePrice}>P {pkg.price}</Text>
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.packageDesc}>{pkg.description}</Text>
-              <View style={styles.packageRoute}>
-                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
-                <Text style={styles.packageArrow}>→</Text>
-                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
-              </View>
-              <View style={styles.packageFooter}>
-                <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
-                <Text style={styles.packagePrice}>P {pkg.price}</Text>
-              </View>
-            </View>
-          ))}
+              ))}
+            </>
+          )}
+
+          {/* Delivered Packages */}
+          {deliveredPackages.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>✅ Delivered ({deliveredPackages.length})</Text>
+              {deliveredPackages.map(pkg => (
+                <View key={pkg.id} style={styles.packageCard}>
+                  <View style={styles.packageHeader}>
+                    <Text style={styles.packageId}>{pkg.id}</Text>
+                    <View style={[styles.statusBadge, getStatusColor('delivered')]}>
+                      <Text style={styles.statusText}>Delivered</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.packageDesc}>{pkg.description}</Text>
+                  <View style={styles.packageRoute}>
+                    <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
+                    <Text style={styles.packageArrow}>→</Text>
+                    <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
+                  </View>
+                  <View style={styles.packageFooter}>
+                    <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
+                    <Text style={styles.packagePrice}>P {pkg.price}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Bids Modal */}
+      <Modal visible={showBidsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
+            <Text style={styles.modalTitle}>
+              Bids for {selectedPackage?.id}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Your offer: P {selectedPackage?.price}
+            </Text>
+
+            <ScrollView style={{ maxHeight: 400, marginBottom: 16 }}>
+              {selectedPackage?.bids.map(bid => (
+                <View key={bid.id} style={styles.bidCard}>
+                  <View style={styles.bidHeader}>
+                    <View>
+                      <Text style={styles.bidDriverName}>{bid.driver}</Text>
+                      <Text style={styles.bidDriverMeta}>
+                        ⭐ {bid.rating} • {bid.trips} trips
+                      </Text>
+                    </View>
+                    <Text style={styles.bidAmount}>P {bid.amount}</Text>
+                  </View>
+                  <View style={styles.bidFeeInfo}>
+                    <Text style={styles.bidFeeText}>Platform fee (30%): P {(bid.amount * 0.3).toFixed(2)}</Text>
+                    <Text style={styles.bidFeeText}>Driver receives: P {(bid.amount * 0.7).toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.bidActions}>
+                    <TouchableOpacity
+                      style={[styles.bidButton, styles.bidRejectButton]}
+                      onPress={() => handleRejectBid(bid)}
+                    >
+                      <Text style={styles.bidRejectText}>Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.bidButton, styles.bidAcceptButton]}
+                      onPress={() => handleAcceptBid(bid)}
+                    >
+                      <Text style={styles.bidAcceptText}>Accept</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => setShowBidsModal(false)}
+            >
+              <Text style={styles.modalButtonTextCancel}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1303,11 +1483,52 @@ function MyBidsScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <View style={styles.centerContent}>
-          <Text style={styles.emptyIcon}>💬</Text>
-          <Text style={styles.emptyTitle}>No Active Bids</Text>
-          <Text style={styles.emptyText}>Your bids will appear here</Text>
-        </View>
+        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+          {myBids.length > 0 ? (
+            myBids.map(bid => (
+              <View key={bid.id} style={styles.bidStatusCard}>
+                <View style={styles.bidStatusHeader}>
+                  <Text style={styles.bidStatusPackage}>{bid.packageId}</Text>
+                  <View style={[
+                    styles.bidStatusBadge,
+                    bid.status === 'accepted' ? { backgroundColor: colors.success + '20' } :
+                    bid.status === 'rejected' ? { backgroundColor: colors.error + '20' } :
+                    { backgroundColor: '#FFA500' + '20' }
+                  ]}>
+                    <Text style={[
+                      styles.bidStatusText,
+                      bid.status === 'accepted' ? { color: colors.success } :
+                      bid.status === 'rejected' ? { color: colors.error } :
+                      { color: '#FFA500' }
+                    ]}>
+                      {bid.status}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.bidStatusDesc}>{bid.description}</Text>
+                <View style={styles.bidStatusRoute}>
+                  <Text style={styles.packageLocation}>📍 {bid.pickup}</Text>
+                  <Text style={styles.packageArrow}>→</Text>
+                  <Text style={styles.packageLocation}>📍 {bid.delivery}</Text>
+                </View>
+                <View style={styles.bidStatusFooter}>
+                  <Text style={styles.bidStatusAmount}>Your bid: P {bid.amount}</Text>
+                  {bid.status === 'accepted' && (
+                    <Text style={styles.bidStatusEarnings}>
+                      You get: P {(bid.amount * 0.7).toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.centerContent}>
+              <Text style={styles.emptyIcon}>💬</Text>
+              <Text style={styles.emptyTitle}>No Active Bids</Text>
+              <Text style={styles.emptyText}>Place bids on available packages to see them here</Text>
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -1316,6 +1537,56 @@ function MyBidsScreen() {
 // My Trips Screen (Driver)
 function MyTripsScreen() {
   const { goBack } = useNavigation();
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+
+  const myTrips = [
+    {
+      id: 'TRIP-001',
+      from: 'Gaborone',
+      to: 'Francistown',
+      date: 'Oct 26, 10:00 AM',
+      spacesTotal: 3,
+      spacesUsed: 1,
+      packages: [
+        { id: 'PKG-005', customer: 'Lesego Tau', item: 'Documents', fee: 120, status: 'accepted' }
+      ],
+      suggestions: [
+        { id: 'PKG-006', customer: 'Kgosi Molefe', item: 'Electronics', suggestedFee: 150 },
+      ]
+    }
+  ];
+
+  const handleCreateTrip = () => {
+    setShowCreateTripModal(true);
+  };
+
+  const handleAcceptSuggestion = (trip, pkg) => {
+    if (trip.spacesUsed >= trip.spacesTotal) {
+      Alert.alert('Error', 'Trip is full. Maximum 3 packages per trip.');
+      return;
+    }
+    Alert.alert(
+      'Accept Package',
+      `Accept ${pkg.customer}'s package for P ${pkg.suggestedFee}?\n\n• Platform fee (30%): P ${(pkg.suggestedFee * 0.3).toFixed(2)}\n• You receive: P ${(pkg.suggestedFee * 0.7).toFixed(2)}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Accept',
+          onPress: () => Alert.alert('Success', 'Package accepted! Customer will be notified.')
+        }
+      ]
+    );
+  };
+
+  const handleCounterBid = (pkg) => {
+    Alert.alert('Counter Bid', `Enter your counter offer for ${pkg.customer}'s package`, [
+      { text: 'Cancel', style: 'cancel' }
+    ]);
+  };
+
+  const handleRejectSuggestion = (pkg) => {
+    Alert.alert('Reject Package', `${pkg.customer}'s package suggestion rejected.`);
+  };
 
   return (
     <View style={styles.screenContainer}>
@@ -1326,14 +1597,103 @@ function MyTripsScreen() {
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Trips</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity onPress={handleCreateTrip} style={styles.headerAction}>
+            <Text style={styles.headerActionText}>+ Add</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.centerContent}>
-          <Text style={styles.emptyIcon}>🚗</Text>
-          <Text style={styles.emptyTitle}>No Active Trips</Text>
-          <Text style={styles.emptyText}>Your trips will appear here</Text>
-        </View>
+        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+          {myTrips.length > 0 ? (
+            myTrips.map(trip => (
+              <View key={trip.id} style={styles.tripDetailCard}>
+                <View style={styles.tripDetailHeader}>
+                  <Text style={styles.tripDetailId}>{trip.id}</Text>
+                  <View style={styles.spacesIndicator}>
+                    <Text style={styles.spacesText}>
+                      {trip.spacesUsed}/{trip.spacesTotal} packages
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tripRoute}>
+                  <Text style={styles.tripLocation}>📍 {trip.from}</Text>
+                  <Text style={styles.packageArrow}>→</Text>
+                  <Text style={styles.tripLocation}>📍 {trip.to}</Text>
+                </View>
+
+                <Text style={styles.tripDate}>🕒 {trip.date}</Text>
+
+                {/* Accepted Packages */}
+                {trip.packages.length > 0 && (
+                  <View style={styles.tripPackagesSection}>
+                    <Text style={styles.tripSectionTitle}>✅ Accepted Packages ({trip.packages.length})</Text>
+                    {trip.packages.map(pkg => (
+                      <View key={pkg.id} style={styles.tripPackageItem}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.tripPackageCustomer}>{pkg.customer}</Text>
+                          <Text style={styles.tripPackageItem}>{pkg.item}</Text>
+                        </View>
+                        <Text style={styles.tripPackageFee}>P {pkg.fee}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Package Suggestions */}
+                {trip.suggestions.length > 0 && trip.spacesUsed < trip.spacesTotal && (
+                  <View style={styles.tripPackagesSection}>
+                    <Text style={styles.tripSectionTitle}>💡 Suggestions ({trip.suggestions.length})</Text>
+                    {trip.suggestions.map(pkg => (
+                      <View key={pkg.id} style={styles.suggestionCard}>
+                        <View style={styles.suggestionHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.tripPackageCustomer}>{pkg.customer}</Text>
+                            <Text style={styles.tripPackageItem}>{pkg.item}</Text>
+                          </View>
+                          <Text style={styles.suggestionFee}>P {pkg.suggestedFee}</Text>
+                        </View>
+                        <View style={styles.suggestionFeeBreakdown}>
+                          <Text style={styles.suggestionFeeText}>
+                            You get: P {(pkg.suggestedFee * 0.7).toFixed(2)} (after 30% platform fee)
+                          </Text>
+                        </View>
+                        <View style={styles.suggestionActions}>
+                          <TouchableOpacity
+                            style={styles.suggestionRejectBtn}
+                            onPress={() => handleRejectSuggestion(pkg)}
+                          >
+                            <Text style={styles.suggestionRejectText}>Reject</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.suggestionCounterBtn}
+                            onPress={() => handleCounterBid(pkg)}
+                          >
+                            <Text style={styles.suggestionCounterText}>Counter</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.suggestionAcceptBtn}
+                            onPress={() => handleAcceptSuggestion(trip, pkg)}
+                          >
+                            <Text style={styles.suggestionAcceptText}>Accept</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))
+          ) : (
+            <View style={styles.centerContent}>
+              <Text style={styles.emptyIcon}>🚗</Text>
+              <Text style={styles.emptyTitle}>No Trips Yet</Text>
+              <Text style={styles.emptyText}>Create your first trip to start receiving package suggestions</Text>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleCreateTrip}>
+                <Text style={styles.primaryButtonText}>Create Trip</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -2861,5 +3221,326 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '700',
+  },
+
+  // Header Action Button
+  headerAction: {
+    padding: 8,
+  },
+  headerActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // My Packages - View Bids
+  viewBidsText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+
+  // Tracking Box
+  trackingBox: {
+    backgroundColor: colors.primary + '15',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  trackingText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'right',
+  },
+
+  // Bid Modal Styles
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  bidCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  bidHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bidDriverName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  bidDriverMeta: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  bidAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  bidFeeInfo: {
+    backgroundColor: colors.cardBg,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  bidFeeText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  bidActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bidButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bidRejectButton: {
+    backgroundColor: colors.border,
+  },
+  bidRejectText: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bidAcceptButton: {
+    backgroundColor: colors.primary,
+  },
+  bidAcceptText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // My Trips Detail Styles
+  tripDetailCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tripDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tripDetailId: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  spacesIndicator: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  spacesText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  tripPackagesSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  tripSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  tripPackageItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  tripPackageCustomer: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  tripPackageFee: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  // Suggestion Card Styles
+  suggestionCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  suggestionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  suggestionFee: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  suggestionFeeBreakdown: {
+    backgroundColor: colors.success + '15',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  suggestionFeeText: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  suggestionActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  suggestionRejectBtn: {
+    flex: 1,
+    backgroundColor: colors.border,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  suggestionRejectText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionCounterBtn: {
+    flex: 1,
+    backgroundColor: colors.accent,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  suggestionCounterText: {
+    color: colors.textLight,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  suggestionAcceptBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  suggestionAcceptText: {
+    color: colors.textLight,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Bid Status Card Styles
+  bidStatusCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bidStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bidStatusPackage: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  bidStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bidStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bidStatusDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  bidStatusRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bidStatusFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  bidStatusAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  bidStatusEarnings: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.success,
   },
 });
