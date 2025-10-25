@@ -17,6 +17,39 @@ Ntsamaela is a sophisticated peer-to-peer package delivery platform that connect
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### October 25, 2025 - Profile Pictures & UX Improvements
+
+**Profile Picture Integration:**
+- Added driver profile pictures throughout the app (bids, trips, packages, home screen)
+- Added customer profile pictures in driver trip views (accepted packages and suggestions)
+- Implemented circular photo displays with appropriate sizing:
+  - Bid cards: 50x50px driver photos
+  - Trip packages: 40x40px customer photos
+  - Package cards: 32x32px driver photos
+  - Active drivers: 70x70px driver photos
+- All photos use conditional rendering with graceful fallback
+
+**Modal UX Enhancements:**
+- Added close button (×) to bid popup modal for better accessibility
+- Implemented Android back button support for all modals via `onRequestClose`
+- Added `KeyboardAvoidingView` to all data entry modals (platform-specific behavior)
+- Modals now respond to hardware navigation buttons on Android devices
+
+**Screens Updated:**
+- Customer Home Screen: Driver photos for all recent packages
+- My Packages Screen: Driver photos for in-transit and delivered packages
+- Bid Modal: Driver photos and close button
+- My Trips Screen: Customer photos in accepted packages and suggestions
+- Available Drivers Screen: Driver profile photos (previously implemented)
+
+**Technical Implementation:**
+- Consistent circular photo styling across all components
+- Proper flex layouts to accommodate photos without breaking existing UI
+- Platform-aware keyboard avoidance (iOS: padding, Android: height)
+- Proper state cleanup on modal close via back button
+
 ## System Architecture
 
 ### Monorepo Structure
