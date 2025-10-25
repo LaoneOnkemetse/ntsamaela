@@ -734,18 +734,117 @@ function DriverHomeScreen() {
   );
 }
 
+// Location Search Modal
+function LocationSearchModal({ visible, title, onSelect, onCancel }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const sampleLocations = [
+    { id: 1, name: 'Gaborone Main Mall', address: 'The Mall, Gaborone', lat: -24.6282, lng: 25.9231 },
+    { id: 2, name: 'Sir Seretse Khama Airport', address: 'Airport Road, Gaborone', lat: -24.5552, lng: 25.9182 },
+    { id: 3, name: 'Francistown Bus Rank', address: 'Blue Jacket St, Francistown', lat: -21.1700, lng: 27.5083 },
+    { id: 4, name: 'Maun Airport', address: 'Maun, North-West District', lat: -19.9726, lng: 23.4311 },
+    { id: 5, name: 'Palapye Station', address: 'Main Road, Palapye', lat: -22.5476, lng: 27.1247 },
+    { id: 6, name: 'Kasane Bus Terminal', address: 'Kasane, Chobe District', lat: -17.8179, lng: 25.1644 },
+    { id: 7, name: 'Serowe Shopping Center', address: 'Serowe, Central District', lat: -22.3850, lng: 26.7108 },
+    { id: 8, name: 'Mogoditshane Square', address: 'Mogoditshane', lat: -24.6169, lng: 25.8653 },
+  ];
+
+  const filteredLocations = searchQuery.trim()
+    ? sampleLocations.filter(loc =>
+        loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        loc.address.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : sampleLocations;
+
+  const handleSelect = () => {
+    if (selectedLocation) {
+      onSelect(selectedLocation);
+      setSearchQuery('');
+      setSelectedLocation(null);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Search location..."
+            placeholderTextColor={colors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
+          <ScrollView style={{ maxHeight: 300, marginBottom: 16 }}>
+            {filteredLocations.map(location => (
+              <TouchableOpacity
+                key={location.id}
+                style={[
+                  styles.locationItem,
+                  selectedLocation?.id === location.id && styles.locationItemSelected
+                ]}
+                onPress={() => setSelectedLocation(location)}
+              >
+                <Text style={styles.locationIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.locationName}>{location.name}</Text>
+                  <Text style={styles.locationAddress}>{location.address}</Text>
+                </View>
+                {selectedLocation?.id === location.id && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => {
+                onCancel();
+                setSearchQuery('');
+                setSelectedLocation(null);
+              }}
+            >
+              <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modalButton,
+                styles.modalButtonSubmit,
+                !selectedLocation && { opacity: 0.5 }
+              ]}
+              onPress={handleSelect}
+              disabled={!selectedLocation}
+            >
+              <Text style={styles.modalButtonTextSubmit}>Select</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // Create Package Screen (Customer)
 function CreatePackageScreen() {
   const { navigate, goBack } = useNavigation();
   const [description, setDescription] = useState('');
-  const [pickup, setPickup] = useState('');
-  const [delivery, setDelivery] = useState('');
+  const [pickup, setPickup] = useState(null);
+  const [delivery, setDelivery] = useState(null);
+  const [recipientPhone, setRecipientPhone] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
   const [packagePhoto, setPackagePhoto] = useState(null);
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
   const handlePhotoSelection = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status} = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant camera permission to take photos');
       return;
@@ -787,11 +886,17 @@ function CreatePackageScreen() {
   };
 
   const handleCreate = () => {
-    if (!description || !pickup || !delivery || !weight || !price) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!description || !pickup || !delivery || !recipientPhone || !weight || !price) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-    Alert.alert('Success', 'Package created successfully!', [
+    
+    if (!/^[267]\d{7}$/.test(recipientPhone)) {
+      Alert.alert('Error', 'Please enter a valid Botswana phone number (e.g., 71234567)');
+      return;
+    }
+
+    Alert.alert('Success', 'Package created successfully!\n\nRoute will be generated when a driver accepts your package.', [
       { text: 'OK', onPress: () => goBack() }
     ]);
   };
@@ -808,48 +913,119 @@ function CreatePackageScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-          <TextInput
-            style={styles.input}
-            placeholder="Package Description"
-            placeholderTextColor={colors.textTertiary}
-            value={description}
-            onChangeText={setDescription}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Pickup Location"
-            placeholderTextColor={colors.textTertiary}
-            value={pickup}
-            onChangeText={setPickup}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Delivery Location"
-            placeholderTextColor={colors.textTertiary}
-            value={delivery}
-            onChangeText={setDelivery}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Weight (kg)"
-            placeholderTextColor={colors.textTertiary}
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="decimal-pad"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Offering Price (P)"
-            placeholderTextColor={colors.textTertiary}
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="decimal-pad"
-          />
+        <ScrollView 
+          style={styles.formContainer} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 120 }}
+        >
+          {/* Package Details Section */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionHeader}>📦 Package Details</Text>
+            
+            <Text style={styles.fieldLabel}>Description *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Electronics, Documents, Clothing"
+              placeholderTextColor={colors.textTertiary}
+              value={description}
+              onChangeText={setDescription}
+            />
 
-          {/* Photo Upload Section */}
-          <View style={styles.photoSection}>
-            <Text style={styles.photoLabel}>Package Photo (Optional)</Text>
+            <Text style={styles.fieldLabel}>Weight (kg) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 2.5"
+              placeholderTextColor={colors.textTertiary}
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="decimal-pad"
+            />
+
+            <Text style={styles.fieldLabel}>Your Offering Price (P) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 150"
+              placeholderTextColor={colors.textTertiary}
+              value={price}
+              onChangeText={setPrice}
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          {/* Route Section */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionHeader}>🗺️ Delivery Route</Text>
+            
+            <Text style={styles.fieldLabel}>Pickup Location *</Text>
+            <TouchableOpacity
+              style={styles.locationButton}
+              onPress={() => setShowPickupModal(true)}
+            >
+              <Text style={styles.locationIcon}>📍</Text>
+              <View style={{ flex: 1 }}>
+                {pickup ? (
+                  <>
+                    <Text style={styles.locationSelectedName}>{pickup.name}</Text>
+                    <Text style={styles.locationSelectedAddress}>{pickup.address}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.locationPlaceholder}>Search on map...</Text>
+                )}
+              </View>
+              <Text style={styles.locationArrow}>›</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.fieldLabel}>Delivery Location *</Text>
+            <TouchableOpacity
+              style={styles.locationButton}
+              onPress={() => setShowDeliveryModal(true)}
+            >
+              <Text style={styles.locationIcon}>📍</Text>
+              <View style={{ flex: 1 }}>
+                {delivery ? (
+                  <>
+                    <Text style={styles.locationSelectedName}>{delivery.name}</Text>
+                    <Text style={styles.locationSelectedAddress}>{delivery.address}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.locationPlaceholder}>Search on map...</Text>
+                )}
+              </View>
+              <Text style={styles.locationArrow}>›</Text>
+            </TouchableOpacity>
+
+            {pickup && delivery && (
+              <View style={styles.routeInfo}>
+                <Text style={styles.routeInfoText}>
+                  ✓ Route will be created when driver accepts
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Recipient Section */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionHeader}>👤 Recipient Information</Text>
+            
+            <Text style={styles.fieldLabel}>Recipient Phone Number *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 71234567"
+              placeholderTextColor={colors.textTertiary}
+              value={recipientPhone}
+              onChangeText={setRecipientPhone}
+              keyboardType="phone-pad"
+              maxLength={8}
+            />
+            <Text style={styles.fieldHint}>
+              Delivery confirmation code will be sent to this number
+            </Text>
+          </View>
+
+          {/* Photo Section */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionHeader}>📷 Package Photo</Text>
+            
             {packagePhoto ? (
               <View style={styles.photoPreview}>
                 <Image source={{ uri: packagePhoto }} style={styles.photoImage} />
@@ -866,7 +1042,7 @@ function CreatePackageScreen() {
                 onPress={handlePhotoSelection}
               >
                 <Text style={styles.addPhotoIcon}>📷</Text>
-                <Text style={styles.addPhotoText}>Add Package Photo</Text>
+                <Text style={styles.addPhotoText}>Add Package Photo (Optional)</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -876,6 +1052,26 @@ function CreatePackageScreen() {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+
+      <LocationSearchModal
+        visible={showPickupModal}
+        title="Select Pickup Location"
+        onSelect={(location) => {
+          setPickup(location);
+          setShowPickupModal(false);
+        }}
+        onCancel={() => setShowPickupModal(false)}
+      />
+
+      <LocationSearchModal
+        visible={showDeliveryModal}
+        title="Select Delivery Location"
+        onSelect={(location) => {
+          setDelivery(location);
+          setShowDeliveryModal(false);
+        }}
+        onCancel={() => setShowDeliveryModal(false)}
+      />
     </View>
   );
 }
@@ -2250,8 +2446,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardBg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+    paddingVertical: 4,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -2261,24 +2457,24 @@ const styles = StyleSheet.create({
   bottomNavItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   bottomNavIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   bottomNavIconActive: {
     backgroundColor: colors.primary,
   },
   bottomNavIconText: {
-    fontSize: 24,
+    fontSize: 20,
   },
   bottomNavLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.textTertiary,
   },
   bottomNavLabelActive: {
@@ -2392,5 +2588,100 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  // Create Package Form Styles
+  formSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  fieldHint: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  locationIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  locationPlaceholder: {
+    fontSize: 16,
+    color: colors.textTertiary,
+  },
+  locationSelectedName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  locationSelectedAddress: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  locationArrow: {
+    fontSize: 24,
+    color: colors.textTertiary,
+    marginLeft: 8,
+  },
+  routeInfo: {
+    backgroundColor: colors.success + '20',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  routeInfoText: {
+    fontSize: 13,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: colors.background,
+  },
+  locationItemSelected: {
+    backgroundColor: colors.primary + '20',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  locationName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  locationAddress: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  checkmark: {
+    fontSize: 20,
+    color: colors.primary,
+    fontWeight: '700',
   },
 });
