@@ -3,6 +3,7 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/login": "pages/login.js",
+  "/settings": "pages/settings.js",
   "/deliveries": "pages/deliveries.js",
-  "/settings": "pages/settings.js"
+  "/dashboard": "pages/dashboard.js"
 }
