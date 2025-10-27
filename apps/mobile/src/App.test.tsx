@@ -1,4 +1,5 @@
 import React from 'react';
+import { add } from './utils';
 
 describe('App', () => {
   it('should be defined', () => {
@@ -9,5 +10,9 @@ describe('App', () => {
 
   it('should have React available', () => {
     expect(typeof React.createElement).toBe('function');
+  });
+
+  it('utils should work', () => {
+    expect(add(1, 2)).toBe(3);
   });
 });

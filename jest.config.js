@@ -28,7 +28,7 @@ module.exports = {
             {
               displayName: 'Mobile',
               testEnvironment: 'jsdom',
-              testMatch: ['<rootDir>/apps/mobile/**/*.test.ts', '<rootDir>/apps/mobile/**/*.test.tsx', '<rootDir>/apps/mobile/**/*.spec.ts', '<rootDir>/apps/mobile/**/*.spec.tsx'],
+              testMatch: ['<rootDir>/apps/mobile/**/*.test.{ts,tsx,js,jsx}', '<rootDir>/apps/mobile/**/*.spec.{ts,tsx,js,jsx}'],
               setupFiles: ['<rootDir>/apps/mobile/__mocks__/react-native.js'],
               setupFilesAfterEnv: ['<rootDir>/apps/mobile/jest.setup.bypass.js'],
               moduleNameMapper: {
@@ -45,10 +45,16 @@ module.exports = {
                 'node_modules/(?!(react-native|@react-native|react-native-.*|@react-navigation|@react-native-community|@react-native-async-storage|react-native-vector-icons|react-native-screens|react-native-safe-area-context|react-native-gesture-handler|expo|expo-.*|@expo/.*)/)',
               ],
               collectCoverageFrom: [
-                'apps/mobile/src/**/*.{ts,tsx}',
-                '!apps/mobile/src/**/*.d.ts',
-                '!apps/mobile/src/test/**',
-                '!apps/mobile/App.tsx',
+                'apps/mobile/**/*.{js,jsx,ts,tsx}',
+                '!apps/mobile/**/*.d.ts',
+                '!apps/mobile/**/__tests__/**',
+                '!apps/mobile/**/__mocks__/**',
+                '!apps/mobile/**/node_modules/**',
+                '!apps/mobile/**/*.test.*',
+                '!apps/mobile/**/*.spec.*',
+                '!apps/mobile/index.js',
+                '!apps/mobile/babel.config.js',
+                '!apps/mobile/jest.setup.bypass.js',
               ],
               coverageDirectory: '<rootDir>/coverage/mobile',
               coverageThreshold: {
