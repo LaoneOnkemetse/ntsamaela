@@ -16,7 +16,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "setup:test": "ts-node setup.ts --test",
-    "migrate:test": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "migrate:test": "prisma migrate deploy --schema=./schema.prisma",
     "seed:test": "prisma db seed --test"
   },
   "dependencies": {

@@ -1992,7 +1992,11 @@ function AvailableDriversScreen() {
       </SafeAreaView>
 
       {/* Package Suggestion Modal - OLD, KEPT FOR REFERENCE */}
-      <Modal visible={showSuggestModal} transparent animationType="slide">
+      <Modal visible={showSuggestModal} transparent animationType="slide" onRequestClose={() => {
+        setShowSuggestModal(false);
+        setSelectedTrip(null);
+        setSelectedPackageId(null);
+      }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Suggest Package</Text>
