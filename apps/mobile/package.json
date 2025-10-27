@@ -7,12 +7,17 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "type-check": "tsc --noEmit"
+    "test:e2e": "echo 'Mobile E2E tests pending Detox setup' && exit 0",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "type-check": "tsc --noEmit",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json}\""
   },
   "dependencies": {
     "expo": "^54.0.20",

@@ -28,7 +28,8 @@
     "migrate:test": "npx prisma migrate deploy --schema=./prisma/schema.prisma",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\""
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.891.0",
