@@ -41,6 +41,11 @@ dist/
 *.tgz
 *.tar.gz
 
+# Next.js
+.next/
+out/
+.vercel
+
 # Temporary files
 *.tmp
 *.temp
