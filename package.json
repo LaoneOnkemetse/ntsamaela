@@ -45,7 +45,7 @@
     "test:coverage:comprehensive": "cd apps/api && node scripts/test-coverage.js",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "test:api": "cd apps/api && npm test",
-    "test:mobile": "jest --selectProjects='Mobile' && mkdir -p coverage/mobile && [ ! -f coverage/lcov.info ] || mv coverage/lcov.info coverage/mobile/ && [ ! -d coverage/lcov-report ] || mv coverage/lcov-report coverage/mobile/ 2>/dev/null || true",
+    "test:mobile": "jest --selectProjects='Mobile' && mkdir -p coverage/mobile && { [ -f coverage/lcov.info ] && mv coverage/lcov.info coverage/mobile/ || true; [ -d coverage/lcov-report ] && mv coverage/lcov-report coverage/mobile/ || true; }",
     "test:web-admin": "cd apps/web-admin && npm test",
     "test:shared": "cd packages/shared && npm test",
     "test:integration": "npm run test:integration:api && npm run test:integration:database",
