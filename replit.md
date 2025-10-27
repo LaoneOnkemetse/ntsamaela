@@ -19,7 +19,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### October 27, 2025 - GitHub CI/CD Test Infrastructure Fixes
+### October 27, 2025 - GitHub CI/CD Workflow Fixes
+
+**CI/CD Pipeline Workflow Fixes:**
+- Fixed code quality job to use root npm scripts (lint, type-check, security:audit)
+- Fixed unit tests job to use `npm run test:api` with correct coverage path
+- Fixed integration tests to use `npm run test:integration:api` with continue-on-error
+- Fixed E2E tests to use `npm run test:e2e` with continue-on-error
+- Fixed performance tests to use `npm run test:performance` with continue-on-error
+- Fixed build-images job conditional: added parentheses for correct operator precedence
+- Fixed security tests in main CI workflow to use `npm run security:audit`
+- All test commands now run from repo root instead of subdirectories
 
 **Test Execution:**
 - Fixed mobile test script to use Jest project selector (`--selectProjects='Mobile'`) running from repo root
