@@ -1,0 +1,10 @@
+# TEMPORARILY DISABLED - Will be re-enabled when test suites are implemented
+# This workflow requires:
+# - Complete unit test implementations for all apps
+# - Integration tests with database
+# - E2E tests with Detox (mobile) and Playwright (web)
+# - Security scanning tools (Snyk, Semgrep, OWASP ZAP)
+# - Performance testing infrastructure
+#
+# To re-enable: rename this file back to .yml extension
+

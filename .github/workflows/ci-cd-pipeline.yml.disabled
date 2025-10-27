@@ -1,0 +1,9 @@
+# TEMPORARILY DISABLED - Will be re-enabled when AWS infrastructure is ready
+# This workflow is designed for AWS deployment and requires:
+# - AWS credentials and infrastructure
+# - Complete test suites
+# - Docker configurations
+# - Production database setup
+#
+# To re-enable: rename this file back to .yml extension
+

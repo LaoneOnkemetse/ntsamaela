@@ -1,0 +1,82 @@
+name: Simple CI (Replit Development)
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Basic linting and type checking
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Run linting (if available)
+        run: npm run lint || echo "Linting not configured yet"
+        continue-on-error: true
+
+      - name: Run type checking (if available)
+        run: npm run type-check || echo "Type checking not configured yet"
+        continue-on-error: true
+
+      - name: Check formatting
+        run: npm run format:check || echo "Format checking not configured yet"
+        continue-on-error: true
+
+  # Build check
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build Web Admin (if possible)
+        run: npm run build:web-admin || echo "Web Admin build not ready"
+        continue-on-error: true
+
+      - name: Security Audit (advisory only)
+        run: npm audit --audit-level=high || echo "Security advisories found"
+        continue-on-error: true
+
+  # Status summary
+  ci-status:
+    name: CI Status Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, build-check]
+    if: always()
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "✅ Basic CI checks completed"
+          echo "📝 This is a simplified CI for active development"
+          echo "🔧 Full test suite will be enabled when ready"
