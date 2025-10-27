@@ -21,14 +21,23 @@ Preferred communication style: Simple, everyday language.
 
 ### October 27, 2025 - GitHub CI/CD Workflow Fixes
 
+**Root Cause Analysis:**
+- CI was only installing dependencies for root, API, and web-admin packages
+- Mobile and shared packages were missing dependencies (eslint, TypeScript, etc.)
+- When `npm run lint:mobile` executed, it failed with "cannot find module 'eslint'"
+- Test environment files were named `.env.integration`/`.env.e2e`/`.env.performance` but code expected `.env.test`
+- This caused database connection failures in CI (worked locally where `.env.test` existed)
+
 **CI/CD Pipeline Workflow Fixes:**
+- Fixed dependency installation: Single workspace-aware `npm ci` at root (installs ALL workspace packages)
+- Removed redundant per-package installs (`cd apps/api && npm ci`, etc.)
+- Fixed all test jobs to create `.env.test` instead of environment-specific files
 - Fixed code quality job to use root npm scripts (lint, type-check, security:audit)
 - Fixed unit tests job to use `npm run test:api` with correct coverage path
 - Fixed integration tests to use `npm run test:integration:api` with continue-on-error
 - Fixed E2E tests to use `npm run test:e2e` with continue-on-error
 - Fixed performance tests to use `npm run test:performance` with continue-on-error
 - Fixed build-images job conditional: added parentheses for correct operator precedence
-- Fixed security tests in main CI workflow to use `npm run security:audit`
 - All test commands now run from repo root instead of subdirectories
 
 **Test Execution:**

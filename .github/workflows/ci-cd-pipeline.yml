@@ -29,10 +29,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-          cd apps/api && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
-          cd ../web-admin && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Run ESLint
         run: npm run lint
@@ -94,9 +91,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-          cd apps/api && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Setup test environment
         run: |
@@ -163,17 +158,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-          cd apps/api && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Setup test environment
         run: |
-          cp apps/api/.env.example apps/api/.env.integration
-          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test" >> apps/api/.env.integration
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.integration
-          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.integration
-          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.integration
+          cp apps/api/.env.example apps/api/.env.test
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test" >> apps/api/.env.test
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.test
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.test
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
 
       - name: Run database migrations
         run: |
@@ -225,18 +218,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-          cd apps/api && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
-          cd ../web-admin && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Setup test environment
         run: |
-          cp apps/api/.env.example apps/api/.env.e2e
-          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_e2e_test" >> apps/api/.env.e2e
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.e2e
-          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.e2e
-          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.e2e
+          cp apps/api/.env.example apps/api/.env.test
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_e2e_test" >> apps/api/.env.test
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.test
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.test
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
 
       - name: Run database migrations
         run: |
@@ -303,17 +293,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-          cd apps/api && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps)
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Setup test environment
         run: |
-          cp apps/api/.env.example apps/api/.env.performance
-          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test" >> apps/api/.env.performance
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.performance
-          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.performance
-          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.performance
+          cp apps/api/.env.example apps/api/.env.test
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test" >> apps/api/.env.test
+          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env.test
+          echo "JWT_SECRET=test-jwt-secret" >> apps/api/.env.test
+          echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
 
       - name: Run database migrations
         run: |
