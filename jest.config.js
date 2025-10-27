@@ -51,6 +51,14 @@ module.exports = {
                 '!apps/mobile/App.tsx',
               ],
               coverageDirectory: '<rootDir>/coverage/mobile',
+              coverageThreshold: {
+                global: {
+                  branches: 0,
+                  functions: 0,
+                  lines: 0,
+                  statements: 0,
+                },
+              },
             },
     // Web Admin tests
     {

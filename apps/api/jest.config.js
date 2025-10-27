@@ -23,7 +23,7 @@ module.exports = {
     '!src/test/**',
     '!src/index.ts',
   ],
-  coverageDirectory: '<rootDir>/coverage',
+  coverageDirectory: '<rootDir>/../../coverage/api',
   testTimeout: 10000,
   verbose: true,
 };

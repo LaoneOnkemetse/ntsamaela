@@ -33,6 +33,7 @@ const customJestConfig = {
   transformIgnorePatterns: [
     'node_modules/(?!(.*\\.mjs$|@tanstack))',
   ],
+  coverageDirectory: '<rootDir>/../../coverage/web-admin',
   testTimeout: 10000,
   verbose: true,
 }

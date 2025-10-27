@@ -11,6 +11,7 @@ module.exports = {
     '!**/node_modules/**',
     '!**/dist/**',
   ],
+  coverageDirectory: '<rootDir>/../../coverage/shared',
   coverageThreshold: {
     global: {
       branches: 0,
