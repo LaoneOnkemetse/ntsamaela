@@ -35,6 +35,7 @@ import {
   ChevronLeft,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import Logo from './Logo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -95,21 +96,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         borderColor: 'divider',
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ 
-            width: 40, 
-            height: 40, 
-            borderRadius: '12px',
-            background: '#0EA5E9',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem',
-          }}>
-            🚚
+          <Logo size={40} variant="sidebar" />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+              Ntsamaela
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#75AADB', fontSize: '0.7rem', fontWeight: 600 }}>
+              ADMIN DASHBOARD
+            </Typography>
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#0F172A' }}>
-            Ntsamaela
-          </Typography>
         </Box>
         {!isMobile && (
           <IconButton onClick={handleMenu} size="small">
