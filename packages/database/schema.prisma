@@ -17,6 +17,7 @@ model User {
   lastName                 String
   phone                    String
   userType                 String
+  profilePictureUrl        String?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
   identityVerified         Boolean       @default(false)
@@ -87,6 +88,9 @@ model Package {
   status          String        @default("PENDING")
   size            String?
   weight          Float?
+  deliveryDate    DateTime?
+  urgency         String        @default("NORMAL")
+  recipientPhone  String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   bids            Bid[]

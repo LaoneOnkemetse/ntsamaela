@@ -1,13 +1,20 @@
-import { Request, Response } from 'express';
-import { prisma } from '@database/index';
-import { authService } from '../services/authService';
-import { AuthenticatedRequest, LoginRequest, RegisterRequest, PasswordResetRequest, PasswordResetConfirmRequest } from '@shared/types';
-import { resetLoginAttempts } from '../middleware/rateLimiting';
+import { Request, Response } from "express";
+import { prisma } from "@database/index";
+import { authService } from "../services/mockAuthService";
+import {
+  AuthenticatedRequest,
+  LoginRequest,
+  RegisterRequest,
+  PasswordResetRequest,
+  PasswordResetConfirmRequest,
+} from "@shared/types";
+import { resetLoginAttempts } from "../middleware/rateLimiting";
 
 export class AuthController {
   async register(req: Request<{}, {}, RegisterRequest>, res: Response) {
     try {
-      const { email, password, firstName, lastName, phone, userType } = req.body;
+      const { email, password, firstName, lastName, phone, userType } =
+        req.body;
 
       const result = await authService.register({
         email,
@@ -15,28 +22,29 @@ export class AuthController {
         firstName,
         lastName,
         phone,
-        userType
+        userType,
       });
 
       if (result.success) {
         res.status(201).json({
           success: true,
           data: result.data,
-          message: 'User registered successfully. Please check your email to verify your account.'
+          message:
+            "User registered successfully. Please check your email to verify your account.",
         });
       } else {
         res.status(400).json({
           success: false,
-          error: result.error
+          error: result.error,
         });
       }
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'REGISTRATION_ERROR',
-          message: _error.message
-        }
+          code: "REGISTRATION_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -57,9 +65,50 @@ export class AuthController {
       res.status(500).json({
         success: false,
         error: {
-          code: 'LOGIN_ERROR',
-          message: _error.message
-        }
+          code: "LOGIN_ERROR",
+          message: _error.message,
+        },
+      });
+    }
+  }
+
+  async loginWithPhone(
+    req: Request<{}, {}, { phone: string; password: string }>,
+    res: Response,
+  ) {
+    try {
+      const { phone, password } = req.body;
+
+      // Find user by phone number
+      const user = await prisma.user.findFirst({
+        where: { phone },
+      });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid phone number or password",
+          },
+        });
+      }
+
+      const result = await authService.login(user.email, password);
+
+      if (result.success) {
+        resetLoginAttempts(req);
+        res.status(200).json(result);
+      } else {
+        res.status(401).json(result);
+      }
+    } catch (_error: any) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "LOGIN_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -77,39 +126,43 @@ export class AuthController {
           lastName: true,
           phone: true,
           userType: true,
+          profilePictureUrl: true,
           identityVerified: true,
           emailVerified: true,
           createdAt: true,
-          updatedAt: true
-        }
+          updatedAt: true,
+        },
       });
 
       if (!user) {
         return res.status(404).json({
           success: false,
           error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User not found'
-          }
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
         });
       }
 
       res.status(200).json({
         success: true,
-        data: user
+        data: user,
       });
     } catch (_error: any) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'USER_RETRIEVAL_ERROR',
-          message: _error.message
-        }
+          code: "USER_RETRIEVAL_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
 
-  async requestPasswordReset(req: Request<{}, {}, PasswordResetRequest>, res: Response) {
+  async requestPasswordReset(
+    req: Request<{}, {}, PasswordResetRequest>,
+    res: Response,
+  ) {
     try {
       const { email } = req.body;
 
@@ -117,20 +170,23 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        message: result.message
+        message: result.message,
       });
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_RESET_ERROR',
-          message: _error.message
-        }
+          code: "PASSWORD_RESET_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
 
-  async confirmPasswordReset(req: Request<{}, {}, PasswordResetConfirmRequest>, res: Response) {
+  async confirmPasswordReset(
+    req: Request<{}, {}, PasswordResetConfirmRequest>,
+    res: Response,
+  ) {
     try {
       const { token, newPassword } = req.body;
 
@@ -139,26 +195,29 @@ export class AuthController {
       if (result.success) {
         res.status(200).json({
           success: true,
-          message: 'Password has been reset successfully'
+          message: "Password has been reset successfully",
         });
       } else {
         res.status(400).json({
           success: false,
-          error: result.error
+          error: result.error,
         });
       }
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_RESET_CONFIRM_ERROR',
-          message: _error.message
-        }
+          code: "PASSWORD_RESET_CONFIRM_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
 
-  async verifyEmail(req: Request<{ token?: string }, {}, { token?: string }>, res: Response) {
+  async verifyEmail(
+    req: Request<{ token?: string }, {}, { token?: string }>,
+    res: Response,
+  ) {
     try {
       const token = req.params.token || req.body.token;
 
@@ -166,9 +225,9 @@ export class AuthController {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_TOKEN',
-            message: 'Token is required'
-          }
+            code: "MISSING_TOKEN",
+            message: "Token is required",
+          },
         });
       }
 
@@ -177,21 +236,21 @@ export class AuthController {
       if (result.success) {
         res.status(200).json({
           success: true,
-          message: 'Email verified successfully'
+          message: "Email verified successfully",
         });
       } else {
         res.status(400).json({
           success: false,
-          error: result.error
+          error: result.error,
         });
       }
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'EMAIL_VERIFICATION_ERROR',
-          message: _error.message
-        }
+          code: "EMAIL_VERIFICATION_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -201,15 +260,15 @@ export class AuthController {
     try {
       res.status(200).json({
         success: true,
-        message: 'Logout successful'
+        message: "Logout successful",
       });
     } catch (_error: any) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'LOGOUT_ERROR',
-          message: _error.message
-        }
+          code: "LOGOUT_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -219,26 +278,30 @@ export class AuthController {
       const { currentPassword, newPassword } = req.body;
       const userId = req.user!.id;
 
-      const result = await authService.changePassword(userId, currentPassword, newPassword);
+      const result = await authService.changePassword(
+        userId,
+        currentPassword,
+        newPassword,
+      );
 
       if (result.success) {
         res.status(200).json({
           success: true,
-          message: 'Password changed successfully'
+          message: "Password changed successfully",
         });
       } else {
         res.status(400).json({
           success: false,
-          error: result.error
+          error: result.error,
         });
       }
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'PASSWORD_CHANGE_ERROR',
-          message: _error.message
-        }
+          code: "PASSWORD_CHANGE_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -252,21 +315,21 @@ export class AuthController {
       if (result.success) {
         res.status(200).json({
           success: true,
-          message: 'Verification email has been resent'
+          message: "Verification email has been resent",
         });
       } else {
         res.status(400).json({
           success: false,
-          error: result.error
+          error: result.error,
         });
       }
     } catch (_error: any) {
       res.status(400).json({
         success: false,
         error: {
-          code: 'EMAIL_RESEND_ERROR',
-          message: _error.message
-        }
+          code: "EMAIL_RESEND_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
@@ -276,28 +339,28 @@ export class AuthController {
       const userId = req.user!.id;
       const userType = req.user!.userType;
 
-      if (userType !== 'DRIVER') {
+      if (userType !== "DRIVER") {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'INVALID_USER_TYPE',
-            message: 'Only drivers can create driver profiles'
-          }
+            code: "INVALID_USER_TYPE",
+            message: "Only drivers can create driver profiles",
+          },
         });
       }
 
       // Check if driver profile already exists
       const existingDriver = await prisma.driver.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (existingDriver) {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'DRIVER_PROFILE_EXISTS',
-            message: 'Driver profile already exists'
-          }
+            code: "DRIVER_PROFILE_EXISTS",
+            message: "Driver profile already exists",
+          },
         });
       }
 
@@ -305,24 +368,22 @@ export class AuthController {
       const driverProfile = await prisma.driver.create({
         data: {
           userId,
-          active: true
-        }
+          active: true,
+        },
       });
 
       res.status(201).json({
         success: true,
-        data: driverProfile
+        data: driverProfile,
       });
     } catch (_error: any) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'DRIVER_PROFILE_CREATION_ERROR',
-          message: _error.message
-        }
+          code: "DRIVER_PROFILE_CREATION_ERROR",
+          message: _error.message,
+        },
       });
     }
   }
 }
-
-

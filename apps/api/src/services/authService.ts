@@ -1,21 +1,25 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { getPrismaClient } from '@database/index';
-import { RegisterRequest } from '@shared/types';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { getPrismaClient } from "@database/index";
+import { RegisterRequest } from "@shared/types";
 
 export class AuthService {
   async register(userData: RegisterRequest) {
     try {
-      const { email, password, firstName, lastName, phone, userType } = userData;
+      const { email, password, firstName, lastName, phone, userType } =
+        userData;
       const prismaClient = getPrismaClient();
 
       // Check if user already exists
       const existingUser = await prismaClient.user.findUnique({
-        where: { email }
+        where: { email },
       });
 
       if (existingUser) {
-        return { success: false, error: { code: 'USER_EXISTS', message: 'User already exists' } };
+        return {
+          success: false,
+          error: { code: "USER_EXISTS", message: "User already exists" },
+        };
       }
 
       // Hash password
@@ -32,8 +36,8 @@ export class AuthService {
           phone,
           userType,
           identityVerified: false,
-          emailVerified: false
-        }
+          emailVerified: false,
+        },
       });
 
       // Create wallet for user
@@ -41,17 +45,17 @@ export class AuthService {
         data: {
           userId: user.id,
           balance: 0,
-          reservedBalance: 0
-        }
+          reservedBalance: 0,
+        },
       });
 
       // Create driver profile if user is a driver
-      if (userType === 'DRIVER') {
+      if (userType === "DRIVER") {
         await prismaClient.driver.create({
           data: {
             userId: user.id,
-            active: true
-          }
+            active: true,
+          },
         });
       }
 
@@ -68,36 +72,52 @@ export class AuthService {
             lastName: user.lastName,
             phone: user.phone,
             userType: user.userType,
+            profilePictureUrl: user.profilePictureUrl,
             identityVerified: user.identityVerified,
             emailVerified: user.emailVerified,
             createdAt: user.createdAt.toISOString(),
-            updatedAt: user.updatedAt.toISOString()
+            updatedAt: user.updatedAt.toISOString(),
           },
-          token
-        }
+          token,
+        },
       };
     } catch (_error: any) {
-      return { success: false, error: { code: 'REGISTRATION_ERROR', message: _error.message } };
+      return {
+        success: false,
+        error: { code: "REGISTRATION_ERROR", message: _error.message },
+      };
     }
   }
 
   async login(email: string, password: string) {
     try {
       const prismaClient = getPrismaClient();
-      
+
       // Find user
       const user = await prismaClient.user.findUnique({
-        where: { email }
+        where: { email },
       });
 
       if (!user) {
-        return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' } };
+        return {
+          success: false,
+          error: {
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid credentials",
+          },
+        };
       }
 
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
-        return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' } };
+        return {
+          success: false,
+          error: {
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid credentials",
+          },
+        };
       }
 
       // Generate JWT token
@@ -113,30 +133,38 @@ export class AuthService {
             lastName: user.lastName,
             phone: user.phone,
             userType: user.userType,
+            profilePictureUrl: user.profilePictureUrl,
             identityVerified: user.identityVerified,
             emailVerified: user.emailVerified,
             createdAt: user.createdAt.toISOString(),
-            updatedAt: user.updatedAt.toISOString()
+            updatedAt: user.updatedAt.toISOString(),
           },
-          token
-        }
+          token,
+        },
       };
     } catch (_error: any) {
-      return { success: false, error: { code: 'LOGIN_ERROR', message: _error.message } };
+      return {
+        success: false,
+        error: { code: "LOGIN_ERROR", message: _error.message },
+      };
     }
   }
 
   async requestPasswordReset(email: string) {
     try {
       const prismaClient = getPrismaClient();
-      
+
       const user = await prismaClient.user.findUnique({
-        where: { email }
+        where: { email },
       });
 
       if (!user) {
         // Don't reveal if user exists or not
-        return { success: true, message: 'If an account with this email exists, a password reset link has been sent' };
+        return {
+          success: true,
+          message:
+            "If an account with this email exists, a password reset link has been sent",
+        };
       }
 
       // In a real implementation, you would:
@@ -144,26 +172,37 @@ export class AuthService {
       // 2. Store it in the database with expiration
       // 3. Send email with reset link
       // For now, we'll just return success
-      
-      return { success: true, message: 'If the email exists, a reset link has been sent' };
+
+      return {
+        success: true,
+        message: "If the email exists, a reset link has been sent",
+      };
     } catch (_error: any) {
-      return { success: false, error: { code: 'RESET_REQUEST_ERROR', message: _error.message } };
+      return {
+        success: false,
+        error: { code: "RESET_REQUEST_ERROR", message: _error.message },
+      };
     }
   }
-
 
   async resetPassword(token: string, newPassword: string) {
     // Implementation for password reset
     try {
       const prismaClient = getPrismaClient();
-      
+
       // Verify token and update password
       const user = await prismaClient.user.findFirst({
-        where: { passwordResetToken: token }
+        where: { passwordResetToken: token },
       });
 
       if (!user) {
-        return { success: false, error: { code: 'INVALID_RESET_TOKEN', message: 'Invalid reset token' } };
+        return {
+          success: false,
+          error: {
+            code: "INVALID_RESET_TOKEN",
+            message: "Invalid reset token",
+          },
+        };
       }
 
       const saltRounds = 12;
@@ -174,13 +213,16 @@ export class AuthService {
         data: {
           passwordHash,
           passwordResetToken: null,
-          passwordResetExpires: null
-        }
+          passwordResetExpires: null,
+        },
       });
 
-      return { success: true, message: 'Password reset successfully' };
+      return { success: true, message: "Password reset successfully" };
     } catch (_error) {
-      return { success: false, error: { code: 'RESET_ERROR', message: 'Failed to reset password' } };
+      return {
+        success: false,
+        error: { code: "RESET_ERROR", message: "Failed to reset password" },
+      };
     }
   }
 
@@ -192,11 +234,11 @@ export class AuthService {
     const payload = {
       id: user.id,
       email: user.email,
-      userType: user.userType
+      userType: user.userType,
     };
 
-    const secret = process.env.JWT_SECRET || 'your-secret-key';
-    const options: jwt.SignOptions = { expiresIn: '7d' };
+    const secret = process.env.JWT_SECRET || "your-secret-key";
+    const options: jwt.SignOptions = { expiresIn: "7d" };
 
     return jwt.sign(payload, secret, options);
   }
@@ -204,13 +246,19 @@ export class AuthService {
   async verifyEmail(token: string) {
     try {
       const prismaClient = getPrismaClient();
-      
+
       const user = await prismaClient.user.findFirst({
-        where: { emailVerificationToken: token }
+        where: { emailVerificationToken: token },
       });
 
       if (!user) {
-        return { success: false, error: { code: 'INVALID_VERIFICATION_TOKEN', message: 'Invalid verification token' } };
+        return {
+          success: false,
+          error: {
+            code: "INVALID_VERIFICATION_TOKEN",
+            message: "Invalid verification token",
+          },
+        };
       }
 
       await prismaClient.user.update({
@@ -218,13 +266,19 @@ export class AuthService {
         data: {
           emailVerified: true,
           emailVerificationToken: null,
-          emailVerificationExpires: null
-        }
+          emailVerificationExpires: null,
+        },
       });
 
-      return { success: true, message: 'Email verified successfully' };
+      return { success: true, message: "Email verified successfully" };
     } catch (_error) {
-      return { success: false, error: { code: 'VERIFICATION_ERROR', message: 'Failed to verify email' } };
+      return {
+        success: false,
+        error: {
+          code: "VERIFICATION_ERROR",
+          message: "Failed to verify email",
+        },
+      };
     }
   }
 
@@ -232,15 +286,24 @@ export class AuthService {
     try {
       const prismaClient = getPrismaClient();
       const user = await prismaClient.user.findUnique({
-        where: { email }
+        where: { email },
       });
 
       if (!user) {
-        return { success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } };
+        return {
+          success: false,
+          error: { code: "USER_NOT_FOUND", message: "User not found" },
+        };
       }
 
       if (user.emailVerified) {
-        return { success: false, error: { code: 'EMAIL_ALREADY_VERIFIED', message: 'Email already verified' } };
+        return {
+          success: false,
+          error: {
+            code: "EMAIL_ALREADY_VERIFIED",
+            message: "Email already verified",
+          },
+        };
       }
 
       // Generate new verification token
@@ -251,31 +314,53 @@ export class AuthService {
         where: { id: user.id },
         data: {
           emailVerificationToken: verificationToken,
-          emailVerificationExpires: expiresAt
-        }
+          emailVerificationExpires: expiresAt,
+        },
       });
 
       // TODO: Send email with verification link
-      return { success: true, message: 'Verification email sent' };
+      return { success: true, message: "Verification email sent" };
     } catch (_error) {
-      return { success: false, error: { code: 'EMAIL_ERROR', message: 'Failed to send verification email' } };
+      return {
+        success: false,
+        error: {
+          code: "EMAIL_ERROR",
+          message: "Failed to send verification email",
+        },
+      };
     }
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     try {
       const prismaClient = getPrismaClient();
       const user = await prismaClient.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
 
       if (!user) {
-        return { success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } };
+        return {
+          success: false,
+          error: { code: "USER_NOT_FOUND", message: "User not found" },
+        };
       }
 
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        user.passwordHash,
+      );
       if (!isCurrentPasswordValid) {
-        return { success: false, error: { code: 'INVALID_PASSWORD', message: 'Current password is incorrect' } };
+        return {
+          success: false,
+          error: {
+            code: "INVALID_PASSWORD",
+            message: "Current password is incorrect",
+          },
+        };
       }
 
       const saltRounds = 12;
@@ -283,12 +368,18 @@ export class AuthService {
 
       await prismaClient.user.update({
         where: { id: userId },
-        data: { passwordHash }
+        data: { passwordHash },
       });
 
-      return { success: true, message: 'Password changed successfully' };
+      return { success: true, message: "Password changed successfully" };
     } catch (_error) {
-      return { success: false, error: { code: 'CHANGE_PASSWORD_ERROR', message: 'Failed to change password' } };
+      return {
+        success: false,
+        error: {
+          code: "CHANGE_PASSWORD_ERROR",
+          message: "Failed to change password",
+        },
+      };
     }
   }
 
@@ -296,7 +387,7 @@ export class AuthService {
     try {
       const prismaClient = getPrismaClient();
       const user = await prismaClient.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
 
       if (!user) {
@@ -311,7 +402,7 @@ export class AuthService {
 
   verifyToken(token: string) {
     try {
-      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const secret = process.env.JWT_SECRET || "your-secret-key";
       const decoded = jwt.verify(token, secret);
       return decoded;
     } catch (_error) {
@@ -322,10 +413,8 @@ export class AuthService {
   async logout(_token: string) {
     // For JWT, logout is typically handled client-side by removing the token
     // In a more sophisticated setup, you might maintain a blacklist of tokens
-    return { success: true, message: 'Logged out successfully' };
+    return { success: true, message: "Logged out successfully" };
   }
 }
 
 export const authService = new AuthService();
-
-
