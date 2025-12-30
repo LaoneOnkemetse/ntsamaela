@@ -28,8 +28,8 @@ interface ImageValidationResult {
   errors: string[];
 }
 
-class S3UploadService {
-  // No AWS dependencies - all operations delegate to Cloudinary
+class CloudStorageService {
+  // All operations delegate to Cloudinary
   constructor() {
     // Service is now a compatibility layer for Cloudinary
   }
@@ -39,7 +39,7 @@ class S3UploadService {
     userId: string,
     packageId?: string,
   ): Promise<UploadResult> {
-    // Use Cloudinary instead of AWS S3
+    // Use Cloudinary for cloud storage
     try {
       return await cloudinaryUploadService.uploadPackageImage(file, userId, packageId);
     } catch (_error: any) {
@@ -54,7 +54,7 @@ class S3UploadService {
     file: MulterFile,
     userId: string,
   ): Promise<UploadResult> {
-    // Use Cloudinary instead of AWS S3
+    // Use Cloudinary for cloud storage
     try {
       return await cloudinaryUploadService.uploadProfilePicture(file, userId);
     } catch (_error: any) {
@@ -70,7 +70,7 @@ class S3UploadService {
   }
 
   async deleteImage(key: string): Promise<void> {
-    // Use Cloudinary instead of AWS S3
+    // Use Cloudinary for cloud storage
     try {
       await cloudinaryUploadService.deleteImage(key);
     } catch (_error: any) {
@@ -79,7 +79,7 @@ class S3UploadService {
   }
 
   async getSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    // Use Cloudinary instead of AWS S3
+    // Use Cloudinary for cloud storage
     try {
       return await cloudinaryUploadService.getSignedUrl(key, expiresIn);
     } catch (_error: any) {
@@ -196,4 +196,4 @@ class S3UploadService {
   }
 }
 
-export default new S3UploadService();
+export default new CloudStorageService();

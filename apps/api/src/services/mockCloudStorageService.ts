@@ -1,5 +1,5 @@
 // Mock S3 Upload Service for development
-export class MockS3UploadService {
+export class MockCloudStorageService {
   async uploadPackageImage(file: any, userId: string, _packageId?: string) {
     // Mock implementation - return a mock URL
     const mockUrl = `https://mock-s3-bucket.com/packages/${userId}/package-${Date.now()}.jpg`;
@@ -53,4 +53,4 @@ export class MockS3UploadService {
   }
 }
 
-export const s3UploadService = new MockS3UploadService();
+export const mockCloudStorageService = new MockCloudStorageService();

@@ -23,8 +23,8 @@ jest.mock('express-validator', () => ({
   validationResult: jest.fn()
 }));
 
-// Mock s3UploadService
-jest.mock('../../services/s3UploadService', () => ({
+// Mock cloudStorageService
+jest.mock('../../services/cloudStorageService', () => ({
   __esModule: true,
   default: {
     uploadPackageImage: jest.fn()

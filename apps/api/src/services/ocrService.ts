@@ -1,5 +1,5 @@
-// DEPRECATED: This service previously used AWS Textract. Now uses Google Cloud Vision API.
-// Google Vision API provides OCR capabilities without requiring S3 storage.
+// OCR Service using Google Cloud Vision API
+// Provides OCR capabilities for document processing.
 
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { 

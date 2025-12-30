@@ -21,11 +21,11 @@ type MulterFile = {
 
 /**
  * Generic file upload service
- * Uses S3UploadService for actual uploads
+ * Uses Cloudinary for actual uploads
  */
 export class FileUploadService {
   /**
-   * Upload a generic file to S3
+   * Upload a generic file to cloud storage
    * @param file - File buffer and metadata
    * @param userId - User ID for organizing files
    * @param folder - Optional folder path (e.g., 'documents', 'uploads')
@@ -56,9 +56,9 @@ export class FileUploadService {
         buffer: file.buffer,
       };
 
-      // Use S3UploadService for package images (we'll adapt it)
+      // Use cloud storage service for package images
       // For generic files, we'll create a similar upload method
-      const result = await this.uploadToS3(multerFile, userId, folder);
+      const result = await this.uploadToCloudStorage(multerFile, userId, folder);
 
       return {
         success: true,
@@ -139,8 +139,8 @@ export class FileUploadService {
   }
 
   /**
-   * Delete a file from S3
-   * @param urlOrKey - S3 URL or key
+   * Delete a file from cloud storage
+   * @param urlOrKey - Cloud storage URL or key
    */
   async deleteImage(urlOrKey: string): Promise<UploadResponse> {
     try {
@@ -179,14 +179,14 @@ export class FileUploadService {
   }
 
   /**
-   * Upload file to Cloudinary (internal method - replaces S3)
+   * Upload file to Cloudinary (internal method)
    */
-  private async uploadToS3(
+  private async uploadToCloudStorage(
     file: MulterFile,
     userId: string,
     folder: string
   ): Promise<{ url: string; key: string }> {
-    // Use Cloudinary instead of S3
+    // Use Cloudinary for cloud storage
     const result = await cloudinaryUploadService.uploadFile(file, folder, {
       metadata: {
         userId,
@@ -284,9 +284,9 @@ export class FileUploadService {
         return match ? match[1] : null;
       }
       
-      // Handle S3 URLs: https://bucket.s3.region.amazonaws.com/key
-      const s3UrlPattern = /https?:\/\/[^\/]+\/(.+)$/;
-      const match = url.match(s3UrlPattern);
+      // Handle cloud storage URLs
+      const cloudStorageUrlPattern = /https?:\/\/[^\/]+\/(.+)$/;
+      const match = url.match(cloudStorageUrlPattern);
       return match ? match[1] : null;
     } catch {
       return null;

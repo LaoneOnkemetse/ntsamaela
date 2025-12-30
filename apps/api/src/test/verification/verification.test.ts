@@ -13,7 +13,7 @@
 import { describe } from '@jest/globals';
 
 // Import all test files
-import './awsRekognitionService.test';
+// AWS Rekognition tests removed - using Google Cloud Vision instead
 import './ocrService.test';
 import './riskScoringService.test';
 import './verificationController.integration.test';

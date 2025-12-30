@@ -1,13 +1,7 @@
 import { Request, Response } from 'express';
 import { getPrismaClient } from '@database/index';
 import { AuthenticatedRequest } from '@shared/types';
-// Mock S3 upload service for now
-const s3UploadService = {
-  uploadDriverImage: async (file: any, userId: string) => {
-    // Mock implementation - return a mock URL
-    return `https://mock-s3-bucket.com/driver/${userId}/car-${Date.now()}.jpg`;
-  }
-};
+import cloudStorageService from '../services/cloudStorageService';
 
 export class DriverController {
   async createDriverProfile(req: AuthenticatedRequest, res: Response) {
@@ -42,7 +36,12 @@ export class DriverController {
 
       let carPhotoUrl = null;
       if (file) {
-        carPhotoUrl = await s3UploadService.uploadDriverImage(file, userId);
+        const uploadResult = await cloudStorageService.uploadPackageImage(
+          file,
+          userId,
+          `driver-car-${Date.now()}`
+        );
+        carPhotoUrl = uploadResult.url;
       }
 
       // Create driver profile
@@ -164,7 +163,12 @@ export class DriverController {
 
       let carPhotoUrl = existingDriver.licensePlate; // Keep existing if no new photo
       if (file) {
-        carPhotoUrl = await s3UploadService.uploadDriverImage(file, userId);
+        const uploadResult = await cloudStorageService.uploadPackageImage(
+          file,
+          userId,
+          `driver-car-${Date.now()}`
+        );
+        carPhotoUrl = uploadResult.url;
       }
 
       const updatedDriver = await prisma.driver.update({

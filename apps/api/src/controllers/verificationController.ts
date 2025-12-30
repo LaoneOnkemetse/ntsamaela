@@ -8,13 +8,7 @@ const verificationService = {
   }
 };
 import { AuthenticatedRequest } from '@shared/types';
-// Mock S3 upload service for now
-const s3UploadService = {
-  uploadVerificationImage: async (file: any, userId: string, type: string) => {
-    // Mock implementation - return a mock URL
-    return `https://mock-s3-bucket.com/verification/${userId}/${type}-${Date.now()}.jpg`;
-  }
-};
+import cloudStorageService from '../services/cloudStorageService';
 
 export class VerificationController {
   async submitVerification(req: AuthenticatedRequest, res: Response) {
@@ -33,26 +27,26 @@ export class VerificationController {
         });
       }
 
-      // Upload images to S3
-      const frontImageUrl = await s3UploadService.uploadVerificationImage(
+      // Upload images to cloud storage
+      const frontImageUrl = (await cloudStorageService.uploadPackageImage(
         files.frontImage[0],
         userId,
-        'front'
-      );
+        `verification-front-${Date.now()}`
+      )).url;
 
-      const selfieImageUrl = await s3UploadService.uploadVerificationImage(
+      const selfieImageUrl = (await cloudStorageService.uploadPackageImage(
         files.selfieImage[0],
         userId,
-        'selfie'
-      );
+        `verification-selfie-${Date.now()}`
+      )).url;
 
       let backImageUrl = null;
       if (files.backImage && files.backImage[0]) {
-        backImageUrl = await s3UploadService.uploadVerificationImage(
+        backImageUrl = (await cloudStorageService.uploadPackageImage(
           files.backImage[0],
           userId,
-          'back'
-        );
+          `verification-back-${Date.now()}`
+        )).url;
       }
 
       // Get Prisma client

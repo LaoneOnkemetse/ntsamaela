@@ -8,14 +8,7 @@ beforeAll(() => {
   process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/ntsamaela_test';
   process.env.DISABLE_PRISMA = 'true'; // Use mock database for tests
   
-  // Suppress AWS SDK v2 deprecation warning in tests
-  const originalWarn = console.warn;
-  console.warn = (...args) => {
-    if (args[0] && typeof args[0] === 'string' && args[0].includes('AWS SDK for JavaScript (v2)')) {
-      return; // Suppress AWS SDK v2 deprecation warning
-    }
-    originalWarn.apply(console, args);
-  };
+  // Suppress console warnings in tests if needed
 });
 
 // Clean up after each test

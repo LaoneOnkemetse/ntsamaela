@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { getPrismaClient } from "@database/index";
 import { AuthenticatedRequest } from "@shared/types";
-import s3UploadService from "../services/s3UploadService";
+import cloudStorageService from "../services/cloudStorageService";
 import { AppError } from "../utils/AppError";
 
 export class UserController {
@@ -62,7 +62,7 @@ export class UserController {
             .split(".com/")[1]
             ?.split("?")[0];
           if (oldKey) {
-            await s3UploadService.deleteImage(oldKey);
+            await cloudStorageService.deleteImage(oldKey);
           }
         } catch (deleteError) {
           // Log error but don't fail the upload
@@ -168,7 +168,7 @@ export class UserController {
       try {
         const key = user.profilePictureUrl.split(".com/")[1]?.split("?")[0];
         if (key) {
-          await s3UploadService.deleteImage(key);
+          await cloudStorageService.deleteImage(key);
         }
       } catch (deleteError) {
         // Log error but continue with database update

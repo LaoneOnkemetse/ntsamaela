@@ -192,9 +192,9 @@ import performanceRoutes from "./routes/performanceRoutes";
 import realtimeRoutes from "./routes/realtime";
 import webhookRoutes from "./routes/webhookRoutes";
 
-// Initialize AWS services
-// AWS services have been replaced with Google Cloud Vision and Cloudinary
-// import { initializeAWS } from "./services/aws/config";
+// Cloud services initialized:
+// - Google Cloud Vision API (for OCR and face detection)
+// - Cloudinary (for file storage and image optimization)
 
 // Mount routes - IMPORTANT: Auth routes must come BEFORE simpleRoutes to avoid mock endpoints
 app.use("/api/auth", authRoutes);
@@ -215,10 +215,9 @@ app.use("/api/performance", performanceRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
-// AWS services have been replaced with:
+// Cloud services:
 // - Google Cloud Vision API (for OCR and face detection)
 // - Cloudinary (for file storage and image optimization)
-// No AWS initialization needed
 
 // Initialize Firebase Cloud Messaging
 try {

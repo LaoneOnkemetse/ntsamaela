@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import packageService from '../services/packageService';
-import s3UploadService from '../services/s3UploadService';
+import cloudStorageService from '../services/cloudStorageService';
 import { AppError } from '../utils/AppError';
 import { validationResult } from 'express-validator';
 import { PackageFilters } from '../services/mockPackageService';
@@ -38,7 +38,7 @@ export class PackageController {
 
       // Handle image upload if present
       if (req.file) {
-        const uploadResult = await s3UploadService.uploadPackageImage(
+        const uploadResult = await cloudStorageService.uploadPackageImage(
           req.file,
           userId
         );
@@ -336,7 +336,7 @@ export class PackageController {
       const userId = (req as any).user.id;
       const packageId = req.params.id;
 
-      const uploadResult = await (s3UploadService as any).uploadPackageImage(
+      const uploadResult = await (cloudStorageService as any).uploadPackageImage(
         req.file,
         userId,
         packageId
@@ -378,7 +378,7 @@ export class PackageController {
       const { key } = req.params;
       const expiresIn = parseInt(req.query.expires as string) || 3600;
 
-      const signedUrl = await s3UploadService.getSignedUrl(key, expiresIn);
+      const signedUrl = await cloudStorageService.getSignedUrl(key, expiresIn);
 
       res.json({
         success: true,
