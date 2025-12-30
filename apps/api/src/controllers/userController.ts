@@ -48,8 +48,8 @@ export class UserController {
         });
       }
 
-      // Upload new profile picture to S3
-      const uploadResult = await s3UploadService.uploadProfilePicture(
+      // Upload new profile picture to cloud storage
+      const uploadResult = await cloudStorageService.uploadProfilePicture(
         file,
         userId,
       );
