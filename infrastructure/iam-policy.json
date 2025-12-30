@@ -1,0 +1,89 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RekognitionDocumentAndFacialRecognition",
+      "Effect": "Allow",
+      "Action": [
+        "rekognition:CompareFaces",
+        "rekognition:DetectFaces",
+        "rekognition:DetectText",
+        "rekognition:IndexFaces",
+        "rekognition:SearchFacesByImage",
+        "rekognition:CreateCollection",
+        "rekognition:ListCollections",
+        "rekognition:DescribeCollection"
+      ],
+      "Resource": [
+        "arn:aws:rekognition:*:*:collection/ntsamaela-verification",
+        "arn:aws:rekognition:*:*:project/*"
+      ]
+    },
+    {
+      "Sid": "TextractDocumentTextDetection",
+      "Effect": "Allow",
+      "Action": [
+        "textract:DetectDocumentText",
+        "textract:AnalyzeDocument"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3DocumentsBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ntsamaela-documents",
+        "arn:aws:s3:::ntsamaela-documents/*"
+      ]
+    },
+    {
+      "Sid": "S3PackagesBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ntsamaela-packages",
+        "arn:aws:s3:::ntsamaela-packages/*"
+      ]
+    },
+    {
+      "Sid": "S3UploadsBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ntsamaela-uploads",
+        "arn:aws:s3:::ntsamaela-uploads/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogging",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/aws/ntsamaela/*",
+        "arn:aws:logs:*:*:log-group:/aws/ntsamaela/*:*"
+      ]
+    }
+  ]
+}
+

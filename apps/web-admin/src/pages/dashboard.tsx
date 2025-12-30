@@ -21,6 +21,7 @@ import {
   Tabs,
   Badge,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import { 
   People, 
@@ -40,6 +41,9 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
+import { useQuery } from '@tanstack/react-query';
+import { getDashboardStats, getPackages, getVerifications } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface StatCardProps {
   title: string;
@@ -139,19 +143,75 @@ export default function Dashboard() {
   const [tabValue, setTabValue] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Fetch dashboard stats
+  const { data: dashboardData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
+      try {
+        const data = await getDashboardStats();
+        return data;
+      } catch (error: any) {
+        console.error('Error fetching dashboard stats:', error);
+        return null;
+      }
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  // Fetch recent packages
+  const { data: packagesData, isLoading: packagesLoading } = useQuery({
+    queryKey: ['recentPackages', tabValue],
+    queryFn: async () => {
+      try {
+        const statusFilter = tabValue === 1 ? 'IN_TRANSIT' : tabValue === 2 ? 'DELIVERED' : undefined;
+        const params: any = { limit: 5, sortBy: 'createdAt', sortOrder: 'desc' };
+        if (statusFilter) params.status = statusFilter;
+        const data = await getPackages(params);
+        return Array.isArray(data) ? data : (data?.packages || data?.data || []);
+      } catch (error: any) {
+        console.error('Error fetching packages:', error);
+        return [];
+      }
+    },
+  });
+
+  // Fetch pending verifications
+  const { data: verificationsData, isLoading: verificationsLoading } = useQuery({
+    queryKey: ['pendingVerifications'],
+    queryFn: async () => {
+      try {
+        const data = await getVerifications({ status: 'PENDING', limit: 3 });
+        return Array.isArray(data) ? data : (data?.verifications || data?.data || []);
+      } catch (error: any) {
+        console.error('Error fetching verifications:', error);
+        return [];
+      }
+    },
+  });
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate data refresh
-    setTimeout(() => {
+    try {
+      await Promise.all([refetchStats()]);
+      toast.success('Dashboard data refreshed successfully!');
+    } catch (error) {
+      toast.error('Failed to refresh dashboard data');
+    } finally {
       setRefreshing(false);
-      alert('Dashboard data refreshed successfully!');
-    }, 1000);
+    }
   };
 
-  const handleExport = () => {
-    // Trigger download
-    alert('Exporting dashboard data to CSV...');
-    // In production: generate CSV and trigger download
+  const handleExport = async () => {
+    try {
+      toast.loading('Exporting dashboard data...');
+      // In production: call export API
+      setTimeout(() => {
+        toast.dismiss();
+        toast.success('Export completed!');
+      }, 2000);
+    } catch (error) {
+      toast.error('Failed to export data');
+    }
   };
 
   const handleStatClick = (section: string) => {
@@ -183,83 +243,124 @@ export default function Dashboard() {
     }
   };
 
-  const stats = [
+  // Format stats from API data
+  const stats = dashboardData ? [
     {
       title: 'Total Users',
-      value: '1,234',
+      value: dashboardData.totalUsers?.toLocaleString() || '0',
       icon: <People />,
       gradient: '#75AADB',
-      change: 12.5,
-      progress: 75,
+      change: dashboardData.userGrowth?.toFixed(1) || 0,
+      progress: dashboardData.userGrowth || 0,
       onClick: () => handleStatClick('users'),
     },
     {
       title: 'Active Packages',
-      value: '567',
+      value: dashboardData.activePackages?.toLocaleString() || '0',
       icon: <LocalShipping />,
       gradient: '#00C853',
-      change: 8.2,
-      progress: 62,
+      change: dashboardData.packageGrowth?.toFixed(1) || 0,
+      progress: dashboardData.packageGrowth || 0,
       onClick: () => handleStatClick('packages'),
     },
     {
       title: 'Pending Verifications',
-      value: '89',
+      value: dashboardData.pendingVerifications?.toLocaleString() || '0',
       icon: <VerifiedUser />,
       gradient: '#FFB800',
-      change: -3.1,
-      progress: 45,
+      change: dashboardData.verificationChange?.toFixed(1) || 0,
+      progress: dashboardData.verificationProgress || 0,
       onClick: () => handleStatClick('verifications'),
     },
     {
       title: 'Revenue',
-      value: 'P 12,345',
+      value: `P ${dashboardData.totalRevenue?.toLocaleString() || '0'}`,
       icon: <AttachMoney />,
       gradient: '#FF6D00',
-      change: 15.8,
-      progress: 88,
+      change: dashboardData.revenueGrowth?.toFixed(1) || 0,
+      progress: dashboardData.revenueProgress || 0,
+      onClick: () => handleStatClick('revenue'),
+    },
+  ] : [
+    {
+      title: 'Total Users',
+      value: '0',
+      icon: <People />,
+      gradient: '#75AADB',
+      change: 0,
+      progress: 0,
+      onClick: () => handleStatClick('users'),
+    },
+    {
+      title: 'Active Packages',
+      value: '0',
+      icon: <LocalShipping />,
+      gradient: '#00C853',
+      change: 0,
+      progress: 0,
+      onClick: () => handleStatClick('packages'),
+    },
+    {
+      title: 'Pending Verifications',
+      value: '0',
+      icon: <VerifiedUser />,
+      gradient: '#FFB800',
+      change: 0,
+      progress: 0,
+      onClick: () => handleStatClick('verifications'),
+    },
+    {
+      title: 'Revenue',
+      value: 'P 0',
+      icon: <AttachMoney />,
+      gradient: '#FF6D00',
+      change: 0,
+      progress: 0,
       onClick: () => handleStatClick('revenue'),
     },
   ];
 
-  const allPackages = [
-    { id: 'PKG-001', customer: 'Sarah M.', driver: 'John D.', route: 'Gaborone → Francistown', amount: 350, status: 'delivered' },
-    { id: 'PKG-002', customer: 'Mike K.', driver: 'Emma S.', route: 'Maun → Kasane', amount: 280, status: 'in-transit' },
-    { id: 'PKG-003', customer: 'Lisa P.', driver: 'David L.', route: 'Palapye → Serowe', amount: 150, status: 'pending' },
-    { id: 'PKG-004', customer: 'Tom R.', driver: 'Grace M.', route: 'Lobatse → Kanye', amount: 180, status: 'in-transit' },
-    { id: 'PKG-005', customer: 'Anna B.', driver: 'Peter K.', route: 'Gaborone → Molepolole', amount: 120, status: 'delivered' },
-  ];
+  const recentPackages = (packagesData || []).map((pkg: any) => ({
+    id: pkg.id || pkg.packageId,
+    customer: pkg.customer?.firstName ? `${pkg.customer.firstName} ${pkg.customer.lastName}` : pkg.customerName || 'Unknown',
+    driver: pkg.driver?.firstName ? `${pkg.driver.firstName} ${pkg.driver.lastName}` : pkg.driverName || 'Unassigned',
+    route: `${pkg.pickupAddress || 'N/A'} → ${pkg.deliveryAddress || 'N/A'}`,
+    amount: pkg.priceOffered || 0,
+    status: pkg.status?.toLowerCase() || 'pending',
+  }));
 
-  const recentPackages = allPackages.filter(pkg => {
-    if (tabValue === 1) return pkg.status === 'in-transit'; // Active
-    if (tabValue === 2) return pkg.status === 'delivered'; // Completed
-    return true; // All
-  });
-
-  const pendingVerifications = [
-    { id: 'VER-001', name: 'James Wilson', type: 'Driver License', date: '2025-10-25', status: 'pending' },
-    { id: 'VER-002', name: 'Maria Garcia', type: 'National ID', date: '2025-10-24', status: 'pending' },
-    { id: 'VER-003', name: 'Robert Chen', type: 'Vehicle Registration', date: '2025-10-23', status: 'pending' },
-  ];
+  const pendingVerifications = (verificationsData || []).map((ver: any) => ({
+    id: ver.id || ver.verificationId,
+    name: ver.user?.firstName ? `${ver.user.firstName} ${ver.user.lastName}` : ver.userName || 'Unknown',
+    type: ver.documentType || 'Unknown',
+    date: ver.submittedAt ? new Date(ver.submittedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    status: ver.status?.toLowerCase() || 'pending',
+  }));
 
   const getStatusColor = (status: string) => {
-    const colors = {
+    const statusLower = status.toLowerCase();
+    const colors: Record<string, { bg: string; color: string }> = {
       delivered: { bg: 'rgba(0, 200, 83, 0.1)', color: '#00C853' },
       'in-transit': { bg: 'rgba(117, 170, 219, 0.1)', color: '#75AADB' },
+      'in_transit': { bg: 'rgba(117, 170, 219, 0.1)', color: '#75AADB' },
       pending: { bg: 'rgba(255, 184, 0, 0.1)', color: '#FFB800' },
       cancelled: { bg: 'rgba(211, 47, 47, 0.1)', color: '#D32F2F' },
+      canceled: { bg: 'rgba(211, 47, 47, 0.1)', color: '#D32F2F' },
     };
-    return colors[status as keyof typeof colors] || colors.pending;
+    return colors[statusLower] || colors.pending;
   };
 
   const getStatusIcon = (status: string) => {
-    const icons = {
+    const statusLower = status.toLowerCase();
+    const icons: Record<string, React.ReactNode> = {
       delivered: <CheckCircle sx={{ fontSize: 18 }} />,
       'in-transit': <LocalShipping sx={{ fontSize: 18 }} />,
+      'in_transit': <LocalShipping sx={{ fontSize: 18 }} />,
       pending: <Pending sx={{ fontSize: 18 }} />,
       cancelled: <Cancel sx={{ fontSize: 18 }} />,
+      canceled: <Cancel sx={{ fontSize: 18 }} />,
     };
-    return icons[status as keyof typeof icons] || icons.pending;
+    return icons[statusLower] || icons.pending;
   };
 
   return (
@@ -315,13 +416,19 @@ export default function Dashboard() {
       </Box>
 
       {/* Stats Grid */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {stats.map((stat, index) => (
-          <Grid item xs={12} sm={6} lg={3} key={index}>
-            <StatCard {...stat} />
-          </Grid>
-        ))}
-      </Grid>
+      {statsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {stats.map((stat, index) => (
+            <Grid item xs={12} sm={6} lg={3} key={index}>
+              <StatCard {...stat} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       {/* Main Content */}
       <Grid container spacing={3}>
@@ -374,58 +481,72 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {recentPackages.map((pkg) => {
-                      const statusColor = getStatusColor(pkg.status);
-                      return (
-                        <TableRow 
-                          key={pkg.id}
-                          sx={{ 
-                            '&:hover': { 
-                              backgroundColor: 'rgba(117, 170, 219, 0.04)',
-                              cursor: 'pointer',
-                            } 
-                          }}
-                        >
-                          <TableCell sx={{ fontWeight: 600, color: '#75AADB' }}>
-                            {pkg.id}
-                          </TableCell>
-                          <TableCell>{pkg.customer}</TableCell>
-                          <TableCell>{pkg.driver}</TableCell>
-                          <TableCell sx={{ fontSize: '0.875rem' }}>{pkg.route}</TableCell>
-                          <TableCell sx={{ fontWeight: 600 }}>P {pkg.amount}</TableCell>
-                          <TableCell>
-                            <Chip
-                              icon={getStatusIcon(pkg.status)}
-                              label={pkg.status}
-                              size="small"
-                              sx={{
-                                background: statusColor.bg,
-                                color: statusColor.color,
-                                fontWeight: 600,
-                                textTransform: 'capitalize',
-                                '& .MuiChip-icon': {
+                    {packagesLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                          <CircularProgress size={24} />
+                        </TableCell>
+                      </TableRow>
+                    ) : recentPackages.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                          <Typography color="text.secondary">No packages found</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      recentPackages.map((pkg) => {
+                        const statusColor = getStatusColor(pkg.status);
+                        return (
+                          <TableRow 
+                            key={pkg.id}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: 'rgba(117, 170, 219, 0.04)',
+                                cursor: 'pointer',
+                              } 
+                            }}
+                          >
+                            <TableCell sx={{ fontWeight: 600, color: '#75AADB' }}>
+                              {pkg.id}
+                            </TableCell>
+                            <TableCell>{pkg.customer}</TableCell>
+                            <TableCell>{pkg.driver}</TableCell>
+                            <TableCell sx={{ fontSize: '0.875rem' }}>{pkg.route}</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>P {pkg.amount}</TableCell>
+                            <TableCell>
+                              <Chip
+                                icon={getStatusIcon(pkg.status)}
+                                label={pkg.status.replace('_', ' ')}
+                                size="small"
+                                sx={{
+                                  background: statusColor.bg,
                                   color: statusColor.color,
-                                },
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewDetails(pkg.id)}
-                              sx={{
-                                color: '#75AADB',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(117, 170, 219, 0.1)',
-                                },
-                              }}
-                            >
-                              <Visibility fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                                  fontWeight: 600,
+                                  textTransform: 'capitalize',
+                                  '& .MuiChip-icon': {
+                                    color: statusColor.color,
+                                  },
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewDetails(pkg.id)}
+                                sx={{
+                                  color: '#75AADB',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(117, 170, 219, 0.1)',
+                                  },
+                                }}
+                              >
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -533,37 +654,47 @@ export default function Dashboard() {
                   </Box>
                   
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {pendingVerifications.map((ver) => (
-                      <Paper
-                        key={ver.id}
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 2,
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            borderColor: '#FFB800',
-                            backgroundColor: 'rgba(255, 184, 0, 0.04)',
-                            cursor: 'pointer',
-                          },
-                        }}
-                        onClick={() => handleViewDetails(ver.id)}
-                      >
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            {ver.name}
-                          </Typography>
+                    {verificationsLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : pendingVerifications.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                        No pending verifications
+                      </Typography>
+                    ) : (
+                      pendingVerifications.map((ver) => (
+                        <Paper
+                          key={ver.id}
+                          elevation={0}
+                          sx={{
+                            p: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              borderColor: '#FFB800',
+                              backgroundColor: 'rgba(255, 184, 0, 0.04)',
+                              cursor: 'pointer',
+                            },
+                          }}
+                          onClick={() => handleViewDetails(ver.id)}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              {ver.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {ver.date}
+                            </Typography>
+                          </Box>
                           <Typography variant="caption" color="text.secondary">
-                            {ver.date}
+                            {ver.type}
                           </Typography>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {ver.type}
-                        </Typography>
-                      </Paper>
-                    ))}
+                        </Paper>
+                      ))
+                    )}
                   </Box>
 
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>

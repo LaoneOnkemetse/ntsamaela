@@ -114,12 +114,6 @@ build_and_push_images() {
     docker tag ${PROJECT_NAME}-api:latest ${DOCKER_REGISTRY}/${PROJECT_NAME}-api:latest
     docker push ${DOCKER_REGISTRY}/${PROJECT_NAME}-api:latest
     
-    # Build and push Web image
-    log_info "Building Web image..."
-    docker build -t ${PROJECT_NAME}-web:latest -f apps/web/Dockerfile .
-    docker tag ${PROJECT_NAME}-web:latest ${DOCKER_REGISTRY}/${PROJECT_NAME}-web:latest
-    docker push ${DOCKER_REGISTRY}/${PROJECT_NAME}-web:latest
-    
     log_success "Docker images built and pushed successfully"
 }
 
@@ -149,17 +143,11 @@ deploy_application() {
         --force-new-deployment \
         --region ${AWS_REGION}
     
-    aws ecs update-service \
-        --cluster ${PROJECT_NAME}-cluster \
-        --service ${PROJECT_NAME}-web \
-        --force-new-deployment \
-        --region ${AWS_REGION}
-    
     # Wait for deployment to complete
     log_info "Waiting for deployment to complete..."
     aws ecs wait services-stable \
         --cluster ${PROJECT_NAME}-cluster \
-        --services ${PROJECT_NAME}-api ${PROJECT_NAME}-web \
+        --services ${PROJECT_NAME}-api \
         --region ${AWS_REGION}
     
     log_success "Application deployment completed"
@@ -183,13 +171,6 @@ run_health_checks() {
         exit 1
     fi
     
-    # Check Web app
-    if curl -f -s "https://${DOMAIN_NAME}" > /dev/null; then
-        log_success "Web app health check passed"
-    else
-        log_error "Web app health check failed"
-        exit 1
-    fi
     
     log_success "All health checks passed"
 }

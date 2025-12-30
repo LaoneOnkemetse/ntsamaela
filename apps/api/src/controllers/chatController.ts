@@ -78,8 +78,7 @@ export class ChatController {
         filters.driverId = userId;
       }
 
-      // TODO: Implement getChatRooms method in realtimeService
-      const chatRooms: ChatRoom[] = []; // Placeholder
+      const chatRooms = await this.realtimeService.getChatRooms(filters);
 
       const response: PaginatedResponse<ChatRoom> = {
         success: true,

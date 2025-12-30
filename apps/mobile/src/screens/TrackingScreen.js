@@ -1,0 +1,426 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { colors } from '../constants/colors';
+import apiService from '../services/apiService';
+import socketService from '../services/socketService';
+import * as Location from 'expo-location';
+
+const { width, height } = Dimensions.get('window');
+
+export const TrackingScreen = ({ navigation, route }) => {
+  const { packageId } = route.params || {};
+  const [loading, setLoading] = useState(false);
+  const [trackingData, setTrackingData] = useState(null);
+  const [packageInfo, setPackageInfo] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (packageId) {
+      loadTrackingData();
+      setupSocketListeners();
+      requestLocationPermission();
+    }
+
+    return () => {
+      socketService.off('location_update');
+      socketService.off('package_status_update');
+    };
+  }, [packageId]);
+
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      }
+    } catch (error) {
+      console.error('Location permission error:', error);
+    }
+  };
+
+  const loadTrackingData = async () => {
+    setLoading(true);
+    try {
+      const [trackingRes, packageRes] = await Promise.all([
+        apiService.getPackageTracking(packageId),
+        apiService.getPackageById(packageId),
+      ]);
+
+      if (trackingRes.success) {
+        setTrackingData(trackingRes.data);
+        const latestUpdate = trackingRes.data?.updates?.[trackingRes.data.updates.length - 1];
+        if (latestUpdate?.latitude && latestUpdate?.longitude) {
+          setDriverLocation({
+            latitude: latestUpdate.latitude,
+            longitude: latestUpdate.longitude,
+          });
+        }
+      }
+
+      if (packageRes.success) {
+        setPackageInfo(packageRes.data);
+      }
+    } catch (error) {
+      console.error('Failed to load tracking data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setupSocketListeners = () => {
+    socketService.on('location_update', (data) => {
+      if (data.packageId === packageId) {
+        setDriverLocation({
+          latitude: data.latitude,
+          longitude: data.longitude,
+        });
+        updateMapRegion(data.latitude, data.longitude);
+      }
+    });
+
+    socketService.on('package_status_update', (data) => {
+      if (data.packageId === packageId) {
+        loadTrackingData();
+      }
+    });
+  };
+
+  const updateMapRegion = (latitude, longitude) => {
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        },
+        1000
+      );
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return colors.warning;
+      case 'ACCEPTED':
+        return colors.primary;
+      case 'IN_TRANSIT':
+        return colors.primary;
+      case 'DELIVERED':
+        return colors.success;
+      case 'CANCELLED':
+        return colors.error;
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getInitialRegion = () => {
+    if (driverLocation) {
+      return {
+        ...driverLocation,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+    }
+    if (packageInfo?.pickupLat && packageInfo?.pickupLng) {
+      return {
+        latitude: packageInfo.pickupLat,
+        longitude: packageInfo.pickupLng,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.1,
+      };
+    }
+    // Default to Gaborone, Botswana
+    return {
+      latitude: -24.6282,
+      longitude: 25.9231,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    };
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {loading && !trackingData ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <>
+          {/* Map View */}
+          <View style={styles.mapContainer}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={getInitialRegion()}
+              showsUserLocation
+              showsMyLocationButton
+            >
+              {/* Pickup Location */}
+              {packageInfo?.pickupLat && packageInfo?.pickupLng && (
+                <Marker
+                  coordinate={{
+                    latitude: packageInfo.pickupLat,
+                    longitude: packageInfo.pickupLng,
+                  }}
+                  title="Pickup Location"
+                  description={packageInfo.pickupAddress}
+                  pinColor={colors.success}
+                />
+              )}
+
+              {/* Delivery Location */}
+              {packageInfo?.deliveryLat && packageInfo?.deliveryLng && (
+                <Marker
+                  coordinate={{
+                    latitude: packageInfo.deliveryLat,
+                    longitude: packageInfo.deliveryLng,
+                  }}
+                  title="Delivery Location"
+                  description={packageInfo.deliveryAddress}
+                  pinColor={colors.error}
+                />
+              )}
+
+              {/* Driver Location */}
+              {driverLocation && (
+                <Marker
+                  coordinate={driverLocation}
+                  title="Driver Location"
+                  description="Current driver position"
+                  pinColor={colors.primary}
+                />
+              )}
+
+              {/* Route Line */}
+              {packageInfo?.pickupLat &&
+                packageInfo?.pickupLng &&
+                packageInfo?.deliveryLat &&
+                packageInfo?.deliveryLng && (
+                  <Polyline
+                    coordinates={[
+                      {
+                        latitude: packageInfo.pickupLat,
+                        longitude: packageInfo.pickupLng,
+                      },
+                      {
+                        latitude: packageInfo.deliveryLat,
+                        longitude: packageInfo.deliveryLng,
+                      },
+                    ]}
+                    strokeColor={colors.primary}
+                    strokeWidth={3}
+                  />
+                )}
+            </MapView>
+          </View>
+
+          {/* Tracking Info */}
+          <ScrollView style={styles.infoContainer} contentContainerStyle={styles.infoContent}>
+            {packageInfo && (
+              <View style={styles.packageCard}>
+                <Text style={styles.cardTitle}>Package Details</Text>
+                <Text style={styles.packageDescription}>{packageInfo.description}</Text>
+                <View style={styles.statusBadge}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: getStatusColor(packageInfo.status) },
+                    ]}
+                  />
+                  <Text style={styles.statusText}>{packageInfo.status}</Text>
+                </View>
+              </View>
+            )}
+
+            {trackingData && trackingData.updates && trackingData.updates.length > 0 && (
+              <View style={styles.timelineCard}>
+                <Text style={styles.cardTitle}>Tracking Timeline</Text>
+                {trackingData.updates.map((update, index) => (
+                  <View key={update.id || index} style={styles.timelineItem}>
+                    <View style={styles.timelineDot} />
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineStatus}>{update.status}</Text>
+                      {update.location && (
+                        <Text style={styles.timelineLocation}>{update.location}</Text>
+                      )}
+                      <Text style={styles.timelineTime}>{formatDate(update.timestamp)}</Text>
+                      {update.notes && (
+                        <Text style={styles.timelineNotes}>{update.notes}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {packageInfo && (
+              <View style={styles.addressCard}>
+                <View style={styles.addressRow}>
+                  <Text style={styles.addressLabel}>From:</Text>
+                  <Text style={styles.addressText}>{packageInfo.pickupAddress}</Text>
+                </View>
+                <View style={styles.addressRow}>
+                  <Text style={styles.addressLabel}>To:</Text>
+                  <Text style={styles.addressText}>{packageInfo.deliveryAddress}</Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </>
+      )}
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapContainer: {
+    height: height * 0.5,
+    width: '100%',
+  },
+  map: {
+    flex: 1,
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  infoContent: {
+    padding: 16,
+  },
+  packageCard: {
+    backgroundColor: colors.cardBg,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  packageDescription: {
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.cardBgLight,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  timelineCard: {
+    backgroundColor: colors.cardBg,
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
+    marginRight: 12,
+    marginTop: 4,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineStatus: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  timelineLocation: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  timelineTime: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginBottom: 4,
+  },
+  timelineNotes: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  addressCard: {
+    backgroundColor: colors.cardBg,
+    padding: 16,
+    borderRadius: 8,
+  },
+  addressRow: {
+    marginBottom: 12,
+  },
+  addressLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  addressText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+});
+

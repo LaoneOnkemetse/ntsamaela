@@ -33,6 +33,7 @@ import {
   Notifications,
   Person,
   ChevronLeft,
+  TrendingUp,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import Logo from './Logo';
@@ -80,6 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Deliveries', icon: <LocalShipping />, path: '/deliveries', color: '#F59E0B' },
     { text: 'Wallets', icon: <AccountBalance />, path: '/wallets', color: '#8B5CF6' },
     { text: 'Verifications', icon: <VerifiedUser />, path: '/verifications', color: '#EC4899' },
+    { text: 'Analytics', icon: <TrendingUp />, path: '/analytics', color: '#0EA5E9' },
     { text: 'Settings', icon: <Settings />, path: '/settings', color: '#6B7280' },
   ];
 

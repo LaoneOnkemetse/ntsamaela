@@ -1,39 +1,88 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
-import BidController from '../controllers/bidController';
+import { body, param } from 'express-validator';
+import { BidController } from '../controllers/bidController';
+import { requireAuth } from '../middleware/auth';
+import { requireUserType } from '../middleware/userTypeMiddleware';
 import { validateRequest } from '../middleware/validateRequest';
-import { sanitizeInput } from '../middleware/sanitization';
-import { requireAuth, requireUserType, requireVerifiedUser } from '../middleware/auth';
 
 const router = Router();
-const bidController = BidController;
+const bidController = new BidController();
 
 // Validation rules
-const createBidValidation = [
-  body('packageId').notEmpty().withMessage('Package ID is required'),
-  body('amount').isFloat({ min: 0 }).withMessage('Valid bid amount is required'),
+const validateCreateBid = [
+  body('packageId').isString().withMessage('Package ID is required'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
+  body('message').optional().isString().withMessage('Message must be a string'),
+  body('tripId').optional().isString().withMessage('Trip ID must be a string')
+];
+
+const validateCounterBid = [
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
   body('message').optional().isString().withMessage('Message must be a string')
 ];
 
-// Routes
-router.post('/', requireAuth, requireUserType(['DRIVER']), requireVerifiedUser, sanitizeInput, createBidValidation, validateRequest, bidController.createBid);
-router.get('/', requireAuth, bidController.getBids);
-router.get('/pending', requireAuth, bidController.getPendingBids);
-router.get('/my-bids', requireAuth, requireUserType(['DRIVER']), bidController.getBidsByDriver);
-router.get('/package/:packageId', requireAuth, bidController.getBidsByPackage);
-router.get('/:id', requireAuth, bidController.getBidById);
-router.put('/:id', requireAuth, requireUserType(['DRIVER']), bidController.updateBid);
-router.put('/:id/accept', requireAuth, requireUserType(['CUSTOMER']), bidController.acceptBid);
-router.put('/:id/reject', requireAuth, requireUserType(['CUSTOMER']), bidController.rejectBid);
-router.delete('/:id', requireAuth, requireUserType(['DRIVER']), bidController.cancelBid);
+const validateBidId = [
+  param('id').isString().withMessage('Bid ID is required')
+];
 
-// Commission management routes
-router.post('/calculate-commission', requireAuth, bidController.calculateCommission);
-router.post('/pre-authorize', requireAuth, requireUserType(['DRIVER']), bidController.preAuthorizeCommission);
-router.post('/confirm-commission/:reservationId', requireAuth, bidController.confirmCommissionReservation);
-router.post('/release-commission/:reservationId', requireAuth, bidController.releaseCommissionReservation);
-router.get('/recommendations/package/:packageId', requireAuth, bidController.getRecommendedBids);
+// Routes
+router.post(
+  '/',
+  requireAuth,
+  requireUserType(['DRIVER']),
+  validateCreateBid,
+  validateRequest,
+  bidController.createBid.bind(bidController)
+);
+
+router.get(
+  '/package/:packageId',
+  requireAuth,
+  bidController.getBidsByPackage.bind(bidController)
+);
+
+router.get(
+  '/my-bids',
+  requireAuth,
+  requireUserType(['DRIVER']),
+  bidController.getMyBids.bind(bidController)
+);
+
+router.put(
+  '/:id/accept',
+  requireAuth,
+  requireUserType(['CUSTOMER']),
+  validateBidId,
+  validateRequest,
+  bidController.acceptBid.bind(bidController)
+);
+
+router.put(
+  '/:id/reject',
+  requireAuth,
+  requireUserType(['CUSTOMER']),
+  validateBidId,
+  validateRequest,
+  bidController.rejectBid.bind(bidController)
+);
+
+router.post(
+  '/:id/counter',
+  requireAuth,
+  requireUserType(['CUSTOMER']),
+  validateBidId,
+  validateCounterBid,
+  validateRequest,
+  bidController.counterBid.bind(bidController)
+);
+
+router.delete(
+  '/:id',
+  requireAuth,
+  requireUserType(['DRIVER']),
+  validateBidId,
+  validateRequest,
+  bidController.deleteBid.bind(bidController)
+);
 
 export default router;
-
-

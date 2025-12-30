@@ -49,7 +49,22 @@ export const validateCreatePackage = [
   body('weight')
     .optional()
     .isFloat({ min: 0.1, max: 1000 })
-    .withMessage('Weight must be between 0.1 and 1000 kg')
+    .withMessage('Weight must be between 0.1 and 1000 kg'),
+  
+  body('deliveryDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Delivery date must be a valid ISO 8601 date'),
+  
+  body('urgency')
+    .optional()
+    .isIn(['NORMAL', 'URGENT', 'SAME_DAY'])
+    .withMessage('Urgency must be one of: NORMAL, URGENT, SAME_DAY'),
+  
+  body('recipientPhone')
+    .optional()
+    .isMobilePhone('any')
+    .withMessage('Recipient phone must be a valid mobile phone number')
 ];
 
 export const validateUpdatePackageStatus = [

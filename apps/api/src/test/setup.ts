@@ -45,6 +45,27 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
+// (No realtimeService mock; use real implementation for service/controller tests)
+
+// Bypass validation middleware for controller integration/perf tests
+jest.mock('@/middleware/validateRequest', () => ({
+  validateRequest: () => (_req: any, _res: any, next: any) => next(),
+  handleValidationErrors: () => (_req: any, _res: any, next: any) => next(),
+}));
+
+jest.mock('@/middleware/validationMiddleware', () => ({
+  validateRequest: () => (_req: any, _res: any, next: any) => next(),
+  handleValidationErrors: () => (_req: any, _res: any, next: any) => next(),
+}));
+
+jest.mock('@/middleware/packageValidation', () => ({
+  validateCreatePackage: () => (_req: any, _res: any, next: any) => next(),
+  validateUpdatePackage: () => (_req: any, _res: any, next: any) => next(),
+  validateUpdateStatus: () => (_req: any, _res: any, next: any) => next(),
+  validateImageUpload: () => (_req: any, _res: any, next: any) => next(),
+  validateLocationSearch: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 // Mock email service
 jest.mock('@/services/emailService', () => ({
   sendEmail: jest.fn().mockResolvedValue({ success: true }),

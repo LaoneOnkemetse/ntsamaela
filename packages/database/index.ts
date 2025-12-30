@@ -50,8 +50,13 @@ function createPrismaClient() {
       console.log('Prisma client created successfully');
     }
     return client;
-  } catch (error) {
-    console.warn('Prisma client disabled due to error:', error);
+  } catch (error: any) {
+    console.error('❌ CRITICAL: Prisma client creation failed:', error);
+    console.error('❌ Error name:', error?.name);
+    console.error('❌ Error message:', error?.message);
+    console.error('❌ Error code:', error?.code);
+    console.error('❌ Full error:', error);
+    console.warn('⚠️ Prisma client disabled due to error');
     return null;
   }
 }
@@ -78,13 +83,14 @@ export { prisma };
 
 // Export a function to get the current prisma client
 export function getPrismaClient() {
-  // Always return mock client for development
-  if (process.env.DISABLE_PRISMA === 'true' || !prisma) {
-    console.warn('Using mock database client for development');
+  // Check if Prisma is explicitly disabled
+  if (process.env.DISABLE_PRISMA === 'true') {
+    console.warn('⚠️ Using mock database client - DISABLE_PRISMA is set to true');
     return {
       user: { 
         findMany: () => Promise.resolve([]), 
         findUnique: () => Promise.resolve(null),
+        findFirst: () => Promise.resolve(null),
         create: () => Promise.resolve({}), 
         update: () => Promise.resolve({}), 
         delete: () => Promise.resolve({}) 
@@ -170,6 +176,16 @@ export function getPrismaClient() {
       $disconnect: () => Promise.resolve()
     } as any;
   }
+  
+  // If prisma is null, it means initialization failed - throw error instead of returning null
+  if (!prisma) {
+    const errorMsg = 'Prisma client is null. Database initialization may have failed.';
+    console.error('❌ CRITICAL:', errorMsg);
+    console.error('❌ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+    console.error('❌ DISABLE_PRISMA:', process.env.DISABLE_PRISMA);
+    throw new Error(errorMsg);
+  }
+  
   return prisma;
 }
 

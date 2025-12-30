@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { param, query, validationResult } from 'express-validator';
-import notificationController from '../controllers/notificationController';
+import { NotificationController } from '../controllers/notificationController';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
+const notificationController = new NotificationController();
 
 // Validation middleware
 const handleValidationErrors = (req: any, res: any, next: any) => {
@@ -49,14 +50,14 @@ router.put(
     param('notificationId').notEmpty().withMessage('Notification ID is required')
   ],
   handleValidationErrors,
-  (req: any, res: any) => notificationController.markNotificationAsRead(req, res)
+  (req: any, res: any) => notificationController.markAsRead(req, res)
 );
 
 // Mark all notifications as read
 router.put(
   '/read-all',
   requireAuth,
-  (req: any, res: any) => notificationController.markAllNotificationsAsRead(req, res)
+  (req: any, res: any) => notificationController.markAllAsRead(req, res)
 );
 
 // Delete notification

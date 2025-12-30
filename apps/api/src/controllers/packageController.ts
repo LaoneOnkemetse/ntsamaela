@@ -3,7 +3,7 @@ import packageService from '../services/packageService';
 import s3UploadService from '../services/s3UploadService';
 import { AppError } from '../utils/AppError';
 import { validationResult } from 'express-validator';
-import { PackageFilters } from '../services/packageService';
+import { PackageFilters } from '../services/mockPackageService';
 
 export class PackageController {
   async createPackage(req: Request, res: Response) {
@@ -247,7 +247,7 @@ export class PackageController {
       }
 
       // Access control: Only the package owner or admin can update status
-      if (authenticatedUser.role !== 'ADMIN' && package_.data.customerId !== authenticatedUser.id) {
+      if (authenticatedUser.role !== 'ADMIN' && (package_ as any).data?.customerId !== authenticatedUser.id) {
         return res.status(403).json({
           success: false,
           error: {
@@ -257,11 +257,11 @@ export class PackageController {
         });
       }
 
-      const result = await packageService.updatePackageStatus(id, updateData);
+      const result = await (packageService as any).updatePackageStatus(id, { status: updateData.status, notes: updateData.notes });
 
       res.json({
         success: true,
-        data: result.data,
+        data: (result as any).data ?? result,
         message: 'Package status updated successfully'
       });
     } catch (_error: any) {
@@ -292,7 +292,7 @@ export class PackageController {
       const { id } = req.params;
       const userId = (req as any).user.id;
 
-      const result = await packageService.deletePackage(id, userId);
+      const result = await (packageService as any).deletePackage(id, userId);
 
       res.json({
         success: true,
@@ -336,7 +336,7 @@ export class PackageController {
       const userId = (req as any).user.id;
       const packageId = req.params.id;
 
-      const uploadResult = await s3UploadService.uploadPackageImage(
+      const uploadResult = await (s3UploadService as any).uploadPackageImage(
         req.file,
         userId,
         packageId

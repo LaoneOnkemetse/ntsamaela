@@ -3,13 +3,13 @@ import {
   FaceLandmark, 
   DocumentType 
 } from '@shared/types';
-import AWSRekognitionService from './awsRekognitionService';
+import GoogleVisionService from './googleVisionService';
 
 export class FacialRecognitionService {
-  private awsRekognition: AWSRekognitionService;
+  private googleVision: GoogleVisionService;
 
   constructor() {
-    this.awsRekognition = new AWSRekognitionService();
+    this.googleVision = new GoogleVisionService();
   }
 
   /**
@@ -24,15 +24,15 @@ export class FacialRecognitionService {
     try {
       const startTime = Date.now();
 
-      // Use AWS Rekognition for facial recognition
-      const result = await this.awsRekognition.performFacialRecognition(
+      // Use Google Vision for facial recognition
+      const result = await this.googleVision.performFacialRecognition(
         documentImageBase64,
         selfieImageBase64,
         userId
       );
 
       // Perform additional liveness detection
-      const livenessResult = await this.awsRekognition.analyzeFaceLiveness(selfieImageBase64);
+      const livenessResult = await this.googleVision.analyzeFaceLiveness(selfieImageBase64);
 
       // Enhance result with liveness information
       const enhancedResult: FacialRecognitionResult = {
@@ -67,8 +67,8 @@ export class FacialRecognitionService {
     try {
       const imageBuffer = Buffer.from(imageBase64, 'base64');
       
-      // Use AWS Rekognition to detect faces
-      const result = await this.awsRekognition.performFacialRecognition(
+      // Use Google Vision to detect faces
+      const result = await this.googleVision.performFacialRecognition(
         imageBase64,
         imageBase64, // Compare with itself for quality analysis
         'quality-check'
@@ -121,7 +121,7 @@ export class FacialRecognitionService {
   }> {
     try {
       // Perform liveness detection
-      const livenessResult = await this.awsRekognition.analyzeFaceLiveness(imageBase64);
+      const livenessResult = await this.googleVision.analyzeFaceLiveness(imageBase64);
 
       const issues: string[] = [];
       const recommendations: string[] = [];
@@ -188,7 +188,7 @@ export class FacialRecognitionService {
       // Compare all pairs of faces
       for (let i = 0; i < faces.length; i++) {
         for (let j = i + 1; j < faces.length; j++) {
-          const result = await this.awsRekognition.performFacialRecognition(
+          const result = await this.googleVision.performFacialRecognition(
             faces[i].imageBase64,
             faces[j].imageBase64,
             'comparison'
@@ -244,7 +244,7 @@ export class FacialRecognitionService {
     quality: number;
   }> {
     try {
-      const result = await this.awsRekognition.performFacialRecognition(
+      const result = await this.googleVision.performFacialRecognition(
         imageBase64,
         imageBase64,
         'feature-extraction'

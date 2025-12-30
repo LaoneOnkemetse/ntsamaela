@@ -342,6 +342,62 @@ export class RealtimeService {
     }
   }
 
+  async getChatRooms(filters: { customerId?: string; driverId?: string; limit?: number; offset?: number }): Promise<ChatRoom[]> {
+    try {
+      const where: any = {};
+      
+      if (filters.customerId) {
+        where.customerId = filters.customerId;
+      }
+      
+      if (filters.driverId) {
+        where.driverId = filters.driverId;
+      }
+
+      const chatRooms = await this.prisma.chatRoom.findMany({
+        where,
+        include: {
+          package: true,
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              profilePictureUrl: true
+            }
+          },
+          driver: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                  profilePictureUrl: true
+                }
+              }
+            }
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: filters.limit || 20,
+        skip: filters.offset || 0
+      });
+
+      return chatRooms.map((room: any) => this.formatChatRoom(room));
+    } catch (_error) {
+      throw new AppError('Failed to get chat rooms', 'CHAT_ROOMS_FETCH_FAILED', 500);
+    }
+  }
+
   // Tracking methods
   async createTrackingUpdate(
     packageId: string, 
@@ -352,6 +408,14 @@ export class RealtimeService {
     notes?: string
   ): Promise<PackageTracking> {
     try {
+      // Update package status if it's a status change
+      if (status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED') {
+        await this.prisma.package.update({
+          where: { id: packageId },
+          data: { status }
+        });
+      }
+
       const tracking = await this.prisma.packageTracking.create({
         data: {
           packageId,
@@ -362,6 +426,16 @@ export class RealtimeService {
           notes
         }
       });
+
+      // Auto-generate and send delivery PIN when package is picked up
+      if (status === 'PICKED_UP') {
+        // Import delivery service dynamically to avoid circular dependency
+        const { deliveryService } = await import('./deliveryService');
+        deliveryService.generateAndSendDeliveryPin(packageId).catch((error) => {
+          console.error('Failed to auto-generate delivery PIN:', error);
+          // Don't fail the tracking update if PIN generation fails
+        });
+      }
 
       // Emit real-time update
       this.io.to(`package:${packageId}`).emit('package:status:update', {
@@ -702,6 +776,16 @@ export class RealtimeService {
         where: { id: data.packageId },
         data: { status: data.status }
       });
+
+      // Auto-generate and send delivery PIN when package is picked up
+      if (data.status === 'PICKED_UP') {
+        // Import delivery service dynamically to avoid circular dependency
+        const { deliveryService } = await import('./deliveryService');
+        deliveryService.generateAndSendDeliveryPin(data.packageId).catch((error) => {
+          console.error('Failed to auto-generate delivery PIN:', error);
+          // Don't fail the status update if PIN generation fails
+        });
+      }
 
       // Emit to all users tracking this delivery
       this.io.to(`delivery:${data.packageId}`).emit('delivery:status:updated', {

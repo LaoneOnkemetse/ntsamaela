@@ -1,7 +1,12 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+/**
+ * Image Optimization Service
+ * Uses Cloudinary for storage and Sharp for local optimization.
+ * Cloudinary provides built-in image optimization and transformations.
+ */
+
 import sharp from 'sharp';
 import { AppError } from '../utils/errors';
+import cloudinaryUploadService from './cloudinaryUploadService';
 
 interface ImageOptimizationOptions {
   maxWidth?: number;
@@ -24,18 +29,9 @@ interface OptimizedImageResult {
 }
 
 class ImageOptimizationService {
-  private s3: S3Client;
-  private bucketName: string;
-
+  // No AWS dependencies - uses Cloudinary for storage
   constructor() {
-    this.s3 = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
-      }
-    });
-    this.bucketName = process.env.AWS_S3_BUCKET_NAME || 'ntsamaela-packages';
+    // Service uses Cloudinary for storage and Sharp for local optimization
   }
 
   /**
@@ -158,7 +154,8 @@ class ImageOptimizationService {
   }
 
   /**
-   * Upload optimized image to S3
+   * Upload optimized image to Cloudinary (replaces S3)
+   * Cloudinary automatically optimizes images, so we use its built-in optimization
    */
   async uploadOptimizedImage(
     buffer: Buffer,
@@ -166,30 +163,43 @@ class ImageOptimizationService {
     options: ImageOptimizationOptions = {}
   ): Promise<{ url: string; key: string; metadata: any }> {
     try {
-      const optimized = await this.optimizeImage(buffer, options);
-      
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-        Body: optimized.buffer,
-        ContentType: `image/${optimized.metadata.format}`,
-        CacheControl: 'max-age=31536000', // 1 year cache
-        Metadata: {
-          'original-size': optimized.metadata.originalSize.toString(),
-          'optimized-size': optimized.metadata.size.toString(),
-          'compression-ratio': optimized.metadata.compressionRatio.toString(),
-          'dimensions': `${optimized.metadata.width}x${optimized.metadata.height}`
-        }
+      // Convert buffer to MulterFile format for Cloudinary
+      const multerFile = {
+        fieldname: 'image',
+        originalname: key.split('/').pop() || 'image.jpg',
+        encoding: '7bit',
+        mimetype: `image/${options.format || 'jpeg'}`,
+        size: buffer.length,
+        buffer: buffer,
+      };
+
+      // Extract folder from key
+      const folder = key.split('/').slice(0, -1).join('/') || 'optimized';
+
+      // Upload to Cloudinary with automatic optimization
+      const result = await cloudinaryUploadService.uploadFile(multerFile, folder, {
+        resourceType: 'image',
+        transformation: [
+          ...(options.maxWidth || options.maxHeight ? [{
+            width: options.maxWidth,
+            height: options.maxHeight,
+            crop: 'limit',
+          }] : []),
+          { quality: 'auto' },
+          { fetch_format: 'auto' },
+        ],
       });
 
-      await this.s3.send(command);
-
-      const url = `https://${this.bucketName}.s3.amazonaws.com/${key}`;
+      // Get metadata from optimized image
+      const optimized = await this.optimizeImage(buffer, options);
       
       return {
-        url,
-        key,
-        metadata: optimized.metadata
+        url: result.url,
+        key: result.key,
+        metadata: {
+          ...optimized.metadata,
+          cloudinaryUrl: result.url,
+        }
       };
     } catch (_error) {
       throw new AppError('Failed to upload optimized image', 'IMAGE_UPLOAD_FAILED', 500);
@@ -197,7 +207,7 @@ class ImageOptimizationService {
   }
 
   /**
-   * Upload responsive images to S3
+   * Upload responsive images to Cloudinary
    */
   async uploadResponsiveImages(
     buffer: Buffer,
@@ -210,24 +220,37 @@ class ImageOptimizationService {
       const uploadPromises = responsiveImages.map(async (image) => {
         const key = baseKey.replace(/(\.[^.]+)$/, `${image.suffix}$1`);
         
-        const command = new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: key,
-          Body: image.buffer,
-          ContentType: `image/${image.metadata.format}`,
-          CacheControl: 'max-age=31536000',
-          Metadata: {
-            'dimensions': `${image.metadata.width}x${image.metadata.height}`,
-            'size': image.metadata.size.toString()
-          }
-        });
+        // Convert to MulterFile format for Cloudinary
+        const multerFile = {
+          fieldname: 'image',
+          originalname: key.split('/').pop() || 'image.jpg',
+          encoding: '7bit',
+          mimetype: `image/${image.metadata.format}`,
+          size: image.buffer.length,
+          buffer: image.buffer,
+        };
 
-        await this.s3.send(command);
+        // Extract folder from key
+        const folder = key.split('/').slice(0, -1).join('/') || 'responsive';
+
+        // Upload to Cloudinary
+        const result = await cloudinaryUploadService.uploadFile(multerFile, folder, {
+          resourceType: 'image',
+          transformation: [
+            {
+              width: image.metadata.width,
+              height: image.metadata.height,
+              crop: 'limit',
+            },
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+          ],
+        });
         
         return {
           suffix: image.suffix,
-          url: `https://${this.bucketName}.s3.amazonaws.com/${key}`,
-          key,
+          url: result.url,
+          key: result.key,
           metadata: image.metadata
         };
       });
@@ -239,7 +262,8 @@ class ImageOptimizationService {
   }
 
   /**
-   * Generate signed URL for optimized image
+   * Generate optimized image URL using Cloudinary
+   * Cloudinary handles optimization on-the-fly via URL transformations
    */
   async getOptimizedImageUrl(
     key: string,
@@ -247,50 +271,26 @@ class ImageOptimizationService {
     expiresIn: number = 3600
   ): Promise<string> {
     try {
-      // First, get the original image
-      const getCommand = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: key
-      });
-
-      const response = await this.s3.send(getCommand);
+      // Cloudinary handles optimization on-the-fly via URL transformations
+      // We can generate a transformed URL directly
+      const transformations: any = {
+        quality: options.quality || 'auto',
+        format: options.format || 'auto',
+      };
       
-      if (!response.Body) {
-        throw new AppError('Image not found', 'IMAGE_NOT_FOUND', 404);
-      }
-
-      // Convert stream to buffer
-      const chunks: Uint8Array[] = [];
-      const stream = response.Body as any;
-      
-      for await (const chunk of stream) {
-        chunks.push(chunk);
+      if (options.progressive) {
+        transformations.flags = 'progressive';
       }
       
-      const buffer = Buffer.concat(chunks);
+      if (options.maxWidth || options.maxHeight) {
+        transformations.width = options.maxWidth;
+        transformations.height = options.maxHeight;
+        transformations.crop = 'limit';
+      }
       
-      // Optimize the image
-      const optimized = await this.optimizeImage(buffer, options);
-      
-      // Upload optimized version with a temporary key
-      const optimizedKey = `optimized/${Date.now()}-${key}`;
-      const uploadCommand = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: optimizedKey,
-        Body: optimized.buffer,
-        ContentType: `image/${optimized.metadata.format}`,
-        CacheControl: 'max-age=3600' // 1 hour cache for temporary optimized images
-      });
-
-      await this.s3.send(uploadCommand);
-
-      // Generate signed URL for the optimized image
-      const signedUrlCommand = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: optimizedKey
-      });
-
-      return await getSignedUrl(this.s3, signedUrlCommand, { expiresIn });
+      // Use Cloudinary's transformed URL generation
+      const url = cloudinaryUploadService.getTransformedImageUrl(key, transformations);
+      return url;
     } catch (_error) {
       throw new AppError('Failed to generate optimized image URL', 'OPTIMIZED_URL_FAILED', 500);
     }

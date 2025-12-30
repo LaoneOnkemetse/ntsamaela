@@ -77,16 +77,32 @@ router.post(
   (req: any, res: any) => trackingController.startDelivery(req, res)
 );
 
-// Complete delivery
+// Verify delivery PIN and complete delivery
 router.post(
-  '/package/:packageId/complete-delivery',
+  '/package/:packageId/verify-delivery-pin',
+  requireAuth,
+  requireUserType(['DRIVER']),
+  [
+    param('packageId').notEmpty().withMessage('Package ID is required'),
+    body('pin').isLength({ min: 6, max: 6 }).withMessage('PIN must be 6 digits')
+  ],
+  handleValidationErrors,
+  (req: any, res: any) => trackingController.verifyDeliveryPin(req, res)
+);
+
+// Resend delivery PIN
+router.post(
+  '/package/:packageId/resend-delivery-pin',
   requireAuth,
   requireUserType(['DRIVER']),
   [
     param('packageId').notEmpty().withMessage('Package ID is required')
   ],
   handleValidationErrors,
-  (req: any, res: any) => trackingController.completeDelivery(req, res)
+  (req: any, res: any) => trackingController.resendDeliveryPin(req, res)
 );
+
+// Note: PIN is automatically generated when package status changes to PICKED_UP
+// Complete delivery endpoint is deprecated - use verify-delivery-pin instead
 
 export default router;

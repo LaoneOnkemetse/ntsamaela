@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { getRealtimeService } from '../services/realtimeService';
+import { deliveryService } from '../services/deliveryService';
 import { 
   PackageTracking, 
   // CreateTrackingUpdateRequest,
@@ -231,6 +232,123 @@ export class TrackingController {
     }
   }
 
+
+  /**
+   * Verify delivery PIN and complete delivery
+   */
+  verifyDeliveryPin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { packageId } = req.params;
+      const { pin } = req.body;
+      const driverId = req.user!.id;
+
+      if (!packageId || !pin) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_FIELDS',
+            message: 'Package ID and PIN are required'
+          }
+        });
+        return;
+      }
+
+      const result = await deliveryService.verifyDeliveryPin(packageId, pin, driverId);
+
+      if (result.success) {
+        // Create tracking update
+        const tracking = await this.realtimeService.createTrackingUpdate(
+          packageId,
+          'DELIVERED',
+          'Package delivered',
+          undefined,
+          undefined,
+          'Package has been successfully delivered and confirmed'
+        );
+
+        // Notify delivery completed
+        await this.realtimeService.notifyDeliveryCompleted(packageId, driverId);
+
+        res.status(200).json({
+          success: true,
+          data: tracking,
+          message: 'Delivery confirmed successfully'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'PIN_VERIFICATION_FAILED',
+            message: result.error || 'Failed to verify delivery PIN'
+          }
+        });
+      }
+    } catch (_error) {
+      if (_error instanceof AppError) {
+        res.status(_error.statusCode).json({
+          success: false,
+          error: {
+            code: _error.code,
+            message: _error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'PIN_VERIFICATION_ERROR',
+            message: 'Failed to verify delivery PIN'
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Resend delivery PIN
+   */
+  resendDeliveryPin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { packageId } = req.params;
+
+      if (!packageId) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_PACKAGE_ID',
+            message: 'Package ID is required'
+          }
+        });
+        return;
+      }
+
+      const result = await deliveryService.resendDeliveryPin(packageId);
+
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: 'Delivery PIN has been resent to the recipient'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'PIN_RESEND_FAILED',
+            message: result.error || 'Failed to resend delivery PIN'
+          }
+        });
+      }
+    } catch (_error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'PIN_RESEND_ERROR',
+          message: 'Failed to resend delivery PIN'
+        }
+      });
+    }
+  }
+
   completeDelivery = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const { packageId } = req.params;
@@ -247,26 +365,15 @@ export class TrackingController {
         return;
       }
 
-      // Create tracking update
-      const tracking = await this.realtimeService.createTrackingUpdate(
-        packageId,
-        'DELIVERED',
-        'Package delivered',
-        undefined,
-        undefined,
-        'Package has been successfully delivered'
-      );
-
-      // Notify delivery completed
-      await this.realtimeService.notifyDeliveryCompleted(packageId, driverId);
-
-      const response: ApiResponse<PackageTracking> = {
-        success: true,
-        data: tracking,
-        message: 'Delivery completed successfully'
-      };
-
-      res.status(200).json(response);
+      // Note: PIN is automatically generated when status changes to PICKED_UP
+      // This endpoint is for verifying the PIN and completing delivery
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'USE_VERIFY_PIN_ENDPOINT',
+          message: 'Please use the verify-delivery-pin endpoint to complete delivery. The PIN was automatically sent when the package was picked up.'
+        }
+      });
     } catch (_error) {
       if (_error instanceof AppError) {
         res.status(_error.statusCode).json({

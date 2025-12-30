@@ -1,31 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, BackHandler, Image, Modal, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, BackHandler, Image, Modal, Dimensions, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+
+// Import all screens and services
+import { 
+  LoadingScreen,
+  LoginScreen,
+  RegisterCustomerScreen,
+  RegisterDriverScreen,
+  ForgotPasswordScreen,
+  VerificationScreen, 
+  WalletScreen as NewWalletScreen, 
+  ChatScreen, 
+  TrackingScreen,
+  CreatePackageScreen,
+  MyPackagesScreen,
+  AvailablePackagesScreen,
+  MyTripsScreen,
+  CustomerHomeScreen,
+  DriverHomeScreen,
+  ProfileScreen,
+  SettingsScreen,
+  NotificationScreen,
+  AvailableDriversScreen,
+} from './src/screens';
+import apiService from './src/services/apiService';
+import socketService from './src/services/socketService';
 
 const { width } = Dimensions.get('window');
 
-// Botswana-Inspired Color Palette
+// Botswana Flag Colors Only - Light Professional Palette
 const colors = {
-  primary: '#75AADB',      // Botswana Blue
-  primaryDark: '#5A8FBF',
-  primaryLight: '#A3C9E8',
-  secondary: '#000000',    // Pure Black (Botswana flag)
-  secondaryLight: '#1A1A1A',
-  accent: '#FFB800',       // Gold
-  success: '#00C853',      // Green
-  error: '#D32F2F',
-  background: '#F8F9FA',
-  cardBg: '#FFFFFF',       // Pure White (Botswana flag)
-  textPrimary: '#000000',  // Pure Black for better contrast
-  textSecondary: '#4A4A4A',
-  textTertiary: '#999999',
-  textLight: '#FFFFFF',
-  border: '#E5E5E5',
-  borderDark: '#000000',
-  shadow: 'rgba(0, 0, 0, 0.08)',
-  shadowBlue: 'rgba(117, 170, 219, 0.12)',
+  // Botswana Flag Colors
+  botswanaBlue: '#75AADB',    // Light Blue from flag
+  botswanaBlack: '#000000',   // Black from flag
+  botswanaWhite: '#FFFFFF',   // White from flag
+  
+  // Primary colors using Botswana flag
+  primary: '#75AADB',         // Botswana Blue
+  primaryDark: '#5A8FBF',     // Darker Blue
+  primaryLight: '#A3C9E8',    // Lighter Blue
+  secondary: '#000000',       // Botswana Black
+  secondaryLight: '#333333',  // Light Gray (lighter than before)
+  
+  // System colors using flag colors
+  success: '#10B981',         // Green for success
+  error: '#000000',           // Black for error (with white text)
+  warning: '#75AADB',         // Blue for warning
+  
+  // Background colors (use darker button blue as main background)
+  background: '#5A8FBF',      // Darker blue
+  backgroundSecondary: '#75AADB', // Main light blue
+  cardBg: '#E6F3FF',          // Light blue card background
+  cardBgLight: '#F0F8FF',     // Very light blue card background
+  
+  // Text colors
+  textPrimary: '#000000',     // Black text
+  textSecondary: '#333333',   // Dark gray text
+  textTertiary: '#666666',    // Medium gray text
+  textLight: '#FFFFFF',       // White text
+  textDark: '#000000',        // Black text
+  
+  // Border colors
+  border: '#E0E0E0',          // Light gray border
+  borderLight: '#F0F0F0',     // Very light border
+  borderDark: '#000000',      // Black border
+  
+  // Shadow and effects
+  shadow: 'rgba(0, 0, 0, 0.1)',
+  shadowBlue: 'rgba(117, 170, 219, 0.2)',
+  glass: 'rgba(255, 255, 255, 0.8)',
+  glassDark: 'rgba(0, 0, 0, 0.1)',
+  gradient: ['#75AADB', '#A3C9E8'], // Light blue gradient
+};
+
+// Helper button used by registration screens for photo fields
+const RegistrationPhotoButton = ({ label, onPress, preview }) => (
+  <View style={styles.documentRow}>
+    <Text style={styles.documentLabel}>{label}</Text>
+    <TouchableOpacity style={styles.documentButton} onPress={onPress}>
+      {preview ? (
+        <Image source={{ uri: preview.uri }} style={styles.documentPreview} />
+      ) : (
+        <Text style={styles.documentButtonText}>Add</Text>
+      )}
+    </TouchableOpacity>
+  </View>
+);
+
+// Camera and media helpers (top-level for reuse)
+const requestCameraPermissionGlobal = async () => {
+  if (Platform.OS !== 'web') {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    return status === 'granted';
+  }
+  return true;
+};
+
+const requestMediaLibraryPermissionGlobal = async () => {
+  if (Platform.OS !== 'web') {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    return status === 'granted';
+  }
+  return true;
+};
+
+const takePhotoGlobal = async (setter) => {
+  const hasPermission = await requestCameraPermissionGlobal();
+  if (!hasPermission) {
+    Alert.alert('Permission Required', 'Camera permission is required to take photos');
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [4, 3],
+    quality: 0.8,
+  });
+
+  if (!result.canceled) {
+    setter(result.assets[0]);
+  }
+};
+
+const selectFromGalleryGlobal = async (setter) => {
+  const hasPermission = await requestMediaLibraryPermissionGlobal();
+  if (!hasPermission) {
+    Alert.alert('Permission Required', 'Media library permission is required to select photos');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [4, 3],
+    quality: 0.8,
+  });
+
+  if (!result.canceled) {
+    setter(result.assets[0]);
+  }
+};
+
+const showPhotoActionSheetGlobal = (setter) => {
+  Alert.alert(
+    'Select Document Photo',
+    'Choose how you want to add the document photo',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Take Photo', onPress: () => takePhotoGlobal(setter) },
+      { text: 'Choose from Gallery', onPress: () => selectFromGalleryGlobal(setter) },
+    ]
+  );
 };
 
 // Navigation Context
@@ -37,190 +168,40 @@ function NavigationProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userType, setUserType] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
+  const [authToken, setAuthToken] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [screenParams, setScreenParams] = useState({});
   
   const [userProfile, setUserProfile] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+267 71234567',
+    firstName: '',
+    lastName: '',
+    phone: '',
     profilePhoto: null,
-    rating: 4.8,
-    totalDeliveries: 42,
-    totalEarnings: 2850,
+    rating: 0,
+    totalDeliveries: 0,
+    totalEarnings: 0,
+    isVerified: false,
+    phoneVerified: false,
+    email: '',
+    userId: null,
   });
 
-  const [customerWallet, setCustomerWallet] = useState(250);
-  const [driverWallet, setDriverWallet] = useState(850);
+  const [customerWallet, setCustomerWallet] = useState(0);
+  const [driverWallet, setDriverWallet] = useState(0);
   
-  const [myPackages, setMyPackages] = useState([
-    {
-      id: 'PKG-001',
-      description: 'Electronics',
-      pickup: 'Gaborone CBD',
-      delivery: 'Airport Junction',
-      price: 250,
-      status: 'in-transit',
-      driver: 'Mike K.',
-      driverPhoto: 'https://i.pravatar.cc/150?img=15',
-    },
-    {
-      id: 'PKG-004',
-      description: 'Groceries',
-      pickup: 'Game City',
-      delivery: 'Extension 10',
-      price: 150,
-      status: 'pending',
-      driver: 'Not assigned',
-    },
-    {
-      id: 'PKG-005',
-      description: 'Clothing',
-      pickup: 'Main Mall',
-      delivery: 'Phakalane',
-      price: 200,
-      status: 'delivered',
-      driver: 'Grace T.',
-      driverPhoto: 'https://i.pravatar.cc/150?img=32',
-    },
-  ]);
+  const [myPackages, setMyPackages] = useState([]);
 
-  const [availablePackages, setAvailablePackages] = useState([
-    {
-      id: 'PKG-002',
-      customer: 'Sarah M.',
-      description: 'Documents',
-      pickup: 'Broadhurst',
-      delivery: 'Main Mall',
-      price: 180,
-      weight: '0.5 kg',
-      distance: '8 km',
-      photo: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=400',
-    },
-    {
-      id: 'PKG-003',
-      customer: 'David L.',
-      description: 'Small parcel',
-      pickup: 'Game City',
-      delivery: 'Mogoditshane',
-      price: 120,
-      weight: '1 kg',
-      distance: '15 km',
-      photo: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=400',
-    },
-    {
-      id: 'PKG-006',
-      customer: 'Anna B.',
-      description: 'Books',
-      pickup: 'University',
-      delivery: 'Block 8',
-      price: 100,
-      weight: '2 kg',
-      distance: '12 km',
-      photo: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400',
-    },
-    {
-      id: 'PKG-007',
-      customer: 'Peter M.',
-      description: 'Electronics',
-      pickup: 'Riverwalk',
-      delivery: 'Mogoditshane',
-      price: 220,
-      weight: '3 kg',
-      distance: '20 km',
-      photo: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400',
-    },
-    {
-      id: 'PKG-008',
-      customer: 'Lisa K.',
-      description: 'Food delivery',
-      pickup: 'Gaborone West',
-      delivery: 'Broadhurst',
-      price: 90,
-      weight: '1.5 kg',
-      distance: '6 km',
-      photo: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-    },
-  ]);
+  const [availablePackages, setAvailablePackages] = useState([]);
 
-  const [myBids, setMyBids] = useState([
-    {
-      id: 'BID-001',
-      packageId: 'PKG-002',
-      amount: 150,
-      status: 'pending',
-      description: 'Documents',
-      pickup: 'Broadhurst',
-      delivery: 'Main Mall',
-    },
-    {
-      id: 'BID-002',
-      packageId: 'PKG-003',
-      amount: 100,
-      status: 'accepted',
-      description: 'Small parcel',
-      pickup: 'Game City',
-      delivery: 'Mogoditshane',
-    },
-    {
-      id: 'BID-003',
-      packageId: 'PKG-006',
-      amount: 85,
-      status: 'rejected',
-      description: 'Books',
-      pickup: 'University',
-      delivery: 'Block 8',
-    },
-  ]);
+  const [myBids, setMyBids] = useState([]);
 
-  const [upcomingTrips, setUpcomingTrips] = useState([
-    { 
-      id: 1, 
-      driver: 'Lesego Tau', 
-      rating: 4.6,
-      from: 'Gaborone', 
-      to: 'Francistown', 
-      date: 'Oct 26, 10:00 AM',
-      spacesLeft: 2,
-      price: 'P 120'
-    },
-    { 
-      id: 2, 
-      driver: 'Neo Sedimo', 
-      rating: 4.9,
-      from: 'Maun', 
-      to: 'Kasane', 
-      date: 'Oct 27, 2:00 PM',
-      spacesLeft: 1,
-      price: 'P 200'
-    },
-  ]);
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
 
   // Active driver status
   const [isActiveDriver, setIsActiveDriver] = useState(false);
   
   // Active drivers list (for customer view)
-  const [activeDrivers, setActiveDrivers] = useState([
-    { 
-      id: 101, 
-      driver: 'Thato Moeti', 
-      rating: 4.7,
-      location: 'Gaborone CBD',
-      vehicle: 'Toyota Corolla',
-      totalDeliveries: 156,
-      earnings: 'P 12,500',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'
-    },
-    { 
-      id: 102, 
-      driver: 'Keabetswe Mophane', 
-      rating: 4.9,
-      location: 'Main Mall',
-      vehicle: 'VW Polo',
-      totalDeliveries: 203,
-      earnings: 'P 18,900',
-      photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400'
-    },
-  ]);
+  const [activeDrivers, setActiveDrivers] = useState([]);
 
   // Function to toggle active driver status and update activeDrivers list
   const toggleActiveDriverStatus = (status) => {
@@ -263,25 +244,488 @@ function NavigationProvider({ children }) {
     setUpcomingTrips(prev => [...prev, newTrip]);
   };
   
-  const navigate = (screenName, replace = false) => {
+  const navigate = (screenName, replace = false, params = {}) => {
     if (replace) {
       setScreenHistory([screenName]);
     } else {
       setScreenHistory(prev => [...prev, screenName]);
     }
     setCurrentScreen(screenName);
+    if (Object.keys(params).length > 0) {
+      setScreenParams(prev => ({ ...prev, [screenName]: params }));
+    }
   };
 
-  const login = (type) => {
-    setIsAuthenticated(true);
-    setUserType(type);
-    navigate('home', true);
+  const fetchUserProfile = async (token) => {
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const response = await fetch(`${apiUrl}/api/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          return data.data;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      return null;
+    }
+  };
+
+  const fetchWalletBalance = async (token) => {
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const response = await fetch(`${apiUrl}/api/wallet/balance`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          return data.data.availableBalance || 0;
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.error('Failed to fetch wallet balance:', error);
+      return 0;
+    }
+  };
+
+  const login = async (phone, password) => {
+    try {
+      // Validate inputs
+      if (!phone || !phone.trim()) {
+        Alert.alert('Validation Error', 'Phone number is required');
+        return;
+      }
+      if (!password || !password.trim()) {
+        Alert.alert('Validation Error', 'Password is required');
+        return;
+      }
+
+      // Use environment variable or default to local IP
+      // For Expo Go on physical device, use your computer's local IP
+      // For emulator, use localhost or 10.0.2.2 (Android) / localhost (iOS)
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      
+      console.log(`🔗 Attempting to connect to: ${apiUrl}/api/auth/login-phone`);
+      console.log(`📱 Phone number: ${phone}`);
+      console.log(`🔒 Password provided: ${password ? 'YES (length: ' + password.length + ')' : 'NO'}`);
+      
+      // Phone number should already be normalized with country code from LoginScreen
+      // Just ensure it starts with +
+      let normalizedPhone = phone.trim();
+      if (!normalizedPhone.startsWith('+')) {
+        // If no + prefix, assume it's already in E.164 format or add +
+        normalizedPhone = '+' + normalizedPhone;
+      }
+      
+      console.log(`📱 Normalized phone: ${normalizedPhone}`);
+      
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      console.log('🌐 Making API request to:', `${apiUrl}/api/auth/login-phone`);
+      console.log('📤 Request body:', { phone: normalizedPhone, password: '***' });
+      
+      let response;
+      try {
+        response = await fetch(`${apiUrl}/api/auth/login-phone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            phone: normalizedPhone,
+          password: password
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error('❌ Network error - fetch failed:', fetchError);
+        Alert.alert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.'
+        );
+        return; // CRITICAL: Never allow login on network error
+      }
+
+      clearTimeout(timeoutId);
+      
+      // CRITICAL: Verify we actually got a response
+      if (!response) {
+        console.error('❌ No response received from server');
+        Alert.alert('Connection Error', 'Unable to connect to the server. Please try again.');
+        return; // CRITICAL: Never allow login without response
+      }
+      
+      console.log('📥 API Response received. Status:', response.status, 'OK:', response.ok);
+
+      // Parse response JSON first to get error details
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('❌ Failed to parse response JSON:', parseError);
+        Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+        return; // CRITICAL: Explicitly return to prevent login
+      }
+
+      console.log('📥 Login response:', JSON.stringify(data, null, 2));
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response structure check:', {
+        hasData: !!data.data,
+        hasToken: !!data.data?.token,
+        tokenType: typeof data.data?.token,
+        tokenLength: data.data?.token?.length,
+        hasUser: !!data.data?.user,
+        hasUserId: !!data.data?.user?.id,
+        hasEmail: !!data.data?.user?.email,
+        hasFirstName: !!data.data?.user?.firstName
+      });
+
+      // CRITICAL: Check response status - 401/403 means authentication failed
+      if (!response.ok || response.status === 401 || response.status === 403) {
+        const errorCode = data.error?.code || 'UNKNOWN_ERROR';
+        
+        console.error('❌ Login failed:', data.error?.message, 'Status:', response.status, 'Code:', errorCode);
+        
+        // Handle specific error cases with user-friendly messages
+        if (errorCode === 'USER_NOT_FOUND') {
+          Alert.alert(
+            'Phone Number Not Registered',
+            'This phone number is not registered to any account.\n\nWould you like to sign up?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Up', onPress: () => navigate('registerCustomer', true) }
+            ]
+          );
+        } else if (errorCode === 'INVALID_PASSWORD') {
+          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+        } else if (errorCode === 'DATABASE_CONNECTION_ERROR') {
+          Alert.alert('Service Unavailable', 'The service is temporarily unavailable. Please try again in a few moments.');
+        } else if (errorCode === 'LOGIN_ERROR') {
+          Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+        } else {
+          Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+        }
+        
+        return; // CRITICAL: Explicitly return to prevent login
+      }
+
+      // CRITICAL: Check if response indicates success - must be explicitly true
+      if (data.success !== true) {
+        const errorCode = data.error?.code || 'UNKNOWN_ERROR';
+        
+        console.error('❌ Login failed - success is not true:', data);
+        
+        // Handle specific error cases (defensive check in case status was 200 but success is false)
+        if (errorCode === 'USER_NOT_FOUND') {
+          Alert.alert(
+            'Phone Number Not Registered',
+            'This phone number is not registered to any account.\n\nWould you like to sign up?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Up', onPress: () => navigate('registerCustomer', true) }
+            ]
+          );
+        } else if (errorCode === 'INVALID_PASSWORD') {
+          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+        } else if (errorCode === 'DATABASE_CONNECTION_ERROR') {
+          Alert.alert('Service Unavailable', 'The service is temporarily unavailable. Please try again in a few moments.');
+        } else {
+          Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+        }
+        
+        return; // CRITICAL: Explicitly return to prevent login
+      }
+
+      // CRITICAL: Verify that we have a token before proceeding
+      if (!data.data || !data.data.token || typeof data.data.token !== 'string' || data.data.token.length === 0) {
+        console.error('❌ Login failed: No valid token in response', data);
+        Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+        return; // CRITICAL: Explicitly return to prevent login
+      }
+
+      // CRITICAL: Verify user data exists
+      if (!data.data.user || !data.data.user.id) {
+        console.error('❌ Login failed: No user data in response', data);
+        Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+        return; // CRITICAL: Explicitly return to prevent login
+      }
+
+      // CRITICAL: Only proceed if ALL conditions are met
+      // 1. Response status must be 200
+      // 2. data.success must be explicitly true
+      // 3. Token must exist and be valid
+      // 4. User data must exist with valid ID
+      const hasValidResponse = response.status === 200;
+      const hasSuccessFlag = data.success === true;
+      const hasValidToken = data.data && data.data.token && typeof data.data.token === 'string' && data.data.token.length > 0;
+      const hasValidUser = data.data && data.data.user && data.data.user.id;
+      
+      console.log('🔍 Validation checks:', {
+        status200: hasValidResponse,
+        successTrue: hasSuccessFlag,
+        hasToken: hasValidToken,
+        hasUser: hasValidUser
+      });
+      
+      if (!hasValidResponse || !hasSuccessFlag || !hasValidToken || !hasValidUser) {
+        const errorCode = data.error?.code || 'UNKNOWN_ERROR';
+        const errorMessage = data.error?.message || data.message || 'Login failed. Invalid response from server.';
+        
+        console.error('❌ Login validation failed:', {
+          status: response.status,
+          success: data.success,
+          hasToken: hasValidToken,
+          hasUser: hasValidUser,
+          errorCode,
+          errorMessage
+        });
+        
+        if (errorCode === 'USER_NOT_FOUND') {
+          Alert.alert(
+            'Phone Number Not Registered',
+            'This phone number is not registered to any account.\n\nWould you like to sign up?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Up', onPress: () => navigate('registerCustomer', true) }
+            ]
+          );
+        } else if (errorCode === 'INVALID_PASSWORD') {
+          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+        } else {
+          Alert.alert('Sign in failed', errorMessage);
+        }
+        
+        return; // CRITICAL: Never allow login if validation fails
+      }
+
+      // CRITICAL: Final validation - ALL conditions must be true
+      const statusOk = response.status === 200;
+      const successTrue = data.success === true;
+      const hasData = !!data.data;
+      const hasToken = hasData && !!data.data.token && typeof data.data.token === 'string' && data.data.token.length > 10;
+      const hasUser = hasData && !!data.data.user;
+      const hasUserId = hasUser && !!data.data.user.id;
+      // Email is optional since we're using phone-based auth, but check if it exists
+      const hasUserEmail = hasUser && (!!data.data.user.email || !!data.data.user.phone);
+      const hasUserFirstName = hasUser && !!data.data.user.firstName;
+      // Phone is required for phone-based auth
+      const hasUserPhone = hasUser && !!data.data.user.phone;
+
+      console.log('🔍 Validation breakdown:', {
+        statusOk: `status=${response.status} (${statusOk ? '✓' : '✗'})`,
+        successTrue: `success=${data.success} (${successTrue ? '✓' : '✗'})`,
+        hasData: `${hasData ? '✓' : '✗'} - data object exists`,
+        hasToken: `${hasToken ? '✓' : '✗'} - token exists and valid`,
+        hasUser: `${hasUser ? '✓' : '✗'} - user object exists`,
+        hasUserId: `${hasUserId ? '✓' : '✗'} - user.id exists`,
+        hasUserPhone: `${hasUserPhone ? '✓' : '✗'} - user.phone exists`,
+        hasUserEmail: `${hasUserEmail ? '✓' : '✗'} - user.email or phone exists`,
+        hasUserFirstName: `${hasUserFirstName ? '✓' : '✗'} - user.firstName exists`
+      });
+
+      // Email is optional, but phone is required for phone-based auth
+      const isValidLogin = statusOk && successTrue && hasData && hasToken && hasUser && hasUserId && hasUserPhone && hasUserFirstName;
+
+      if (!isValidLogin) {
+        console.error('❌ CRITICAL: Login validation failed. Detailed check:', {
+          statusOk,
+          successTrue,
+          hasData,
+          hasToken,
+          hasUser,
+          hasUserId,
+          hasUserEmail,
+          hasUserFirstName,
+          responseStatus: response.status,
+          dataSuccess: data.success,
+          dataStructure: {
+            hasData: !!data.data,
+            hasToken: !!data.data?.token,
+            tokenType: typeof data.data?.token,
+            tokenLength: data.data?.token?.length,
+            hasUser: !!data.data?.user,
+            hasUserId: !!data.data?.user?.id,
+            hasEmail: !!data.data?.user?.email,
+            hasFirstName: !!data.data?.user?.firstName
+          },
+          fullResponse: JSON.stringify(data, null, 2)
+        });
+        
+        // Provide simple error message
+        console.error('❌ Login validation failed. Detailed check:', {
+          statusOk,
+          successTrue,
+          hasData,
+          hasToken,
+          hasUser,
+          hasUserId,
+          hasUserPhone,
+          hasUserFirstName
+        });
+        
+        Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+        return; // CRITICAL: Never allow login if validation fails
+      }
+
+      // All validations passed - proceed with login
+      if (data.success === true && data.data && data.data.token && data.data.user && data.data.user.id) {
+        // Store token and user data
+        const token = data.data.token;
+        const userData = data.data.user;
+        
+        // FINAL SAFETY CHECK: Verify we have all required data before authenticating
+        // Email is optional (phone-based auth), but phone and firstName are required
+        if (!token || token.length < 10 || !userData || !userData.id || !userData.phone || !userData.firstName) {
+          console.error('❌ CRITICAL: Attempted to authenticate without valid token or user data', {
+            hasToken: !!token,
+            tokenLength: token?.length,
+            hasUserData: !!userData,
+            hasUserId: !!userData?.id,
+            hasPhone: !!userData?.phone,
+            hasFirstName: !!userData?.firstName,
+            hasEmail: !!userData?.email
+          });
+          Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+          return;
+        }
+
+        setAuthToken(token);
+        
+        // Update user profile with actual user data from API
+        setUserProfile({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          phone: userData.phone || normalizedPhone,
+          profilePhoto: userData.profilePictureUrl || null,
+          rating: 0, // Will be fetched separately if needed
+          totalDeliveries: 0, // Will be fetched separately if needed
+          totalEarnings: 0, // Will be fetched separately if needed
+          isVerified: userData.identityVerified || false,
+          phoneVerified: userData.phoneVerified || false,
+          email: userData.email || '',
+          userId: userData.id,
+        });
+        
+        // Set user type from API response
+        const actualUserType = userData.userType?.toLowerCase() || 'customer';
+        setUserType(actualUserType);
+        
+        // Fetch full user profile and wallet balance
+        const fullProfile = await fetchUserProfile(token);
+        if (fullProfile) {
+          setUserProfile(prev => ({
+            ...prev,
+            firstName: fullProfile.firstName || prev.firstName,
+            lastName: fullProfile.lastName || prev.lastName,
+            phone: fullProfile.phone || prev.phone,
+            profilePhoto: fullProfile.profilePictureUrl || prev.profilePhoto,
+            isVerified: fullProfile.identityVerified || prev.isVerified,
+            phoneVerified: fullProfile.phoneVerified || prev.phoneVerified,
+            email: fullProfile.email || prev.email,
+            userId: fullProfile.id || prev.userId,
+          }));
+        }
+        
+        // Fetch wallet balance
+        const walletBalance = await fetchWalletBalance(token);
+        if (actualUserType === 'customer') {
+          setCustomerWallet(walletBalance);
+        } else if (actualUserType === 'driver') {
+          setDriverWallet(walletBalance);
+        }
+
+        // FINAL VALIDATION: Double-check everything before authenticating
+        if (!token || token.length === 0 || !userData || !userData.id) {
+          console.error('❌ CRITICAL ERROR: Invalid token or user data at final check');
+          Alert.alert('Authentication Error', 'Invalid authentication data received. Please try again.');
+          return;
+        }
+
+        console.log(`✅ Login successful! User: ${userData.firstName} ${userData.lastName} (ID: ${userData.id})`);
+        console.log(`✅ Token received: ${token.substring(0, 20)}...`);
+        
+        // Only set authenticated if we have valid data
+        setIsAuthenticated(true);
+        
+        // Initialize API and Socket services
+        apiService.setToken(token);
+        try {
+          socketService.connect(token);
+          console.log('✅ Socket.IO connected');
+        } catch (socketError) {
+          console.warn('⚠️ Socket.IO connection failed (may need polyfills):', socketError);
+        }
+        
+        navigate('home', true);
+        console.log(`✅ Connected to server at ${apiUrl}`);
+        return; // Success, exit the function
+      } else {
+        const errorCode = data.error?.code || 'UNKNOWN_ERROR';
+        console.error('❌ Login failed:', data.error?.message);
+        
+        // Handle specific error codes
+        if (errorCode === 'USER_NOT_FOUND') {
+          Alert.alert(
+            'Phone Number Not Registered',
+            'This phone number is not registered to any account.\n\nWould you like to sign up?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Up', onPress: () => navigate('registerCustomer', true) }
+            ]
+          );
+        } else if (errorCode === 'INVALID_PASSWORD') {
+          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+        } else if (errorCode === 'DATABASE_CONNECTION_ERROR') {
+          Alert.alert('Service Unavailable', 'The service is temporarily unavailable. Please try again in a few moments.');
+        } else {
+          Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Login error caught in catch block:', error);
+      
+      // CRITICAL: Never allow login on error - explicitly return
+      if (error.name === 'AbortError') {
+        Alert.alert('Connection Timeout', 'The request took too long. Please check your internet connection and try again.');
+      } else {
+        Alert.alert('Connection Error', 'Unable to connect to the server. Please check your internet connection and try again.');
+      }
+      
+      // CRITICAL: Ensure authentication state is NOT set
+      setIsAuthenticated(false);
+      setAuthToken(null);
+      setUserType(null);
+      
+      return; // Explicitly return to prevent any further execution
+    }
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setUserType(null);
     setActiveTab('home');
+    apiService.setToken(null);
+    socketService.disconnect();
     navigate('login', true);
   };
 
@@ -317,6 +761,8 @@ function NavigationProvider({ children }) {
       availablePackages,
       setAvailablePackages,
       myBids,
+      notifications,
+      setNotifications,
       setMyBids,
       upcomingTrips,
       setUpcomingTrips,
@@ -331,29 +777,561 @@ function NavigationProvider({ children }) {
   );
 }
 
+// Dedicated Registration Screens
+function RegisterCustomerScreen() {
+  const { navigate, login } = useNavigation();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selfie, setSelfie] = useState(null);
+  const [idFront, setIdFront] = useState(null);
+  const [idBack, setIdBack] = useState(null);
+  const [passportFront, setPassportFront] = useState(null);
+  const [passportBack, setPassportBack] = useState(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
+  const takeSelfie = () => takePhotoGlobal(setSelfie);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const submit = async () => {
+    if (!firstName || !lastName || !phoneNumber || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (!acceptTerms) {
+      Alert.alert('Error', 'Please accept the terms and conditions');
+      return;
+    }
+    if (!selfie) {
+      Alert.alert('Selfie Required', 'Please take a selfie for verification');
+      return;
+    }
+    if (!idFront || !idBack) {
+      if (!passportFront || !passportBack) {
+        Alert.alert('Document Required', 'Upload ID front/back or Passport front/back');
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      
+      // Normalize phone number
+      let normalizedPhone = phoneNumber.trim();
+      if (!normalizedPhone.startsWith('+')) {
+        // If no + prefix, assume Botswana (+267)
+        if (normalizedPhone.startsWith('267')) {
+          normalizedPhone = '+' + normalizedPhone;
+        } else if (normalizedPhone.length === 8) {
+          normalizedPhone = '+267' + normalizedPhone;
+        } else {
+          normalizedPhone = '+267' + normalizedPhone;
+        }
+      }
+
+      console.log('📝 Registering customer:', { firstName, lastName, phone: normalizedPhone });
+      
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: `${normalizedPhone.replace('+', '')}@ntsamaela.local`, // Generate email from phone
+          password: password,
+          firstName: firstName,
+          lastName: lastName,
+          phone: normalizedPhone,
+          userType: 'CUSTOMER',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ Registration successful');
+        Alert.alert('Success', 'Account created successfully! Please check your phone for the verification code.', [
+      { text: 'OK', onPress: () => navigate('login', true) }
+    ]);
+      } else {
+        console.error('❌ Registration failed:', data.error);
+        const errorMessage = data.error?.message || 'Failed to create account. Please try again.';
+        Alert.alert('Registration Failed', errorMessage);
+      }
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      Alert.alert('Error', 'Failed to create account. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="light" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => navigate('login', true)} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Customer Registration</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView style={styles.formContainer} contentContainerStyle={{ paddingBottom: 120 }}>
+          <View style={styles.nameRow}>
+            <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="First Name" placeholderTextColor={colors.textTertiary} value={firstName} onChangeText={setFirstName} />
+            <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Last Name" placeholderTextColor={colors.textTertiary} value={lastName} onChangeText={setLastName} />
+          </View>
+          <TextInput style={styles.input} placeholder="Phone Number" placeholderTextColor={colors.textTertiary} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
+          <View style={styles.passwordInputWrapper}>
+            <TextInput style={[styles.input, styles.passwordInput]} placeholder="Password" placeholderTextColor={colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+            <TouchableOpacity onPress={() => setShowPassword(prev => !prev)} style={styles.passwordIcon} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.passwordIconText}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.passwordInputWrapper}>
+            <TextInput style={[styles.input, styles.passwordInput]} placeholder="Confirm Password" placeholderTextColor={colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showConfirmPassword} />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)} style={styles.passwordIcon} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.passwordIconText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.documentsSection}>
+            <Text style={styles.documentsTitle}>Identity Verification</Text>
+            <Text style={styles.documentsSubtitle}>Selfie required; ID or Passport</Text>
+            <RegistrationPhotoButton label="Selfie *" onPress={takeSelfie} preview={selfie} />
+            <RegistrationPhotoButton label="ID Front *" onPress={() => showPhotoActionSheetGlobal(setIdFront)} preview={idFront} />
+            <RegistrationPhotoButton label="ID Back *" onPress={() => showPhotoActionSheetGlobal(setIdBack)} preview={idBack} />
+            <Text style={styles.documentNote}>Or use Passport instead:</Text>
+            <RegistrationPhotoButton label="Passport Front" onPress={() => showPhotoActionSheetGlobal(setPassportFront)} preview={passportFront} />
+            <RegistrationPhotoButton label="Passport Back" onPress={() => showPhotoActionSheetGlobal(setPassportBack)} preview={passportBack} />
+          </View>
+
+          <View style={styles.termsContainer}>
+            <TouchableOpacity style={styles.termsCheckbox} onPress={() => setAcceptTerms(!acceptTerms)}>
+              <Text style={styles.checkboxText}>{acceptTerms ? '☑️' : '☐'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}>I agree to the <Text style={styles.termsLink}>Terms and Conditions</Text> and <Text style={styles.termsLink}>Privacy Policy</Text></Text>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.primaryButton, isLoading && { opacity: 0.6 }]} 
+            onPress={submit}
+            disabled={isLoading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+function RegisterDriverScreen() {
+  const { navigate, login } = useNavigation();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selfie, setSelfie] = useState(null);
+  const [driversLicenseFront, setDriversLicenseFront] = useState(null);
+  const [driversLicenseBack, setDriversLicenseBack] = useState(null);
+  const [carRegistration, setCarRegistration] = useState('');
+  const [carDescription, setCarDescription] = useState('');
+  const [carPhoto, setCarPhoto] = useState(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
+  const takeSelfie = () => takePhotoGlobal(setSelfie);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const submit = async () => {
+    if (!firstName || !lastName || !phoneNumber || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (!acceptTerms) {
+      Alert.alert('Error', 'Please accept the terms and conditions');
+      return;
+    }
+    if (!selfie) {
+      Alert.alert('Selfie Required', 'Please take a selfie for verification');
+      return;
+    }
+    if (!driversLicenseFront || !driversLicenseBack) {
+      Alert.alert('Document Required', 'Upload both front and back of Driver\'s License');
+      return;
+    }
+    if (!carRegistration || !carDescription) {
+      Alert.alert('Car Details Required', 'Please enter car registration and description');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      
+      // Normalize phone number
+      let normalizedPhone = phoneNumber.trim();
+      if (!normalizedPhone.startsWith('+')) {
+        // If no + prefix, assume Botswana (+267)
+        if (normalizedPhone.startsWith('267')) {
+          normalizedPhone = '+' + normalizedPhone;
+        } else if (normalizedPhone.length === 8) {
+          normalizedPhone = '+267' + normalizedPhone;
+        } else {
+          normalizedPhone = '+267' + normalizedPhone;
+        }
+      }
+
+      console.log('📝 Registering driver:', { firstName, lastName, phone: normalizedPhone });
+      
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: `${normalizedPhone.replace('+', '')}@ntsamaela.local`, // Generate email from phone
+          password: password,
+          firstName: firstName,
+          lastName: lastName,
+          phone: normalizedPhone,
+          userType: 'DRIVER',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ Registration successful');
+        Alert.alert('Success', 'Account created successfully! Please check your phone for the verification code.', [
+      { text: 'OK', onPress: () => navigate('login', true) }
+    ]);
+      } else {
+        console.error('❌ Registration failed:', data.error);
+        const errorMessage = data.error?.message || 'Failed to create account. Please try again.';
+        Alert.alert('Registration Failed', errorMessage);
+      }
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      Alert.alert('Error', 'Failed to create account. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="light" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => navigate('login', true)} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Driver Registration</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView style={styles.formContainer} contentContainerStyle={{ paddingBottom: 120 }}>
+          <View style={styles.nameRow}>
+            <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="First Name" placeholderTextColor={colors.textTertiary} value={firstName} onChangeText={setFirstName} />
+            <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Last Name" placeholderTextColor={colors.textTertiary} value={lastName} onChangeText={setLastName} />
+          </View>
+          <TextInput style={styles.input} placeholder="Phone Number" placeholderTextColor={colors.textTertiary} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
+          <View style={styles.passwordInputWrapper}>
+            <TextInput style={[styles.input, styles.passwordInput]} placeholder="Password" placeholderTextColor={colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+            <TouchableOpacity onPress={() => setShowPassword(prev => !prev)} style={styles.passwordIcon} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.passwordIconText}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.passwordInputWrapper}>
+            <TextInput style={[styles.input, styles.passwordInput]} placeholder="Confirm Password" placeholderTextColor={colors.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showConfirmPassword} />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)} style={styles.passwordIcon} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.passwordIconText}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.documentsSection}>
+            <Text style={styles.documentsTitle}>Identity Verification</Text>
+            <Text style={styles.documentsSubtitle}>Selfie and Driver's License</Text>
+            <RegistrationPhotoButton label="Selfie *" onPress={takeSelfie} preview={selfie} />
+            <RegistrationPhotoButton label="License Front *" onPress={() => showPhotoActionSheetGlobal(setDriversLicenseFront)} preview={driversLicenseFront} />
+            <RegistrationPhotoButton label="License Back *" onPress={() => showPhotoActionSheetGlobal(setDriversLicenseBack)} preview={driversLicenseBack} />
+          </View>
+
+          <View style={styles.documentsSection}>
+            <Text style={styles.documentsTitle}>Vehicle Information</Text>
+            <Text style={styles.documentsSubtitle}>Car registration and description</Text>
+            
+            <Text style={styles.fieldLabel}>Car Registration *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., B123 ABC"
+              placeholderTextColor={colors.textTertiary}
+              value={carRegistration}
+              onChangeText={setCarRegistration}
+            />
+
+            <Text style={styles.fieldLabel}>Car Description *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., White Toyota Corolla 2020"
+              placeholderTextColor={colors.textTertiary}
+              value={carDescription}
+              onChangeText={setCarDescription}
+            />
+
+            <RegistrationPhotoButton label="Car Photo (Optional)" onPress={() => showPhotoActionSheetGlobal(setCarPhoto)} preview={carPhoto} />
+          </View>
+
+          <View style={styles.termsContainer}>
+            <TouchableOpacity style={styles.termsCheckbox} onPress={() => setAcceptTerms(!acceptTerms)}>
+              <Text style={styles.checkboxText}>{acceptTerms ? '☑️' : '☐'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}>I agree to the <Text style={styles.termsLink}>Terms and Conditions</Text> and <Text style={styles.termsLink}>Privacy Policy</Text></Text>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.primaryButton, isLoading && { opacity: 0.6 }]} 
+            onPress={submit}
+            disabled={isLoading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// Forgot Password as a dedicated screen
+function ForgotPasswordScreen() {
+  const { navigate } = useNavigation();
+  const [step, setStep] = useState('phone'); // phone -> otp -> new
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirmNew, setShowConfirmNew] = useState(false);
+
+  const sendOTP = () => {
+    if (!forgotPhone) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return;
+    }
+    setStep('otp');
+  };
+
+  const verifyOTP = () => {
+    if (!otpCode || otpCode.length !== 6) {
+      Alert.alert('Error', 'Please enter a valid 6-digit OTP');
+      return;
+    }
+    if (otpCode !== '123456') {
+      Alert.alert('Error', 'Invalid OTP. Please try again');
+      return;
+    }
+    setStep('new');
+  };
+
+  const resetPassword = () => {
+    if (!newPassword || !confirmNewPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+    Alert.alert('Success', 'Password reset successfully! You can now login.', [
+      { text: 'OK', onPress: () => navigate('login', true) }
+    ]);
+  };
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="light" />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => navigate('login', true)} style={styles.backButton}>
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Reset Password</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.formContainer}>
+          {step === 'phone' && (
+            <View style={styles.formCard}>
+              <Text style={styles.modalSubtitle}>Enter your phone number to receive a 6-digit OTP</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Phone Number"
+                placeholderTextColor={colors.textTertiary}
+                value={forgotPhone}
+                onChangeText={setForgotPhone}
+                keyboardType="phone-pad"
+              />
+              <TouchableOpacity style={styles.primaryButton} onPress={sendOTP}>
+                <Text style={styles.primaryButtonText}>Send OTP</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {step === 'otp' && (
+            <View style={styles.formCard}>
+              <Text style={styles.modalSubtitle}>Enter the 6-digit OTP sent to {forgotPhone}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="6-digit OTP"
+                placeholderTextColor={colors.textTertiary}
+                value={otpCode}
+                onChangeText={setOtpCode}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              <TouchableOpacity style={styles.primaryButton} onPress={verifyOTP}>
+                <Text style={styles.primaryButtonText}>Verify OTP</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {step === 'new' && (
+            <View style={styles.formCard}>
+              <Text style={styles.modalSubtitle}>Create a new password</Text>
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="New Password"
+                  placeholderTextColor={colors.textTertiary}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNew}
+                />
+                <TouchableOpacity onPress={() => setShowNew(p => !p)} style={styles.passwordIcon}>
+                  <Text style={styles.passwordIconText}>{showNew ? '🙈' : '👁️'}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Confirm New Password"
+                  placeholderTextColor={colors.textTertiary}
+                  value={confirmNewPassword}
+                  onChangeText={setConfirmNewPassword}
+                  secureTextEntry={!showConfirmNew}
+                />
+                <TouchableOpacity onPress={() => setShowConfirmNew(p => !p)} style={styles.passwordIcon}>
+                  <Text style={styles.passwordIconText}>{showConfirmNew ? '🙈' : '👁️'}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.primaryButton} onPress={resetPassword}>
+                <Text style={styles.primaryButtonText}>Reset Password</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
 function useNavigation() {
   return React.useContext(NavigationContext);
 }
 
-// Loading Screen with Big N Logo
+// Animated Loading Screen with Typing Effect
 function LoadingScreen() {
   const { navigate } = useNavigation();
+  const [displayedText, setDisplayedText] = useState('');
+  const [displayedSlogan, setDisplayedSlogan] = useState('');
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const sloganOpacity = useRef(new Animated.Value(0)).current;
+
+  const appName = 'NTSAMAELA';
+  const slogan = 'Peer to Peer Package Delivery';
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Show logo immediately (no animation)
+    logoScale.setValue(1);
+    logoOpacity.setValue(1);
+    textOpacity.setValue(1);
+    sloganOpacity.setValue(1);
+    setDisplayedText(appName);
+    setDisplayedSlogan(slogan); // Show slogan immediately without animation
+
+    // Navigate to login after delay
+    setTimeout(() => {
       navigate('login', true);
-    }, 2000);
-    return () => clearTimeout(timer);
+    }, 3000);
   }, []);
+
+  const typeText = (text, setter, onComplete) => {
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < text.length) {
+        setter(text.substring(0, index + 1));
+        index++;
+      } else {
+        clearInterval(interval);
+        onComplete();
+      }
+    }, 100);
+  };
 
   return (
     <View style={styles.loadingContainer}>
       <StatusBar style="light" />
-      <View style={styles.logoBigContainer}>
+      
+      {/* Animated Logo */}
+      <Animated.View 
+        style={[
+          styles.logoBigContainer,
+          {
+            transform: [{ scale: logoScale }],
+            opacity: logoOpacity,
+          }
+        ]}
+      >
         <Text style={styles.logoBigN}>N</Text>
-      </View>
-      <Text style={styles.logoTextBig}>NTSAMAELA</Text>
-      <Text style={styles.sloganBig}>roma mongwe ka wena</Text>
+      </Animated.View>
+
+      {/* App Name - Stationary */}
+      <Text style={styles.logoTextBig}>{displayedText}</Text>
+
+      {/* Slogan */}
+      <Animated.View style={{ opacity: sloganOpacity }}>
+        <Text style={styles.sloganBig}>{displayedSlogan}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -418,65 +1396,246 @@ function InputModal({ visible, title, placeholder, onSubmit, onCancel, keyboardT
 
 // Login Screen - Conventional Structure
 function LoginScreen() {
-  const { login } = useNavigation();
+  const { login, navigate } = useNavigation();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [userType, setUserType] = useState('customer');
+  const [countryCode, setCountryCode] = useState('267'); // Default to Botswana
+  const [showCountryCodeModal, setShowCountryCodeModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Common country codes
+  const countryCodes = [
+    { code: '267', country: 'Botswana', flag: '🇧🇼' },
+    { code: '27', country: 'South Africa', flag: '🇿🇦' },
+    { code: '254', country: 'Kenya', flag: '🇰🇪' },
+    { code: '234', country: 'Nigeria', flag: '🇳🇬' },
+    { code: '233', country: 'Ghana', flag: '🇬🇭' },
+    { code: '255', country: 'Tanzania', flag: '🇹🇿' },
+    { code: '256', country: 'Uganda', flag: '🇺🇬' },
+    { code: '260', country: 'Zambia', flag: '🇿🇲' },
+    { code: '263', country: 'Zimbabwe', flag: '🇿🇼' },
+    { code: '264', country: 'Namibia', flag: '🇳🇦' },
+  ];
+  
+  // Identity document states
+  const [idFront, setIdFront] = useState(null);
+  const [idBack, setIdBack] = useState(null);
+  const [driversLicenseFront, setDriversLicenseFront] = useState(null);
+  const [driversLicenseBack, setDriversLicenseBack] = useState(null);
+  const [passportFront, setPassportFront] = useState(null);
+  const [passportBack, setPassportBack] = useState(null);
+  const [selfie, setSelfie] = useState(null);
+  
+  // Forgot password moved to dedicated screen
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showNewPasswordVisible, setShowNewPasswordVisible] = useState(false);
+  const [showConfirmNewPasswordVisible, setShowConfirmNewPasswordVisible] = useState(false);
 
   const handleForgotPassword = () => {
-    Alert.alert(
-      'Reset Password',
-      'Enter your email address to receive a password reset link.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Send Link',
-          onPress: () => {
-            if (email) {
-              Alert.alert('Success', `Password reset link sent to ${email}`);
-            } else {
-              Alert.alert('Error', 'Please enter your email address first');
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+    navigate('forgotPassword', true);
   };
 
-  const handleAuth = () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  const closeAllModals = () => {
+    setShowForgotPassword(false);
+    setShowOTP(false);
+    setShowPasswordChange(false);
+  };
+
+  const handleSendOTP = () => {
+    if (!forgotPhone) {
+      Alert.alert('Error', 'Please enter your phone number');
       return;
     }
     
-    if (!isLogin) {
-      if (!firstName || !lastName) {
-        Alert.alert('Error', 'Please enter your name');
-        return;
-      }
-      if (password !== confirmPassword) {
-        Alert.alert('Error', 'Passwords do not match');
-        return;
-      }
+    // Close any existing modals first
+    closeAllModals();
+    
+    // Simulate sending OTP
+    Alert.alert('OTP Sent', `A 6-digit OTP has been sent to ${forgotPhone}`, [
+      { text: 'OK', onPress: () => {
+        // Small delay to ensure previous alert is closed
+        setTimeout(() => setShowOTP(true), 100);
+      }}
+    ]);
+  };
+
+  const handleVerifyOTP = () => {
+    if (!otpCode || otpCode.length !== 6) {
+      Alert.alert('Error', 'Please enter a valid 6-digit OTP');
+      return;
     }
     
-    login(userType);
+    // Simulate OTP verification
+    if (otpCode === '123456') {
+      Alert.alert('Success', 'OTP verified! Please enter your new password', [
+        { text: 'OK', onPress: () => {
+          // Close OTP modal and open password change modal
+          setShowOTP(false);
+          setTimeout(() => setShowPasswordChange(true), 100);
+        }}
+      ]);
+    } else {
+      Alert.alert('Error', 'Invalid OTP. Please try again');
+    }
+  };
+
+  const handleResetPassword = () => {
+    if (!newPassword || !confirmNewPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+    
+    Alert.alert('Success', 'Password reset successfully! You can now login with your new password', [
+      { text: 'OK', onPress: () => {
+        // Close all modals and reset form
+        closeAllModals();
+        setForgotPhone('');
+        setOtpCode('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }}
+    ]);
+  };
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      return status === 'granted';
+    }
+    return true;
+  };
+
+  const requestMediaLibraryPermission = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      return status === 'granted';
+    }
+    return true;
+  };
+
+  // (moved) RegistrationPhotoButton defined at module scope
+
+  const takePhoto = async (setter) => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Required', 'Camera permission is required to take photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setter(result.assets[0]);
+    }
+  };
+
+  const selectFromGallery = async (setter) => {
+    const hasPermission = await requestMediaLibraryPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Required', 'Media library permission is required to select photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setter(result.assets[0]);
+    }
+  };
+
+  const showPhotoActionSheet = (setter) => {
+    Alert.alert(
+      'Select Document Photo',
+      'Choose how you want to add the document photo',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => takePhoto(setter) },
+        { text: 'Choose from Gallery', onPress: () => selectFromGallery(setter) },
+      ]
+    );
+  };
+
+  const handleAuth = async () => {
+    if (!phoneNumber || !password) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (isLogin) {
+      setIsLoading(true);
+      try {
+        // Normalize phone number with selected country code before calling login
+        let normalizedPhone = phoneNumber.trim();
+        // Remove any existing country code
+        if (normalizedPhone.startsWith('+')) {
+          normalizedPhone = normalizedPhone.substring(1);
+        }
+        // Remove country code if it's already in the number
+        if (normalizedPhone.startsWith(countryCode)) {
+          normalizedPhone = normalizedPhone.substring(countryCode.length);
+        }
+        // Add selected country code
+        normalizedPhone = '+' + countryCode + normalizedPhone;
+        
+        console.log('🔐 handleAuth: Calling login with phone:', normalizedPhone);
+        await login(normalizedPhone, password);
+        console.log('🔐 handleAuth: Login function completed');
+        
+        // CRITICAL: Double-check authentication state after login
+        // If login failed, isAuthenticated should still be false
+        // This is a safety check in case something went wrong
+      } catch (error) {
+        console.error('❌ Login error in handleAuth catch block:', error);
+        console.error('❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        Alert.alert('Login Error', 'An error occurred during login. Please try again.');
+        // CRITICAL: Ensure we don't allow login on error
+        setIsLoading(false);
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Sign Up: prompt role chooser and navigate to dedicated screens
+    setShowRoleModal(true);
   };
 
   return (
     <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
       style={{ flex: 1, backgroundColor: colors.background }}
     >
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1 }}
@@ -488,7 +1647,7 @@ function LoginScreen() {
               <Text style={styles.logoN}>N</Text>
             </View>
             <Text style={styles.logoText}>NTSAMAELA</Text>
-            <Text style={styles.slogan}>roma mongwe ka wena</Text>
+            <Text style={styles.slogan}>Re go tsamaela bosigo le motshegare</Text>
           </View>
 
           {/* Login/Signup Toggle */}
@@ -503,7 +1662,7 @@ function LoginScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleButton, !isLogin && styles.toggleButtonActive]}
-              onPress={() => setIsLogin(false)}
+              onPress={() => { setIsLogin(false); setShowRoleModal(true); }}
             >
               <Text style={[styles.toggleText, !isLogin && styles.toggleTextActive]}>
                 Sign Up
@@ -511,242 +1670,149 @@ function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Form Card */}
+          {/* Form Card (only for Sign In). Sign Up uses dedicated screens */}
+          {isLogin && (
           <View style={styles.formCard}>
-            {/* User Type Selector - Always visible */}
-            <View style={styles.userTypeSelector}>
-              <Text style={styles.userTypeLabel}>
-                {isLogin ? 'Sign in as' : 'Create account as'}
-              </Text>
-              <View style={styles.userTypeButtons}>
+            {/* Phone Number with Country Code */}
+            <View style={styles.phoneInputContainer}>
                 <TouchableOpacity
-                  style={[
-                    styles.userTypeButton,
-                    userType === 'customer' && styles.userTypeButtonActive
-                  ]}
-                  onPress={() => setUserType('customer')}
+                style={styles.countryCodeContainer}
+                onPress={() => setShowCountryCodeModal(true)}
                 >
-                  <Text style={[
-                    styles.userTypeButtonText,
-                    userType === 'customer' && styles.userTypeButtonTextActive
-                  ]}>
-                    Customer
-                  </Text>
+                <Text style={styles.countryCodeText}>+{countryCode}</Text>
+                <Text style={styles.countryCodeArrow}>▼</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.userTypeButton,
-                    userType === 'driver' && styles.userTypeButtonActive
-                  ]}
-                  onPress={() => setUserType('driver')}
-                >
-                  <Text style={[
-                    styles.userTypeButtonText,
-                    userType === 'driver' && styles.userTypeButtonTextActive
-                  ]}>
-                    Driver
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {!isLogin && (
-              <View style={styles.nameRow}>
-                <TextInput
-                  style={[styles.input, { flex: 1, marginRight: 8 }]}
-                  placeholder="First Name"
-                  placeholderTextColor={colors.textTertiary}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                />
-                <TextInput
-                  style={[styles.input, { flex: 1, marginLeft: 8 }]}
-                  placeholder="Last Name"
-                  placeholderTextColor={colors.textTertiary}
-                  value={lastName}
-                  onChangeText={setLastName}
-                />
-              </View>
-            )}
-
             <TextInput
-              style={styles.input}
-              placeholder="Email Address"
+                style={[styles.input, styles.phoneInput]}
+              placeholder="Phone Number"
               placeholderTextColor={colors.textTertiary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
               autoCapitalize="none"
             />
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textTertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-
-            {!isLogin && (
+            <View style={styles.passwordInputWrapper}>
               <TextInput
-                style={styles.input}
-                placeholder="Confirm Password"
+                style={[styles.input, styles.passwordInput]}
+                placeholder="Password"
                 placeholderTextColor={colors.textTertiary}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showLoginPassword}
               />
-            )}
+              <TouchableOpacity onPress={() => setShowLoginPassword(p => !p)} style={styles.passwordIcon} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.passwordIconText}>{showLoginPassword ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
 
             {isLogin && (
               <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
-
-            <TouchableOpacity style={styles.primaryButton} onPress={handleAuth}>
-              <Text style={styles.primaryButtonText}>
-                {isLogin ? 'Sign In' : 'Create Account'}
-              </Text>
+            <TouchableOpacity 
+              style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]} 
+              onPress={handleAuth}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryButtonText}>
+                  Sign In
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
+          )}
         </SafeAreaView>
       </ScrollView>
+
+      {/* Country Code Selection Modal */}
+      <Modal visible={showCountryCodeModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Country Code</Text>
+            <ScrollView style={styles.countryCodeList}>
+              {countryCodes.map((item) => (
+                <TouchableOpacity
+                  key={item.code}
+                  style={[
+                    styles.countryCodeItem,
+                    countryCode === item.code && styles.countryCodeItemActive
+                  ]}
+                  onPress={() => {
+                    setCountryCode(item.code);
+                    setShowCountryCodeModal(false);
+                  }}
+                >
+                  <Text style={styles.countryCodeFlag}>{item.flag}</Text>
+                  <Text style={styles.countryCodeName}>{item.country}</Text>
+                  <Text style={styles.countryCodeNumber}>+{item.code}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.modalCancelButton]} 
+              onPress={() => setShowCountryCodeModal(false)}
+            >
+              <Text style={styles.modalCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Role Selection Modal */}
+      <Modal visible={showRoleModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choose Account Type</Text>
+            <Text style={styles.modalSubtitle}>Select how you want to register</Text>
+            <View style={{ flexDirection: 'row', marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.roleChoiceButton, { flex: 1, marginRight: 8 }]}
+                onPress={() => { setShowRoleModal(false); navigate('registerCustomer'); }}
+              >
+                <Text style={styles.roleChoiceText}>Customer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleChoiceButton, { flex: 1, marginLeft: 8 }]}
+                onPress={() => { setShowRoleModal(false); navigate('registerDriver'); }}
+              >
+                <Text style={styles.roleChoiceText}>Driver</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.roleModalSpacing} />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalCancelButton]} 
+                onPress={() => setShowRoleModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* (old modals removed; dedicated Forgot Password screen is used) */}
     </KeyboardAvoidingView>
   );
 }
 
-// Customer Home Screen
-function CustomerHomeScreen() {
-  const { navigate, myPackages, customerWallet, userProfile } = useNavigation();
-
-  const handleNotifications = () => {
-    Alert.alert('Notifications', 'You have no new notifications.');
-  };
-
-  return (
-    <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello,</Text>
-            <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
-          </View>
-          <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
-            <Text style={styles.notificationIcon}>🔔</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.statValue}>{myPackages.length}</Text>
-            <Text style={styles.statLabel}>Active Packages</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.success }]}>
-            <Text style={styles.statValue}>P {customerWallet}</Text>
-            <Text style={styles.statLabel}>Wallet Balance</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('createPackage')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
-                <Text style={styles.actionIconText}>📦</Text>
-              </View>
-              <Text style={styles.actionText}>Create Package</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('myPackages')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: colors.success }]}>
-                <Text style={styles.actionIconText}>📋</Text>
-              </View>
-              <Text style={styles.actionText}>My Packages</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('availableDrivers')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: colors.accent }]}>
-                <Text style={styles.actionIconText}>🚗</Text>
-              </View>
-              <Text style={styles.actionText}>Find Drivers</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('wallet')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#FF6D00' }]}>
-                <Text style={styles.actionIconText}>💰</Text>
-              </View>
-              <Text style={styles.actionText}>Add Funds</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Recent Packages */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Packages</Text>
-          {myPackages.map(pkg => (
-            <TouchableOpacity 
-              key={pkg.id}
-              style={styles.packageCard}
-              onPress={() => navigate('packageDetails', pkg)}
-            >
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageId}>{pkg.id}</Text>
-                <View style={[styles.statusBadge, getStatusColor(pkg.status)]}>
-                  <Text style={styles.statusText}>{pkg.status}</Text>
-                </View>
-              </View>
-              <Text style={styles.packageDesc}>{pkg.description}</Text>
-              <View style={styles.packageRoute}>
-                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
-                <Text style={styles.packageArrow}>→</Text>
-                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
-              </View>
-              <View style={styles.packageFooter}>
-                {pkg.driverPhoto && (
-                  <Image 
-                    source={{ uri: pkg.driverPhoto }} 
-                    style={styles.packageDriverPhoto}
-                    resizeMode="cover"
-                  />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.packageDriver}>Driver: {pkg.driver}</Text>
-                </View>
-                <Text style={styles.packagePrice}>P {pkg.price}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
+// Customer Home Screen - moved to src/screens/CustomerHomeScreen.js
 
 // Driver Home Screen
 function DriverHomeScreen() {
-  const { navigate, availablePackages, driverWallet, userProfile, isActiveDriver, toggleActiveDriverStatus } = useNavigation();
+  const { navigate, availablePackages, driverWallet, userProfile, isActiveDriver, toggleActiveDriverStatus, notifications } = useNavigation();
   const [showCreateTripModal, setShowCreateTripModal] = useState(false);
 
   const handleNotifications = () => {
-    Alert.alert('Notifications', 'You have no new notifications.');
+    navigate('notifications');
   };
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleToggleActiveStatus = () => {
     const newStatus = !isActiveDriver;
@@ -761,15 +1827,20 @@ function DriverHomeScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello,</Text>
             <Text style={styles.userName}>{userProfile.firstName} {userProfile.lastName}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
-            <Text style={styles.notificationIcon}>🔔</Text>
+          {/* Redesigned minimal notification icon */}
+          <TouchableOpacity style={styles.headerNotif} onPress={handleNotifications}>
+            <Text style={styles.headerNotifIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.headerNotifBadge}>
+                <Text style={styles.headerNotifBadgeText}>{unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -783,8 +1854,11 @@ function DriverHomeScreen() {
             <Text style={styles.statValue}>P {driverWallet}</Text>
             <Text style={styles.statLabel}>Balance</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
-            <Text style={styles.statValue}>{userProfile.rating} ⭐</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.statValue}>{userProfile.rating}</Text>
+              <Text style={[styles.statValue, { marginLeft: 6 }]}>⭐</Text>
+            </View>
             <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
@@ -808,37 +1882,27 @@ function DriverHomeScreen() {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => setShowCreateTripModal(true)}
+              style={[styles.actionCard, !userProfile.isVerified && styles.actionCardDisabled]}
+              onPress={() => userProfile.isVerified ? setShowCreateTripModal(true) : Alert.alert('Verification Required', 'Please wait for account verification to create trips')}
             >
-              <View style={[styles.actionIcon, { backgroundColor: '#00C853' }]}>
+              <View style={[styles.actionIcon, { backgroundColor: userProfile.isVerified ? '#00C853' : colors.border }]}>
                 <Text style={styles.actionIconText}>➕</Text>
               </View>
-              <Text style={styles.actionText}>Create Trip</Text>
+              <Text style={[styles.actionText, !userProfile.isVerified && styles.actionTextDisabled]}>Create Trip</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('availablePackages')}
+              style={[styles.actionCard, !userProfile.isVerified && styles.actionCardDisabled]}
+              onPress={() => userProfile.isVerified ? navigate('availablePackages') : Alert.alert('Verification Required', 'Please wait for account verification to browse packages')}
             >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
+              <View style={[styles.actionIcon, { backgroundColor: userProfile.isVerified ? colors.primary : colors.border }]}>
                 <Text style={styles.actionIconText}>📦</Text>
               </View>
-              <Text style={styles.actionText}>Browse Packages</Text>
+              <Text style={[styles.actionText, !userProfile.isVerified && styles.actionTextDisabled]}>Browse Packages</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => navigate('myBids')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: colors.accent }]}>
-                <Text style={styles.actionIconText}>💬</Text>
-              </View>
-              <Text style={styles.actionText}>My Bids</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.actionCard}
@@ -867,37 +1931,7 @@ function DriverHomeScreen() {
         onClose={() => setShowCreateTripModal(false)}
       />
 
-        {/* Available Packages */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Packages</Text>
-          {availablePackages.slice(0, 3).map(pkg => (
-            <TouchableOpacity 
-              key={pkg.id}
-              style={styles.packageCard}
-              onPress={() => navigate('packageDetails', pkg)}
-            >
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageId}>{pkg.id}</Text>
-                <Text style={styles.packagePrice}>P {pkg.price}</Text>
-              </View>
-              <Text style={styles.packageDesc}>{pkg.description}</Text>
-              <View style={styles.packageRoute}>
-                <Text style={styles.packageLocation}>📍 {pkg.pickup}</Text>
-                <Text style={styles.packageArrow}>→</Text>
-                <Text style={styles.packageLocation}>📍 {pkg.delivery}</Text>
-              </View>
-              <View style={styles.packageFooter}>
-                <Text style={styles.packageInfo}>{pkg.weight} • {pkg.distance}</Text>
-                <TouchableOpacity 
-                  style={styles.bidButton}
-                  onPress={() => Alert.alert('Bid', `Place your bid for ${pkg.id}`)}
-                >
-                  <Text style={styles.bidButtonText}>Place Bid</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Available Packages removed */}
       </ScrollView>
     </View>
   );
@@ -1062,34 +2096,323 @@ function CreateTripModal({ visible, onClose }) {
   );
 }
 
-// Location Search Modal
-function LocationSearchModal({ visible, title, onSelect, onCancel }) {
+// Helper function to decode polyline
+const decodePolyline = (encoded) => {
+  const poly = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let b;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) !== 0) ? ~(result >> 1) : (result >> 1);
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) !== 0) ? ~(result >> 1) : (result >> 1);
+    lng += dlng;
+
+    poly.push({ latitude: lat * 1e-5, longitude: lng * 1e-5 });
+  }
+  return poly;
+};
+
+// Location Search Modal with Map
+function LocationSearchModal({ visible, title, onSelect, onCancel, showRoute = false, routeStart = null, routeEnd = null }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: -24.6282, // Gaborone default
+    longitude: 25.9231,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [routePolyline, setRoutePolyline] = useState(null);
+  const mapRef = useRef(null);
 
-  const sampleLocations = [
-    { id: 1, name: 'Gaborone Main Mall', address: 'The Mall, Gaborone', lat: -24.6282, lng: 25.9231 },
-    { id: 2, name: 'Sir Seretse Khama Airport', address: 'Airport Road, Gaborone', lat: -24.5552, lng: 25.9182 },
-    { id: 3, name: 'Francistown Bus Rank', address: 'Blue Jacket St, Francistown', lat: -21.1700, lng: 27.5083 },
-    { id: 4, name: 'Maun Airport', address: 'Maun, North-West District', lat: -19.9726, lng: 23.4311 },
-    { id: 5, name: 'Palapye Station', address: 'Main Road, Palapye', lat: -22.5476, lng: 27.1247 },
-    { id: 6, name: 'Kasane Bus Terminal', address: 'Kasane, Chobe District', lat: -17.8179, lng: 25.1644 },
-    { id: 7, name: 'Serowe Shopping Center', address: 'Serowe, Central District', lat: -22.3850, lng: 26.7108 },
-    { id: 8, name: 'Mogoditshane Square', address: 'Mogoditshane', lat: -24.6169, lng: 25.8653 },
-  ];
+  // Get current location
+  const getCurrentLocation = async () => {
+    try {
+      setIsLoadingLocation(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+        setIsLoadingLocation(false);
+        return;
+      }
 
-  const filteredLocations = searchQuery.trim()
-    ? sampleLocations.filter(loc =>
-        loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        loc.address.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : sampleLocations;
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      // Update map region
+      const newRegion = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+      setMapRegion(newRegion);
+      
+      // Reverse geocode to get address
+      await reverseGeocode(latitude, longitude);
+      
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(newRegion, 1000);
+      }
+    } catch (error) {
+      console.error('Error getting current location:', error);
+      Alert.alert('Error', 'Failed to get your current location.');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  // Reverse geocode coordinates to address
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      setIsLoading(true);
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        // Fallback to sample location if API key not configured
+        const sampleLocation = {
+          name: 'Selected Location',
+          address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude,
+          lng: longitude,
+        };
+        setSelectedLocation(sampleLocation);
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+      );
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const location = {
+          name: result.formatted_address.split(',')[0],
+          address: result.formatted_address,
+          lat: latitude,
+          lng: longitude,
+        };
+        setSelectedLocation(location);
+      } else {
+        const location = {
+          name: 'Selected Location',
+          address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude,
+          lng: longitude,
+        };
+        setSelectedLocation(location);
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+      const location = {
+        name: 'Selected Location',
+        address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        lat: latitude,
+        lng: longitude,
+      };
+      setSelectedLocation(location);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Search for addresses
+  const searchAddresses = async (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        // Fallback to sample locations if API key not configured
+        const sampleLocations = [
+          { id: 1, name: 'Gaborone Main Mall', address: 'The Mall, Gaborone', lat: -24.6282, lng: 25.9231 },
+          { id: 2, name: 'Sir Seretse Khama Airport', address: 'Airport Road, Gaborone', lat: -24.5552, lng: 25.9182 },
+          { id: 3, name: 'Francistown Bus Rank', address: 'Blue Jacket St, Francistown', lat: -21.1700, lng: 27.5083 },
+        ];
+        const filtered = sampleLocations.filter(loc =>
+          loc.name.toLowerCase().includes(query.toLowerCase()) ||
+          loc.address.toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(filtered);
+        setIsLoading(false);
+        return;
+      }
+
+      // Use Places API (New) - Autocomplete
+      const response = await fetch(
+        `https://places.googleapis.com/v1/places:autocomplete`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': apiKey,
+            'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
+          },
+          body: JSON.stringify({
+            input: query,
+            includedRegionCodes: ['bw'],
+            languageCode: 'en'
+          })
+        }
+      );
+      const data = await response.json();
+      
+      if (data.suggestions) {
+        const results = await Promise.all(
+          data.suggestions.slice(0, 5).map(async (suggestion) => {
+            if (suggestion.placePrediction?.placeId) {
+              // Get place details using Places API (New)
+              const detailsResponse = await fetch(
+                `https://places.googleapis.com/v1/places/${suggestion.placePrediction.placeId}`,
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask': 'id,displayName,formattedAddress,location'
+                  }
+                }
+              );
+              const detailsData = await detailsResponse.json();
+              
+              if (detailsData.location) {
+                return {
+                  id: detailsData.id || suggestion.placePrediction.placeId,
+                  name: detailsData.displayName?.text || suggestion.placePrediction.text?.text || 'Unknown',
+                  address: detailsData.formattedAddress || suggestion.placePrediction.text?.text || '',
+                  lat: detailsData.location.latitude || 0,
+                  lng: detailsData.location.longitude || 0,
+                };
+              }
+            }
+            return null;
+          })
+        );
+        setSearchResults(results.filter(r => r !== null));
+      }
+    } catch (error) {
+      console.error('Error searching addresses:', error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle map region change (when user drags map)
+  const handleRegionChangeComplete = (region) => {
+    setMapRegion(region);
+    reverseGeocode(region.latitude, region.longitude);
+  };
+
+  // Load route if showRoute is true
+  useEffect(() => {
+    if (showRoute && routeStart && routeEnd && visible) {
+      const loadRoute = async () => {
+        try {
+          const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+          if (!apiKey) return;
+
+          const origin = `${routeStart.lat},${routeStart.lng}`;
+          const destination = `${routeEnd.lat},${routeEnd.lng}`;
+          
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`
+          );
+          const data = await response.json();
+
+          if (data.status === 'OK' && data.routes[0]) {
+            const polyline = decodePolyline(data.routes[0].overview_polyline.points);
+            setRoutePolyline(polyline);
+            
+            // Fit map to show entire route
+            if (polyline.length > 0 && mapRef.current) {
+              const coordinates = polyline;
+              const minLat = Math.min(...coordinates.map(c => c.latitude));
+              const maxLat = Math.max(...coordinates.map(c => c.latitude));
+              const minLng = Math.min(...coordinates.map(c => c.longitude));
+              const maxLng = Math.max(...coordinates.map(c => c.longitude));
+              
+              const padding = 0.1;
+              mapRef.current.fitToCoordinates(coordinates, {
+                edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                animated: true,
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error loading route:', error);
+        }
+      };
+      loadRoute();
+    } else {
+      setRoutePolyline(null);
+    }
+  }, [showRoute, routeStart, routeEnd, visible]);
+
+  // Handle search query change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchAddresses(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Handle search result selection
+  const handleSearchResultSelect = (location) => {
+    setSelectedLocation(location);
+    setSearchQuery(location.address);
+    setSearchResults([]);
+    
+    const newRegion = {
+      latitude: location.lat,
+      longitude: location.lng,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+    setMapRegion(newRegion);
+    
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(newRegion, 1000);
+    }
+  };
 
   const handleSelect = () => {
     if (selectedLocation) {
       onSelect(selectedLocation);
       setSearchQuery('');
       setSelectedLocation(null);
+      setSearchResults([]);
     }
   };
 
@@ -1098,70 +2421,165 @@ function LocationSearchModal({ visible, title, onSelect, onCancel }) {
       onCancel();
       setSearchQuery('');
       setSelectedLocation(null);
+      setSearchResults([]);
     }}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
+          <View style={[styles.modalContainer, { height: '90%' }]}>
             <Text style={styles.modalTitle}>{title}</Text>
             
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Search location..."
-              placeholderTextColor={colors.textTertiary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-
-          <ScrollView style={{ maxHeight: 300, marginBottom: 16 }}>
-            {filteredLocations.map(location => (
-              <TouchableOpacity
-                key={location.id}
-                style={[
-                  styles.locationItem,
-                  selectedLocation?.id === location.id && styles.locationItemSelected
-                ]}
-                onPress={() => setSelectedLocation(location)}
-              >
-                <Text style={styles.locationIcon}>📍</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.locationName}>{location.name}</Text>
-                  <Text style={styles.locationAddress}>{location.address}</Text>
+            {/* Search Input */}
+            <View style={{ position: 'relative', marginBottom: 12 }}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Search location or drag map..."
+                placeholderTextColor={colors.textTertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {isLoading && (
+                <View style={{ position: 'absolute', right: 12, top: 12 }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
                 </View>
-                {selectedLocation?.id === location.id && (
-                  <Text style={styles.checkmark}>✓</Text>
+              )}
+            </View>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <ScrollView style={{ maxHeight: 150, marginBottom: 12, backgroundColor: colors.cardBg, borderRadius: 8 }}>
+                {searchResults.map(location => (
+                  <TouchableOpacity
+                    key={location.id}
+                    style={styles.locationItem}
+                    onPress={() => handleSearchResultSelect(location)}
+                  >
+                    <Text style={styles.locationIcon}>📍</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.locationName}>{location.name}</Text>
+                      <Text style={styles.locationAddress}>{location.address}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Map View */}
+            <View style={{ flex: 1, borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+              <MapView
+                ref={mapRef}
+                provider={PROVIDER_GOOGLE}
+                style={{ flex: 1 }}
+                region={mapRegion}
+                onRegionChangeComplete={handleRegionChangeComplete}
+                showsUserLocation={true}
+                showsMyLocationButton={false}
+                mapType="standard"
+              >
+                {/* Route polyline */}
+                {routePolyline && routePolyline.length > 0 && (
+                  <Polyline
+                    coordinates={routePolyline}
+                    strokeColor={colors.primary}
+                    strokeWidth={4}
+                    lineDashPattern={[1]}
+                  />
+                )}
+                
+                {/* Route start marker */}
+                {showRoute && routeStart && (
+                  <Marker
+                    coordinate={{
+                      latitude: routeStart.lat,
+                      longitude: routeStart.lng,
+                    }}
+                    title="Start"
+                    pinColor={colors.success}
+                  />
+                )}
+                
+                {/* Route end marker */}
+                {showRoute && routeEnd && (
+                  <Marker
+                    coordinate={{
+                      latitude: routeEnd.lat,
+                      longitude: routeEnd.lng,
+                    }}
+                    title="End"
+                    pinColor={colors.error}
+                  />
+                )}
+                
+                {/* Selected location marker */}
+                {selectedLocation && (
+                  <Marker
+                    coordinate={{
+                      latitude: selectedLocation.lat,
+                      longitude: selectedLocation.lng,
+                    }}
+                    draggable
+                    onDragEnd={(e) => {
+                      const { latitude, longitude } = e.nativeEvent.coordinate;
+                      reverseGeocode(latitude, longitude);
+                    }}
+                  />
+                )}
+              </MapView>
+              
+              {/* Current Location Button */}
+              <TouchableOpacity
+                style={styles.currentLocationButton}
+                onPress={getCurrentLocation}
+                disabled={isLoadingLocation}
+              >
+                {isLoadingLocation ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.currentLocationIcon}>📍</Text>
                 )}
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
 
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonCancel]}
-              onPress={() => {
-                onCancel();
-                setSearchQuery('');
-                setSelectedLocation(null);
-              }}
-            >
-              <Text style={styles.modalButtonTextCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.modalButton,
-                styles.modalButtonSubmit,
-                !selectedLocation && { opacity: 0.5 }
-              ]}
-              onPress={handleSelect}
-              disabled={!selectedLocation}
-            >
-              <Text style={styles.modalButtonTextSubmit}>Select</Text>
-            </TouchableOpacity>
+            {/* Selected Location Info */}
+            {selectedLocation && (
+              <View style={styles.selectedLocationInfo}>
+                <Text style={styles.locationIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.locationName}>{selectedLocation.name}</Text>
+                  <Text style={styles.locationAddress}>{selectedLocation.address}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  onCancel();
+                  setSearchQuery('');
+                  setSelectedLocation(null);
+                  setSearchResults([]);
+                }}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.modalButtonSubmit,
+                  (!selectedLocation || isLoading) && { opacity: 0.5 }
+                ]}
+                onPress={handleSelect}
+                disabled={!selectedLocation || isLoading}
+              >
+                <Text style={styles.modalButtonTextSubmit}>Select</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1353,6 +2771,9 @@ function CreatePackageForDriverModal({ visible, driver, onClose }) {
           setShowPickupModal(false);
         }}
         onCancel={() => setShowPickupModal(false)}
+        showRoute={pickup && delivery}
+        routeStart={pickup}
+        routeEnd={delivery}
       />
 
       <LocationSearchModal
@@ -1363,6 +2784,9 @@ function CreatePackageForDriverModal({ visible, driver, onClose }) {
           setShowDeliveryModal(false);
         }}
         onCancel={() => setShowDeliveryModal(false)}
+        showRoute={pickup && delivery}
+        routeStart={pickup}
+        routeEnd={delivery}
       />
     </>
   );
@@ -1377,9 +2801,93 @@ function CreatePackageScreen() {
   const [recipientPhone, setRecipientPhone] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [urgency, setUrgency] = useState('normal');
   const [packagePhoto, setPackagePhoto] = useState(null);
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
+  // Calculate route distance and duration using Distance Matrix API
+  const calculateRoute = async (pickupLoc, deliveryLoc) => {
+    if (!pickupLoc || !deliveryLoc) {
+      setRouteInfo(null);
+      return;
+    }
+
+    try {
+      setIsCalculatingRoute(true);
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        setRouteInfo(null);
+        return;
+      }
+
+      // Use Distance Matrix API
+      const origin = `${pickupLoc.lat},${pickupLoc.lng}`;
+      const destination = `${deliveryLoc.lat},${deliveryLoc.lng}`;
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&key=${apiKey}&units=metric`
+      );
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.rows[0]?.elements[0]?.status === 'OK') {
+        const element = data.rows[0].elements[0];
+        setRouteInfo({
+          distance: element.distance.text,
+          distanceValue: element.distance.value, // in meters
+          duration: element.duration.text,
+          durationValue: element.duration.value, // in seconds
+        });
+      } else {
+        setRouteInfo(null);
+      }
+    } catch (error) {
+      console.error('Error calculating route:', error);
+      setRouteInfo(null);
+    } finally {
+      setIsCalculatingRoute(false);
+    }
+  };
+
+  // Get route polyline using Directions API
+  const getRoutePolyline = async (pickupLoc, deliveryLoc) => {
+    if (!pickupLoc || !deliveryLoc) return null;
+
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return null;
+
+      const origin = `${pickupLoc.lat},${pickupLoc.lng}`;
+      const destination = `${deliveryLoc.lat},${deliveryLoc.lng}`;
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`
+      );
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.routes[0]) {
+        // Decode polyline
+        const polyline = data.routes[0].overview_polyline.points;
+        return polyline;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting route polyline:', error);
+      return null;
+    }
+  };
+
+  // Update route when pickup or delivery changes
+  useEffect(() => {
+    if (pickup && delivery) {
+      calculateRoute(pickup, delivery);
+    } else {
+      setRouteInfo(null);
+    }
+  }, [pickup, delivery]);
 
   const handlePhotoSelection = async () => {
     const { status} = await ImagePicker.requestCameraPermissionsAsync();
@@ -1423,8 +2931,8 @@ function CreatePackageScreen() {
     );
   };
 
-  const handleCreate = () => {
-    if (!description || !pickup || !delivery || !recipientPhone || !price) {
+  const handleCreate = async () => {
+    if (!description || !pickup || !delivery || !recipientPhone || !price || !deliveryDate) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -1434,14 +2942,48 @@ function CreatePackageScreen() {
       return;
     }
 
-    Alert.alert('Success', 'Package created successfully!\n\nDrivers can now bid on your package.', [
-      { text: 'OK', onPress: () => goBack() }
-    ]);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const response = await fetch(`${apiUrl}/api/packages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          description,
+          pickupAddress: pickup.address,
+          pickupLat: pickup.lat,
+          pickupLng: pickup.lng,
+          deliveryAddress: delivery.address,
+          deliveryLat: delivery.lat,
+          deliveryLng: delivery.lng,
+          priceOffered: parseFloat(price),
+          weight: parseFloat(weight),
+          deliveryDate: new Date(deliveryDate).toISOString(),
+          urgency: urgency.toUpperCase(),
+          recipientPhone
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        Alert.alert('Success', 'Package created successfully!\n\nDrivers can now bid on your package.', [
+          { text: 'OK', onPress: () => goBack() }
+        ]);
+      } else {
+        Alert.alert('Error', data.error.message);
+      }
+    } catch (error) {
+      console.error('Create package error:', error);
+      Alert.alert('Error', 'Failed to create package. Please try again.');
+    }
   };
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -1488,6 +3030,36 @@ function CreatePackageScreen() {
               onChangeText={setPrice}
               keyboardType="decimal-pad"
             />
+
+            <Text style={styles.fieldLabel}>Desired Delivery Date *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 2024-01-15"
+              placeholderTextColor={colors.textTertiary}
+              value={deliveryDate}
+              onChangeText={setDeliveryDate}
+            />
+
+            <Text style={styles.fieldLabel}>Urgency Level *</Text>
+            <View style={styles.urgencyContainer}>
+              {['normal', 'urgent', 'same-day'].map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[
+                    styles.urgencyButton,
+                    urgency === level && styles.urgencyButtonActive
+                  ]}
+                  onPress={() => setUrgency(level)}
+                >
+                  <Text style={[
+                    styles.urgencyButtonText,
+                    urgency === level && styles.urgencyButtonTextActive
+                  ]}>
+                    {level === 'normal' ? 'Normal' : level === 'urgent' ? 'Urgent' : 'Same Day'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Route Section */}
@@ -1534,9 +3106,28 @@ function CreatePackageScreen() {
 
             {pickup && delivery && (
               <View style={styles.routeInfo}>
-                <Text style={styles.routeInfoText}>
-                  ✓ Route will be created when driver accepts
-                </Text>
+                {isCalculatingRoute ? (
+                  <Text style={styles.routeInfoText}>Calculating route...</Text>
+                ) : routeInfo ? (
+                  <>
+                    <View style={styles.routeInfoRow}>
+                      <Text style={styles.routeInfoIcon}>📏</Text>
+                      <Text style={styles.routeInfoText}>
+                        Distance: <Text style={styles.routeInfoValue}>{routeInfo.distance}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.routeInfoRow}>
+                      <Text style={styles.routeInfoIcon}>⏱️</Text>
+                      <Text style={styles.routeInfoText}>
+                        Estimated Time: <Text style={styles.routeInfoValue}>{routeInfo.duration}</Text>
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.routeInfoText}>
+                    ✓ Route will be calculated when driver accepts
+                  </Text>
+                )}
               </View>
             )}
           </View>
@@ -1599,6 +3190,9 @@ function CreatePackageScreen() {
           setShowPickupModal(false);
         }}
         onCancel={() => setShowPickupModal(false)}
+        showRoute={pickup && delivery}
+        routeStart={pickup}
+        routeEnd={delivery}
       />
 
       <LocationSearchModal
@@ -1609,6 +3203,9 @@ function CreatePackageScreen() {
           setShowDeliveryModal(false);
         }}
         onCancel={() => setShowDeliveryModal(false)}
+        showRoute={pickup && delivery}
+        routeStart={pickup}
+        routeEnd={delivery}
       />
     </View>
   );
@@ -1673,7 +3270,7 @@ function MyPackagesScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -1830,7 +3427,7 @@ function MyPackagesScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.bidDriverName}>{bid.driver}</Text>
                       <Text style={styles.bidDriverMeta}>
-                        ⭐ {bid.rating} • {bid.trips} trips
+                        {bid.rating} ⭐ • {bid.trips} trips
                       </Text>
                     </View>
                     <Text style={styles.bidAmount}>P {bid.amount}</Text>
@@ -1913,7 +3510,7 @@ function AvailableDriversScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -1946,7 +3543,7 @@ function AvailableDriversScreen() {
                     <View style={styles.driverInfo}>
                       <Text style={styles.driverName}>{driver.driver}</Text>
                       <View style={styles.driverMeta}>
-                        <Text style={styles.driverRating}>⭐ {driver.rating}</Text>
+                        <Text style={styles.driverRating}>{driver.rating} ⭐</Text>
                         <Text style={styles.driverTrips}> • {driver.totalDeliveries} deliveries</Text>
                       </View>
                     </View>
@@ -1972,7 +3569,7 @@ function AvailableDriversScreen() {
             >
               <View style={styles.tripHeader}>
                 <Text style={styles.driverName}>{trip.driver}</Text>
-                <Text style={styles.driverRating}>⭐ {trip.rating}</Text>
+                <Text style={styles.driverRating}>{trip.rating} ⭐</Text>
               </View>
               <View style={styles.tripRoute}>
                 <Text style={styles.tripLocation}>📍 {trip.from}</Text>
@@ -2104,7 +3701,7 @@ function AvailablePackagesScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -2173,72 +3770,7 @@ function AvailablePackagesScreen() {
   );
 }
 
-// My Bids Screen (Driver)
-function MyBidsScreen() {
-  const { goBack, myBids } = useNavigation();
-
-  return (
-    <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.headerBar}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Bids</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-          {myBids.length > 0 ? (
-            myBids.map(bid => (
-              <View key={bid.id} style={styles.bidStatusCard}>
-                <View style={styles.bidStatusHeader}>
-                  <Text style={styles.bidStatusPackage}>{bid.packageId}</Text>
-                  <View style={[
-                    styles.bidStatusBadge,
-                    bid.status === 'accepted' ? { backgroundColor: colors.success + '20' } :
-                    bid.status === 'rejected' ? { backgroundColor: colors.error + '20' } :
-                    { backgroundColor: '#FFA500' + '20' }
-                  ]}>
-                    <Text style={[
-                      styles.bidStatusText,
-                      bid.status === 'accepted' ? { color: colors.success } :
-                      bid.status === 'rejected' ? { color: colors.error } :
-                      { color: '#FFA500' }
-                    ]}>
-                      {bid.status}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.bidStatusDesc}>{bid.description}</Text>
-                <View style={styles.bidStatusRoute}>
-                  <Text style={styles.packageLocation}>📍 {bid.pickup}</Text>
-                  <Text style={styles.packageArrow}>→</Text>
-                  <Text style={styles.packageLocation}>📍 {bid.delivery}</Text>
-                </View>
-                <View style={styles.bidStatusFooter}>
-                  <Text style={styles.bidStatusAmount}>Your bid: P {bid.amount}</Text>
-                  {bid.status === 'accepted' && (
-                    <Text style={styles.bidStatusEarnings}>
-                      You get: P {(bid.amount * 0.7).toFixed(2)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ))
-          ) : (
-            <View style={styles.centerContent}>
-              <Text style={styles.emptyIcon}>💬</Text>
-              <Text style={styles.emptyTitle}>No Active Bids</Text>
-              <Text style={styles.emptyText}>Place bids on available packages to see them here</Text>
-            </View>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
-  );
-}
+// My Bids Screen removed
 
 // My Trips Screen (Driver)
 function MyTripsScreen() {
@@ -2281,28 +3813,76 @@ function MyTripsScreen() {
     );
   };
 
-  const handleCounterBid = (pkg) => {
-    setSelectedPackage(pkg);
-    setShowCounterBidModal(true);
+  const handleCounterBid = async (pkg) => {
+    if (!userProfile.isVerified) {
+      Alert.alert('Verification Required', 'Please wait for account verification to place bids');
+      return;
+    }
+    
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const response = await fetch(`${apiUrl}/api/bids/package/${pkg.id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedPackage(pkg);
+        setShowCounterBidModal(true);
+      } else {
+        Alert.alert('Error', data.error.message);
+      }
+    } catch (error) {
+      console.error('Get bids error:', error);
+      Alert.alert('Error', 'Failed to load bids. Please try again.');
+    }
   };
 
-  const handleCounterBidSubmit = (amount) => {
+  const handleCounterBidSubmit = async (amount) => {
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
-    
-    const counterAmount = parseFloat(amount);
-    const yourEarnings = (counterAmount * 0.7).toFixed(2);
-    const platformFee = (counterAmount * 0.3).toFixed(2);
-    
-    setShowCounterBidModal(false);
-    
-    Alert.alert(
-      'Counter Offer Sent',
-      `Your counter offer of P ${counterAmount} has been sent to ${selectedPackage.customer}.\n\n• You'll receive: P ${yourEarnings}\n• Platform fee (30%): P ${platformFee}\n\nWaiting for customer to accept or reject your offer.`,
-      [{ text: 'OK', onPress: () => setSelectedPackage(null) }]
-    );
+
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const response = await fetch(`${apiUrl}/api/bids/${selectedPackage.id}/counter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          message: `Counter offer: P${amount}`
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const counterAmount = parseFloat(amount);
+        const yourEarnings = (counterAmount * 0.7).toFixed(2);
+        const platformFee = (counterAmount * 0.3).toFixed(2);
+        
+        setShowCounterBidModal(false);
+        
+        Alert.alert(
+          'Counter Offer Sent',
+          `Your counter offer of P ${counterAmount} has been sent to ${selectedPackage.customer}.\n\n• You'll receive: P ${yourEarnings}\n• Platform fee (30%): P ${platformFee}\n\nWaiting for customer to accept or reject your offer.`,
+          [{ text: 'OK', onPress: () => setSelectedPackage(null) }]
+        );
+      } else {
+        Alert.alert('Error', data.error.message);
+      }
+    } catch (error) {
+      console.error('Counter bid error:', error);
+      Alert.alert('Error', 'Failed to submit counter bid. Please try again.');
+    }
   };
 
   const handleRejectSuggestion = (pkg) => {
@@ -2311,7 +3891,7 @@ function MyTripsScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -2443,7 +4023,9 @@ function MyTripsScreen() {
 }
 
 // Wallet Screen
-function WalletScreen() {
+// Old WalletScreen - replaced by new WalletScreen from src/screens
+// Keeping for reference but not used
+function WalletScreenOld() {
   const { goBack, userType, customerWallet, driverWallet, setCustomerWallet, setDriverWallet } = useNavigation();
   const isCustomer = userType === 'customer';
   const balance = isCustomer ? customerWallet : driverWallet;
@@ -2494,7 +4076,7 @@ function WalletScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
@@ -2560,12 +4142,15 @@ function WalletScreen() {
 
 // Profile Screen
 function ProfileScreen() {
-  const { userProfile, setUserProfile } = useNavigation();
+  const { userProfile, setUserProfile, navigate } = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(userProfile.firstName);
   const [lastName, setLastName] = useState(userProfile.lastName);
-  const [email, setEmail] = useState(userProfile.email);
   const [phone, setPhone] = useState(userProfile.phone);
+  
+  const handleVerification = () => {
+    navigate('verification');
+  };
 
   const requestPermissions = async () => {
     if (Platform.OS !== 'web') {
@@ -2636,7 +4221,7 @@ function ProfileScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <TouchableOpacity onPress={handleProfilePhoto} style={styles.profilePhotoContainer}>
@@ -2655,7 +4240,7 @@ function ProfileScreen() {
           </TouchableOpacity>
           
           <Text style={styles.profileName}>{userProfile.firstName} {userProfile.lastName}</Text>
-          <Text style={styles.profileEmail}>{userProfile.email}</Text>
+          <Text style={styles.profileEmail}>{userProfile.phone}</Text>
         </View>
 
         <View style={styles.profileSection}>
@@ -2675,18 +4260,11 @@ function ProfileScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone"
+                placeholder="Phone Number"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
+                autoCapitalize="none"
               />
               <View style={styles.editButtons}>
                 <TouchableOpacity 
@@ -2714,13 +4292,23 @@ function ProfileScreen() {
                 <Text style={styles.profileFieldValue}>{userProfile.lastName}</Text>
               </View>
               <View style={styles.profileField}>
-                <Text style={styles.profileFieldLabel}>Email</Text>
-                <Text style={styles.profileFieldValue}>{userProfile.email}</Text>
-              </View>
-              <View style={styles.profileField}>
                 <Text style={styles.profileFieldLabel}>Phone</Text>
                 <Text style={styles.profileFieldValue}>{userProfile.phone}</Text>
               </View>
+              <View style={styles.profileField}>
+                <Text style={styles.profileFieldLabel}>Verification Status</Text>
+                <Text style={[styles.profileFieldValue, { color: userProfile.isVerified ? colors.success : colors.warning }]}>
+                  {userProfile.isVerified ? '✓ Verified' : '⚠ Not Verified'}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={[styles.primaryButton, { marginBottom: 12 }]}
+                onPress={handleVerification}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {userProfile.isVerified ? 'View Verification' : 'Complete Verification'}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.primaryButton}
                 onPress={() => setIsEditing(true)}
@@ -2737,7 +4325,7 @@ function ProfileScreen() {
 
 // Settings Screen
 function SettingsScreen() {
-  const { logout } = useNavigation();
+  const { logout, navigate } = useNavigation();
 
   const handleLogout = () => {
     Alert.alert(
@@ -2751,7 +4339,7 @@ function SettingsScreen() {
   };
 
   const handleNotifications = () => {
-    Alert.alert('Notifications', 'Notification settings coming soon!');
+    navigate('notifications');
   };
 
   const handlePrivacy = () => {
@@ -2772,7 +4360,7 @@ function SettingsScreen() {
 
   return (
     <View style={styles.screenContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.settingsContainer}>
           <Text style={styles.settingsTitle}>Settings</Text>
@@ -2819,6 +4407,99 @@ function SettingsScreen() {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+// Notification Screen
+function NotificationScreen() {
+  const { notifications, setNotifications } = useNavigation();
+
+  const markAsRead = (notificationId) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, read: true }
+          : notif
+      )
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, read: true }))
+    );
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'delivery': return '📦';
+      case 'bid': return '💰';
+      case 'payment': return '💳';
+      case 'verification': return '✅';
+      default: return '🔔';
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <View style={styles.screenContainer}>
+      <StatusBar style="light" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.notificationHeader}>
+          <Text style={styles.notificationTitle}>Notifications</Text>
+          {unreadCount > 0 && (
+            <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+              <Text style={styles.markAllText}>Mark all as read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {notifications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🔔</Text>
+            <Text style={styles.emptyStateTitle}>No notifications</Text>
+            <Text style={styles.emptyStateText}>You're all caught up!</Text>
+          </View>
+        ) : (
+          <View style={styles.notificationList}>
+            {notifications.map(notification => (
+              <TouchableOpacity
+                key={notification.id}
+                style={[
+                  styles.notificationItem,
+                  !notification.read && styles.notificationItemUnread
+                ]}
+                onPress={() => markAsRead(notification.id)}
+              >
+                <View style={styles.notificationIcon}>
+                  <Text style={styles.notificationIconText}>
+                    {getNotificationIcon(notification.type)}
+                  </Text>
+                </View>
+                <View style={styles.notificationContent}>
+                  <Text style={[
+                    styles.notificationItemTitle,
+                    !notification.read && styles.notificationItemTitleUnread
+                  ]}>
+                    {notification.title}
+                  </Text>
+                  <Text style={styles.notificationItemMessage}>
+                    {notification.message}
+                  </Text>
+                  <Text style={styles.notificationItemTime}>
+                    {notification.time}
+                  </Text>
+                </View>
+                {!notification.read && (
+                  <View style={styles.unreadDot} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -2881,6 +4562,9 @@ function AppNavigator() {
   const renderScreen = () => {
     if (!isAuthenticated) {
       if (currentScreen === 'loading') return <LoadingScreen />;
+      if (currentScreen === 'registerCustomer') return <RegisterCustomerScreen />;
+      if (currentScreen === 'registerDriver') return <RegisterDriverScreen />;
+      if (currentScreen === 'forgotPassword') return <ForgotPasswordScreen />;
       return <LoginScreen />;
     }
 
@@ -2888,12 +4572,25 @@ function AppNavigator() {
     if (currentScreen === 'createPackage') return <CreatePackageScreen />;
     if (currentScreen === 'myPackages') return <MyPackagesScreen />;
     if (currentScreen === 'availableDrivers') return <AvailableDriversScreen />;
-    if (currentScreen === 'wallet') return <WalletScreen />;
+    if (currentScreen === 'wallet') return <NewWalletScreen navigation={{ navigate, goBack }} route={{}} />;
+    if (currentScreen === 'notifications') return <NotificationScreen />;
+    if (currentScreen === 'verification') return <VerificationScreen navigation={{ navigate, goBack }} route={{}} />;
+    if (currentScreen === 'chat') {
+      const chatRoute = { params: screenParams?.chat || screenParams?.currentScreen || {} };
+      return <ChatScreen navigation={{ navigate, goBack }} route={chatRoute} />;
+    }
+    if (currentScreen === 'tracking') {
+      const trackingRoute = { params: screenParams?.tracking || screenParams?.currentScreen || {} };
+      return <TrackingScreen navigation={{ navigate, goBack }} route={trackingRoute} />;
+    }
 
     // Driver screens (check before tabs)
     if (currentScreen === 'availablePackages') return <AvailablePackagesScreen />;
-    if (currentScreen === 'myBids') return <MyBidsScreen />;
     if (currentScreen === 'myTrips') return <MyTripsScreen />;
+
+    // Utility screens (available to both)
+    if (currentScreen === 'profile') return <ProfileScreen />;
+    if (currentScreen === 'settings') return <SettingsScreen />;
 
     // Main tab screens (checked after specific screens)
     if (activeTab === 'profile') return <ProfileScreen />;
@@ -2913,22 +4610,14 @@ function AppNavigator() {
   );
 }
 
-// Helper Functions
-function getStatusColor(status) {
-  const statusColors = {
-    'pending': { backgroundColor: colors.accent },
-    'in-transit': { backgroundColor: colors.primary },
-    'delivered': { backgroundColor: colors.success },
-    'cancelled': { backgroundColor: colors.error },
-  };
-  return statusColors[status] || { backgroundColor: colors.textTertiary };
-}
+// Helper Functions - getStatusColor moved to src/utils/packageUtils.js
 
 // Main App
 export default function App() {
   return (
     <NavigationProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <StatusBar style="light" backgroundColor={colors.background} />
         <AppNavigator />
       </SafeAreaView>
     </NavigationProvider>
@@ -2940,41 +4629,58 @@ const styles = StyleSheet.create({
   // Loading Screen
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   logoBigContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: colors.cardBg,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: colors.botswanaBlue,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
+    marginBottom: 28,
+    shadowColor: colors.botswanaBlue,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   logoBigN: {
-    fontSize: 100,
+    fontSize: 84,
     fontWeight: '900',
-    color: colors.primary,
+    color: colors.botswanaWhite,
+    textShadowColor: colors.botswanaBlack,
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   logoTextBig: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: colors.cardBg,
-    letterSpacing: 2,
-    marginBottom: 8,
+    fontSize: 36,
+    fontWeight: '900',
+    color: colors.botswanaWhite,
+    letterSpacing: 4,
+    marginBottom: 10,
+    textShadowColor: colors.botswanaBlack,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   sloganBig: {
-    fontSize: 18,
-    color: colors.cardBg,
+    fontSize: 16,
+    color: colors.botswanaBlack,
     fontStyle: 'italic',
-    opacity: 0.9,
+    fontWeight: '400',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    lineHeight: 22,
+  },
+  cursor: {
+    fontSize: 18,
+    color: colors.botswanaBlack,
+    fontWeight: '900',
+    marginLeft: 4,
   },
 
   // Login Screen
@@ -3015,8 +4721,13 @@ const styles = StyleSheet.create({
   },
   slogan: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.botswanaBlack,
     fontStyle: 'italic',
+    fontWeight: '400',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    lineHeight: 22,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -3062,12 +4773,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: colors.textPrimary,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   userTypeSelector: {
     marginBottom: 16,
@@ -3115,10 +4828,310 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
   },
+  primaryButtonDisabled: {
+    backgroundColor: colors.textTertiary,
+    opacity: 0.6,
+  },
   primaryButtonText: {
     color: colors.textLight,
     fontSize: 16,
     fontWeight: '700',
+  },
+  // Password input with inline eye icon
+  phoneInputContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  countryCodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 80,
+  },
+  countryCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginRight: 4,
+  },
+  countryCodeArrow: {
+    fontSize: 10,
+    color: colors.textTertiary,
+  },
+  phoneInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  passwordInputWrapper: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 44, // space for eye icon
+  },
+  passwordIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  passwordIconText: {
+    fontSize: 18,
+    color: colors.primary,
+  },
+  showPasswordToggle: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 8,
+  },
+  showPasswordText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Document Upload Styles
+  documentsSection: {
+    marginTop: 20,
+    marginBottom: 30,
+    padding: 16,
+    backgroundColor: colors.cardBgLight,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  documentsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  documentsSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  documentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  documentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  documentButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  documentButtonText: {
+    color: colors.textLight,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  documentPreview: {
+    width: 60,
+    height: 40,
+    borderRadius: 6,
+  },
+  documentNote: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  termsCheckbox: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxText: {
+    fontSize: 18,
+    color: colors.primary,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+
+  // Modal Styles for Forgot Password
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  roleChoiceButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  roleChoiceText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  roleModalSpacing: {
+    height: 20,
+  },
+  countryCodeList: {
+    maxHeight: 300,
+    marginBottom: 16,
+  },
+  countryCodeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  countryCodeItemActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  countryCodeFlag: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  countryCodeName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  countryCodeNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  urgencyContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  urgencyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  urgencyButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  urgencyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  urgencyButtonTextActive: {
+    color: colors.textLight,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  modalCancelButton: {
+    backgroundColor: colors.border,
+  },
+  modalSubmitButton: {
+    backgroundColor: colors.primary,
+  },
+  modalCancelButtonText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalSubmitButtonText: {
+    color: colors.textLight,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   // Screen Container
@@ -3134,6 +5147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 16,
+    backgroundColor: colors.backgroundSecondary,
   },
   greeting: {
     fontSize: 16,
@@ -3144,21 +5158,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.cardBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  // Redesigned minimal header notification icon
+  headerNotif: {
+    position: 'relative',
+    padding: 8,
   },
-  notificationIcon: {
-    fontSize: 20,
+  headerNotifIcon: {
+    fontSize: 32,
+  },
+  headerNotifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerNotifBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
   },
 
   // Header Bar
@@ -3191,6 +5214,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 12,
+    marginTop: 24,
     marginBottom: 24,
   },
   statCard: {
@@ -3198,9 +5222,9 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -3225,7 +5249,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.secondary,
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   sectionHint: {
@@ -3247,9 +5271,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
     borderWidth: 1,
@@ -3277,6 +5301,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
   },
+  actionCardDisabled: {
+    opacity: 0.6,
+  },
+  actionTextDisabled: {
+    color: colors.textTertiary,
+  },
 
   // Package Card
   packageCard: {
@@ -3284,9 +5314,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
     borderWidth: 1,
@@ -3393,6 +5423,12 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontSize: 14,
     fontWeight: '600',
+  },
+  bidButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  bidButtonTextDisabled: {
+    color: colors.textTertiary,
   },
 
   // Form Container
@@ -3653,6 +5689,113 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  // Notification Screen Styles
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 16,
+  },
+  notificationTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  markAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+  },
+  markAllText: {
+    color: colors.textLight,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  notificationList: {
+    paddingHorizontal: 20,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.cardBg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  notificationItemUnread: {
+    backgroundColor: colors.cardBgLight,
+    borderColor: colors.primary,
+  },
+  notificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationIconText: {
+    fontSize: 18,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  notificationItemTitleUnread: {
+    fontWeight: '700',
+  },
+  notificationItemMessage: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  notificationItemTime: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginLeft: 8,
+    marginTop: 4,
+  },
+
   // Bottom Nav
   bottomNav: {
     flexDirection: 'row',
@@ -3884,6 +6027,19 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 12,
   },
+  routeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  routeInfoIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  routeInfoValue: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
   routeInfoText: {
     fontSize: 13,
     color: colors.success,
@@ -3916,6 +6072,37 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.primary,
     fontWeight: '700',
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.cardBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  currentLocationIcon: {
+    fontSize: 24,
+  },
+  selectedLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBgLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
 
   // Available Drivers Styles

@@ -1,0 +1,217 @@
+import { StyleSheet, Dimensions } from 'react-native';
+import { colors } from '../constants/colors';
+
+const { width } = Dimensions.get('window');
+
+// Home screen styles
+export const homeStyles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 16,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  greeting: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  headerNotif: {
+    position: 'relative',
+    padding: 8,
+  },
+  headerNotifIcon: {
+    fontSize: 32,
+  },
+  headerNotifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerNotifBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  statValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.textLight,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textLight,
+    opacity: 0.95,
+    textAlign: 'center',
+  },
+  section: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 12,
+    marginTop: -8,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionCard: {
+    width: (width - 52) / 2,
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  actionIconText: {
+    fontSize: 30,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  actionCardDisabled: {
+    opacity: 0.6,
+  },
+  actionTextDisabled: {
+    color: colors.textTertiary,
+  },
+  activeStatusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  activeStatusLeft: {
+    flex: 1,
+  },
+  activeStatusTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  activeStatusSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  activeToggle: {
+    width: 52,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  activeToggleOn: {
+    backgroundColor: colors.success,
+  },
+  activeToggleCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.textLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  activeToggleCircleOn: {
+    transform: [{ translateX: 20 }],
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+});
+

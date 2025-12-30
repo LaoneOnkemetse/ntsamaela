@@ -15,17 +15,22 @@ model User {
   passwordHash             String
   firstName                String
   lastName                 String
-  phone                    String
+  phone                    String        @unique
   userType                 String
   profilePictureUrl        String?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
   identityVerified         Boolean       @default(false)
+  phoneVerified            Boolean       @default(false)
+  phoneVerificationOtp     String?
+  phoneVerificationExpires DateTime?
   emailVerified            Boolean       @default(false)
   emailVerificationToken   String?
   emailVerificationExpires DateTime?
   passwordResetToken       String?
   passwordResetExpires     DateTime?
+  accountRecoveryToken     String?
+  accountRecoveryExpires   DateTime?
   adminReviews             AdminReview[]
   driverProfile            Driver?
   customerPackages         Package[]
@@ -91,6 +96,9 @@ model Package {
   deliveryDate    DateTime?
   urgency         String        @default("NORMAL")
   recipientPhone  String?
+  deliveryPin     String?
+  deliveryPinExpires DateTime?
+  deliveryPinSent Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   bids            Bid[]

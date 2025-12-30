@@ -2,8 +2,11 @@ import { config } from 'dotenv';
 import { initializePrisma } from '@database/index';
 import { app, server, PORT } from './app';
 
-// Load environment variables from root directory
-config({ path: '../../.env' });
+// Load environment variables (Railway provides these automatically)
+// Only load .env file in development
+if (process.env.NODE_ENV !== 'production') {
+  config({ path: '../../.env' });
+}
 
 // Initialize Prisma client after environment variables are loaded
 initializePrisma();

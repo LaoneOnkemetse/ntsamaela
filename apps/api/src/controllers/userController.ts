@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma } from "@database/index";
+import { getPrismaClient } from "@database/index";
 import { AuthenticatedRequest } from "@shared/types";
 import s3UploadService from "../services/s3UploadService";
 import { AppError } from "../utils/AppError";
@@ -20,6 +20,15 @@ export class UserController {
             code: "MISSING_FILE",
             message: "Profile picture file is required",
           },
+        });
+      }
+
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
         });
       }
 
@@ -120,6 +129,15 @@ export class UserController {
     try {
       const userId = req.user!.id;
 
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
+
       // Get current user
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -204,6 +222,15 @@ export class UserController {
   async getProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
+
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
 
       const user = await prisma.user.findUnique({
         where: { id: userId },

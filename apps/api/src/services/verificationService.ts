@@ -1,5 +1,5 @@
 import { getPrismaClient } from '@database/index';
-import AWSRekognitionService from './awsRekognitionService';
+import GoogleVisionService from './googleVisionService';
 import OCRService from './ocrService';
 import FacialRecognitionService from './facialRecognitionService';
 import RiskScoringService from './riskScoringService';
@@ -24,7 +24,7 @@ import {
 } from '@shared/types';
 
 export class VerificationService {
-  private awsRekognition: AWSRekognitionService;
+  private googleVision: GoogleVisionService;
   private ocrService: OCRService;
   private facialRecognition: FacialRecognitionService;
   private riskScoring: RiskScoringService;
@@ -32,7 +32,7 @@ export class VerificationService {
   private config: VerificationConfig;
 
   constructor() {
-    this.awsRekognition = new AWSRekognitionService();
+    this.googleVision = new GoogleVisionService();
     this.ocrService = new OCRService();
     this.facialRecognition = new FacialRecognitionService();
     this.riskScoring = new RiskScoringService();
@@ -154,7 +154,7 @@ export class VerificationService {
         switch (step.type) {
           case 'DOCUMENT_AUTHENTICITY':
             if (!documentAuthenticity) {
-              documentAuthenticity = await this.awsRekognition.analyzeDocumentAuthenticity(
+              documentAuthenticity = await this.googleVision.analyzeDocumentAuthenticity(
                 request.frontImageBase64,
                 request.documentType
               );
@@ -573,14 +573,47 @@ export class VerificationService {
         supportedLanguages: ['en'],
         customFields: [],
       },
-      aws: {
-        region: process.env.AWS_REGION || 'us-east-1',
-        rekognitionCollectionId: process.env.AWS_REKOGNITION_COLLECTION_ID || 'ntsamaela-verification',
-        textractRoleArn: process.env.AWS_TEXTRACT_ROLE_ARN || '',
-        s3Bucket: process.env.AWS_S3_BUCKET || 'ntsamaela-documents',
-      },
+      // Google Cloud configuration is handled directly by googleVisionService
+      // No need to include in config object
     };
+  }
+
+  /**
+   * Test document authenticity
+   */
+  async testDocumentAuthenticity(imageBase64: string, documentType: DocumentType): Promise<DocumentAuthenticityResult> {
+    return await this.googleVision.analyzeDocumentAuthenticity(imageBase64, documentType);
+  }
+
+  /**
+   * Test facial recognition
+   */
+  async testFacialRecognition(selfieImageBase64: string, documentImageBase64: string): Promise<FacialRecognitionResult> {
+    return await this.facialRecognition.performFacialRecognition(
+      documentImageBase64,
+      selfieImageBase64,
+      'test-user',
+      'NATIONAL_ID' // Default document type for testing
+    );
+  }
+
+  /**
+   * Test OCR extraction
+   */
+  async testOCRExtraction(imageBase64: string, documentType: DocumentType): Promise<OCRResult> {
+    return await this.ocrService.extractDocumentData(imageBase64, documentType);
   }
 }
 
-export default VerificationService;
+// Export singleton instance
+let verificationServiceInstance: VerificationService | null = null;
+
+function getVerificationService(): VerificationService {
+  if (!verificationServiceInstance) {
+    verificationServiceInstance = new VerificationService();
+  }
+  return verificationServiceInstance;
+}
+
+export default getVerificationService();
+

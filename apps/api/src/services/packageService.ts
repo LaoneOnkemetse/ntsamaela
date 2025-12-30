@@ -47,6 +47,9 @@ class PackageService {
   private getPrisma() {
     if (!this.prisma) {
       this.prisma = getPrismaClient();
+      if (!this.prisma) {
+        throw new Error('Database client not available');
+      }
     }
     return this.prisma;
   }

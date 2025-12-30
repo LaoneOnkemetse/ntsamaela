@@ -110,14 +110,6 @@ class DeploymentPreparation {
       });
       console.log('✅ Mobile app built successfully');
 
-      // Build Web App
-      console.log('Building Web App...');
-      execSync('npm run build', { 
-        cwd: path.join(this.rootDir, 'apps/web'),
-        stdio: 'inherit'
-      });
-      console.log('✅ Web app built successfully');
-
     } catch (error) {
       this.errors.push(`Build failed: ${error.message}`);
     }
@@ -145,14 +137,6 @@ class DeploymentPreparation {
         stdio: 'inherit'
       });
       console.log('✅ Mobile tests passed');
-
-      // Run Web tests
-      console.log('Running Web tests...');
-      execSync('npm test -- --coverage --passWithNoTests', { 
-        cwd: path.join(this.rootDir, 'apps/web'),
-        stdio: 'inherit'
-      });
-      console.log('✅ Web tests passed');
 
     } catch (error) {
       this.errors.push(`Tests failed: ${error.message}`);
@@ -296,12 +280,6 @@ class DeploymentPreparation {
             platform: 'android',
             minSdkVersion: 21,
             targetSdkVersion: 33
-          },
-          web: {
-            name: 'Ntsamaela Web',
-            version: '1.0.0',
-            buildTool: 'vite',
-            framework: 'react'
           }
         },
         infrastructure: {

@@ -4,7 +4,12 @@ module.exports = {
     {
       displayName: 'API',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/apps/api/**/*.test.ts', '<rootDir>/apps/api/**/*.spec.ts'],
+      testMatch: [
+        '<rootDir>/apps/api/**/*.test.ts', 
+        '<rootDir>/apps/api/**/*.spec.ts',
+        '<rootDir>/tests/**/*.test.ts',
+        '<rootDir>/tests/**/*.spec.ts',
+      ],
       preset: 'ts-jest',
       setupFilesAfterEnv: ['<rootDir>/apps/api/src/test/setup.ts'],
       moduleNameMapper: {
@@ -106,6 +111,25 @@ module.exports = {
         '!packages/shared/src/test/**',
       ],
       coverageDirectory: '<rootDir>/coverage/shared',
+    },
+    // Database package tests
+    {
+      displayName: 'Database',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/packages/database/**/*.test.ts', '<rootDir>/packages/database/**/*.spec.ts'],
+      transform: {
+        '^.+\\.ts$': 'ts-jest',
+      },
+      setupFilesAfterEnv: ['<rootDir>/packages/database/test.setup.js'],
+      moduleNameMapper: {
+        '^@testing/(.*)$': '<rootDir>/packages/testing/$1',
+      },
+      collectCoverageFrom: [
+        'packages/database/**/*.ts',
+        '!packages/database/**/*.d.ts',
+        '!packages/database/dist/**',
+      ],
+      coverageDirectory: '<rootDir>/coverage/database',
     },
   ],
   collectCoverage: true,

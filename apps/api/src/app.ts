@@ -7,7 +7,7 @@ import compression from "compression";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { initializePrisma } from "@database/index";
-import { MockRealtimeService } from "./services/mockRealtimeService";
+import { getRealtimeService } from "./services/realtimeService";
 import { generalRateLimit } from "./middleware/rateLimiting";
 
 // Load environment variables
@@ -33,11 +33,11 @@ initializePrisma();
 
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
-// Initialize Mock Socket.IO (only if server is provided)
+// Initialize Real-time Service (only if server is provided)
 if (server) {
-  const _realtimeService = new MockRealtimeService(server);
+  const _realtimeService = getRealtimeService(server);
 }
 
 // Security middleware
@@ -173,15 +173,69 @@ app.get("/health/all", async (req, res) => {
   }
 });
 
-// Import simplified routes to avoid TypeScript compilation errors
+// Import routes
 import simpleRoutes from "./routes/simpleRoutes";
+import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
+import packageRoutes from "./routes/packageRoutes";
+import tripRoutes from "./routes/tripRoutes";
+import bidRoutes from "./routes/bidRoutes";
+import walletRoutes from "./routes/wallet";
+import verificationRoutes from "./routes/verificationRoutes";
+import deliveryRoutes from "./routes/deliveries";
+import chatRoutes from "./routes/chatRoutes";
+import trackingRoutes from "./routes/trackingRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import adminRoutes from "./routes/adminRoutes";
+import analyticsRoutes from "./routes/analyticsRoutes";
+import performanceRoutes from "./routes/performanceRoutes";
+import realtimeRoutes from "./routes/realtime";
+import webhookRoutes from "./routes/webhookRoutes";
 
-// Mount simplified routes
+// Initialize AWS services
+// AWS services have been replaced with Google Cloud Vision and Cloudinary
+// import { initializeAWS } from "./services/aws/config";
+
+// Mount routes - IMPORTANT: Auth routes must come BEFORE simpleRoutes to avoid mock endpoints
+app.use("/api/auth", authRoutes);
 app.use("/api", simpleRoutes);
-
-// Mount user routes
 app.use("/api/user", userRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/bids", bidRoutes);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/verification", verificationRoutes);
+app.use("/api/deliveries", deliveryRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/performance", performanceRoutes);
+app.use("/api/realtime", realtimeRoutes);
+app.use("/api/webhooks", webhookRoutes);
+
+// AWS services have been replaced with:
+// - Google Cloud Vision API (for OCR and face detection)
+// - Cloudinary (for file storage and image optimization)
+// No AWS initialization needed
+
+// Initialize Firebase Cloud Messaging
+try {
+  import("./services/fcmService").then(({ fcmService }) => {
+    if (fcmService.isReady()) {
+      console.log("✅ Firebase Cloud Messaging ready");
+    }
+  });
+} catch (error) {
+  console.error("Failed to initialize Firebase:", error);
+  // Don't crash the app, but log the error
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "Firebase is recommended for production push notifications.",
+    );
+  }
+}
 
 // Simple test route
 app.get("/test", (req, res) => {

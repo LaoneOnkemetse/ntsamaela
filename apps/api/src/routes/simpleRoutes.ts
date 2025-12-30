@@ -9,61 +9,11 @@ router.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "API is running" });
 });
 
-// Mock authentication endpoints
-router.post("/auth/login-phone", (req: Request, res: Response) => {
-  const { phone, password } = req.body;
-
-  if (!phone || !password) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: "MISSING_CREDENTIALS",
-        message: "Phone and password are required",
-      },
-    });
-  }
-
-  // Mock successful login
-  res.json({
-    success: true,
-    data: {
-      user: {
-        id: "user_123",
-        phone,
-        userType: "CUSTOMER",
-        firstName: "Mock",
-        lastName: "User",
-      },
-      token: "mock-jwt-token-123",
-    },
-    message: "Login successful",
-  });
-});
-
-router.post("/auth/register", (req: Request, res: Response) => {
-  const { email, password, firstName, lastName, phone, userType } = req.body;
-
-  if (!email || !password || !firstName || !lastName || !phone || !userType) {
-    return res.status(400).json({
-      success: false,
-      error: { code: "MISSING_FIELDS", message: "All fields are required" },
-    });
-  }
-
-  // Mock successful registration
-  res.status(201).json({
-    success: true,
-    data: {
-      id: "user_" + Date.now(),
-      email,
-      firstName,
-      lastName,
-      phone,
-      userType,
-    },
-    message: "Registration successful",
-  });
-});
+// REMOVED: Mock authentication endpoints - now using real auth routes from ./routes/auth.ts
+// Real authentication is handled at:
+// - /api/auth/login-phone (phone-based login)
+// - /api/auth/login (email-based login)
+// - /api/auth/register (user registration)
 
 // Mock package endpoints
 router.post("/packages", (req: Request, res: Response) => {

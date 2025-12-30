@@ -1,16 +1,86 @@
-import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { AccountBalance, Add, Visibility } from '@mui/icons-material';
+import { useState } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  Grid, 
+  Button, 
+  Chip, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Paper,
+  CircularProgress,
+  TextField,
+  InputAdornment,
+  Alert,
+} from '@mui/material';
+import { 
+  AccountBalance, 
+  Add, 
+  Visibility,
+  Search,
+  TrendingUp,
+  TrendingDown,
+} from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { getTransactions, getTransactionAnalytics } from '../services/api';
 
 export default function Wallets() {
   const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock data for demonstration
-  const wallets = [
-    { id: 1, userId: 'user001', owner: 'John Customer', balance: '$1,250.00', status: 'Active', lastTransaction: '2024-01-15' },
-    { id: 2, userId: 'user002', owner: 'Jane Driver', balance: '$2,180.50', status: 'Active', lastTransaction: '2024-01-14' },
-    { id: 3, userId: 'user003', owner: 'Bob Customer', balance: '$0.00', status: 'Inactive', lastTransaction: '2024-01-10' },
-  ];
+  // Fetch transactions
+  const { data: transactionsData, isLoading, error } = useQuery({
+    queryKey: ['transactions', searchQuery],
+    queryFn: async () => {
+      const params: any = {
+        limit: 100,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      };
+      if (searchQuery) params.search = searchQuery;
+      const data = await getTransactions(params);
+      return Array.isArray(data) ? data : (data?.transactions || data?.data || []);
+    },
+  });
+
+  // Fetch analytics
+  const { data: analyticsData } = useQuery({
+    queryKey: ['transactionAnalytics'],
+    queryFn: async () => {
+      try {
+        const data = await getTransactionAnalytics();
+        return data;
+      } catch (error) {
+        return null;
+      }
+    },
+  });
+
+  const transactions = transactionsData || [];
+
+  // Calculate stats
+  const stats = {
+    total: transactions.length,
+    active: transactions.filter((t: any) => t.status === 'COMPLETED' || t.status === 'PENDING').length,
+    totalBalance: analyticsData?.totalBalance || transactions.reduce((sum: number, t: any) => sum + (t.amount || 0), 0),
+    pending: transactions.filter((t: any) => t.status === 'PENDING').length,
+  };
+
+  const getStatusColor = (status: string) => {
+    const statusLower = status?.toLowerCase();
+    if (statusLower === 'completed' || statusLower === 'success') return 'success';
+    if (statusLower === 'pending') return 'warning';
+    if (statusLower === 'failed' || statusLower === 'cancelled') return 'error';
+    return 'default';
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -23,20 +93,21 @@ export default function Wallets() {
         </Button>
       </Box>
 
+      {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardHeader title="Total Wallets" />
+            <CardHeader title="Total Transactions" />
             <CardContent>
-              <Typography variant="h4">3</Typography>
+              <Typography variant="h4">{stats.total}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardHeader title="Active Wallets" />
+            <CardHeader title="Active Transactions" />
             <CardContent>
-              <Typography variant="h4">2</Typography>
+              <Typography variant="h4" color="success.main">{stats.active}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -44,7 +115,9 @@ export default function Wallets() {
           <Card>
             <CardHeader title="Total Balance" />
             <CardContent>
-              <Typography variant="h4">$3,430.50</Typography>
+              <Typography variant="h4" color="primary">
+                P {stats.totalBalance.toLocaleString()}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -52,52 +125,116 @@ export default function Wallets() {
           <Card>
             <CardHeader title="Pending Transactions" />
             <CardContent>
-              <Typography variant="h4">5</Typography>
+              <Typography variant="h4" color="warning.main">{stats.pending}</Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>User ID</TableCell>
-              <TableCell>Owner</TableCell>
-              <TableCell>Balance</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Last Transaction</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {wallets.map((wallet) => (
-              <TableRow key={wallet.id}>
-                <TableCell>{wallet.userId}</TableCell>
-                <TableCell>{wallet.owner}</TableCell>
-                <TableCell>
-                  <Typography variant="h6" color="primary">
-                    {wallet.balance}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip 
-                    label={wallet.status} 
-                    color={wallet.status === 'Active' ? 'success' : 'default'}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>{wallet.lastTransaction}</TableCell>
-                <TableCell>
-                  <Button size="small" startIcon={<Visibility />}>
-                    View Details
-                  </Button>
-                </TableCell>
+      {/* Search */}
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="Search transactions by user, transaction ID, or amount..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Failed to load transactions. Please try again.
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Transaction ID</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">No transactions found</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                transactions.map((transaction: any) => (
+                  <TableRow key={transaction.id} hover>
+                    <TableCell sx={{ fontWeight: 600, color: '#75AADB' }}>
+                      {transaction.id || transaction.transactionId}
+                    </TableCell>
+                    <TableCell>
+                      {transaction.user?.firstName 
+                        ? `${transaction.user.firstName} ${transaction.user.lastName}`
+                        : transaction.userName || 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={transaction.type || 'TRANSACTION'} 
+                        size="small" 
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {transaction.type === 'DEBIT' || transaction.amount < 0 ? (
+                          <TrendingDown color="error" />
+                        ) : (
+                          <TrendingUp color="success" />
+                        )}
+                        <Typography 
+                          variant="h6" 
+                          color={transaction.amount < 0 ? 'error.main' : 'success.main'}
+                        >
+                          P {Math.abs(transaction.amount || 0).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={transaction.status || 'PENDING'}
+                        color={getStatusColor(transaction.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {transaction.createdAt 
+                        ? new Date(transaction.createdAt).toLocaleDateString()
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="small" startIcon={<Visibility />}>
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Box>
   );
 }

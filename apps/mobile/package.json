@@ -20,15 +20,18 @@
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json}\""
   },
   "dependencies": {
-    "expo": "^54.0.20",
+    "expo": "^54.0.21",
     "expo-camera": "^17.0.8",
     "expo-image-picker": "^17.0.8",
+    "expo-location": "^18.1.6",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "^0.81.5",
+    "react-native-maps": "^1.18.0",
     "react-native-safe-area-context": "^5.6.1",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",

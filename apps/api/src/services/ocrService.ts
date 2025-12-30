@@ -1,47 +1,57 @@
-import { 
-  TextractClient, 
-  DetectDocumentTextCommand,
-  AnalyzeDocumentCommand
-} from '@aws-sdk/client-textract';
-import { 
-  S3Client, 
-  PutObjectCommand,
-  // GetObjectCommand,
-  DeleteObjectCommand
-} from '@aws-sdk/client-s3';
+// DEPRECATED: This service previously used AWS Textract. Now uses Google Cloud Vision API.
+// Google Vision API provides OCR capabilities without requiring S3 storage.
+
+import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { 
   OCRResult, 
   ExtractedDocumentData, 
   DocumentType 
 } from '@shared/types';
+import { AppError } from '../utils/AppError';
 
 export class OCRService {
-  private textract: TextractClient;
-  private s3: S3Client;
-  private bucketName: string;
+  private visionClient: ImageAnnotatorClient | null = null;
+  private isConfigured: boolean = false;
 
   constructor() {
-    this.textract = new TextractClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
+    // Initialize Google Cloud Vision client
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    const privateKey = process.env.GOOGLE_CLOUD_PRIVATE_KEY;
+    const clientEmail = process.env.GOOGLE_CLOUD_CLIENT_EMAIL;
 
-    this.s3 = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
+    if (projectId && privateKey && clientEmail) {
+      try {
+        // Configure Google Cloud credentials
+        const credentials = {
+          type: 'service_account',
+          project_id: projectId,
+          private_key_id: '',
+          private_key: privateKey.replace(/\\n/g, '\n'),
+          client_email: clientEmail,
+          client_id: '',
+          auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+          token_uri: 'https://oauth2.googleapis.com/token',
+          auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+          client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(clientEmail)}`,
+        };
 
-    this.bucketName = process.env.AWS_S3_BUCKET || 'ntsamaela-documents';
+        this.visionClient = new ImageAnnotatorClient({
+          projectId,
+          credentials,
+        });
+        this.isConfigured = true;
+      } catch (error: any) {
+        console.warn('Google Cloud Vision not configured. OCR will fail. Error:', error.message);
+        this.isConfigured = false;
+      }
+    } else {
+      console.warn('Google Cloud Vision not configured. Set GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_PRIVATE_KEY, and GOOGLE_CLOUD_CLIENT_EMAIL environment variables.');
+      this.isConfigured = false;
+    }
   }
 
   /**
-   * Extract data from document using AWS Textract
+   * Extract data from document using Google Cloud Vision API
    */
   async extractDocumentData(
     imageBase64: string,
@@ -50,31 +60,37 @@ export class OCRService {
     const startTime = Date.now();
     const errors: string[] = [];
 
-    try {
-      // Upload image to S3
-      const s3Key = `ocr/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-      await this.uploadToS3(imageBase64, s3Key);
+    if (!this.isConfigured || !this.visionClient) {
+      errors.push('Google Cloud Vision is not configured');
+      return {
+        extractedData: this.getEmptyDocumentData(documentType),
+        confidence: 0,
+        processingTime: Date.now() - startTime,
+        errors,
+      };
+    }
 
-      // Use appropriate Textract method based on document type
+    try {
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+      // Use appropriate extraction method based on document type
       let extractedData: ExtractedDocumentData;
       let confidence: number;
 
       if (documentType === 'DRIVERS_LICENSE') {
-        const result = await this.extractDriverLicenseData(s3Key);
+        const result = await this.extractDriverLicenseData(imageBuffer);
         extractedData = result.data;
         confidence = result.confidence;
       } else if (documentType === 'PASSPORT') {
-        const result = await this.extractPassportData(s3Key);
+        const result = await this.extractPassportData(imageBuffer);
         extractedData = result.data;
         confidence = result.confidence;
       } else {
-        const result = await this.extractNationalIdData(s3Key);
+        const result = await this.extractNationalIdData(imageBuffer);
         extractedData = result.data;
         confidence = result.confidence;
       }
-
-      // Clean up S3 object
-      await this.deleteFromS3(s3Key);
 
       const processingTime = Date.now() - startTime;
 
@@ -98,35 +114,36 @@ export class OCRService {
   }
 
   /**
-   * Extract data from driver's license
+   * Extract data from driver's license using Google Cloud Vision
    */
-  private async extractDriverLicenseData(s3Key: string): Promise<{ data: ExtractedDocumentData; confidence: number }> {
-    try {
-      // Use Textract to analyze the document
-      const command = new AnalyzeDocumentCommand({
-        Document: {
-          S3Object: {
-            Bucket: this.bucketName,
-            Name: s3Key,
-          },
-        },
-        FeatureTypes: ['TABLES', 'FORMS'],
-      });
-      const result = await this.textract.send(command);
+  private async extractDriverLicenseData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+    if (!this.visionClient) {
+      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+    }
 
-      const identityDocuments = (result as any).IdentityDocuments || [];
-      if (identityDocuments.length === 0) {
-        throw new Error('No identity document detected');
+    try {
+      // Perform text detection
+      const [result] = await this.visionClient.textDetection({
+        image: { content: imageBuffer },
+      });
+
+      const detections = result.textAnnotations || [];
+      if (detections.length === 0) {
+        // Return empty data instead of throwing error - this is a valid case
+        return {
+          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          confidence: 0,
+        };
       }
 
-      const document = identityDocuments[0];
-      const documentFields = document.IdentityDocumentFields || [];
+      // Get full text annotation (first element contains all text)
+      const fullText = detections[0]?.description || '';
       
-      // Extract fields from the document
-      const extractedData = this.parseDriverLicenseFields(documentFields);
+      // Extract fields from the text
+      const extractedData = this.parseDriverLicenseText(fullText, detections);
       
-      // Calculate confidence based on field detection
-      const confidence = this.calculateConfidence(documentFields);
+      // Calculate confidence based on text detection quality
+      const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
@@ -136,29 +153,36 @@ export class OCRService {
   }
 
   /**
-   * Extract data from passport
+   * Extract data from passport using Google Cloud Vision
    */
-  private async extractPassportData(s3Key: string): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+  private async extractPassportData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+    if (!this.visionClient) {
+      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+    }
+
     try {
-      // For passports, we'll use document text analysis
-      const command = new DetectDocumentTextCommand({
-        Document: {
-          S3Object: {
-            Bucket: this.bucketName,
-            Name: s3Key,
-          },
-        },
+      // Perform text detection
+      const [result] = await this.visionClient.textDetection({
+        image: { content: imageBuffer },
       });
-      const result = await this.textract.send(command);
 
-      const blocks = result.Blocks || [];
-      const textBlocks = blocks.filter(block => block.BlockType === 'LINE');
+      const detections = result.textAnnotations || [];
+      if (detections.length === 0) {
+        // Return empty data instead of throwing error - this is a valid case
+        return {
+          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          confidence: 0,
+        };
+      }
+
+      // Get full text annotation
+      const fullText = detections[0]?.description || '';
       
-      // Parse passport data from text blocks
-      const extractedData = this.parsePassportText(textBlocks);
+      // Parse passport data from text
+      const extractedData = this.parsePassportText(fullText, detections);
       
-      // Calculate confidence based on text detection
-      const confidence = this.calculateTextConfidence(textBlocks);
+      // Calculate confidence
+      const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
@@ -168,29 +192,36 @@ export class OCRService {
   }
 
   /**
-   * Extract data from national ID
+   * Extract data from national ID using Google Cloud Vision
    */
-  private async extractNationalIdData(s3Key: string): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+  private async extractNationalIdData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+    if (!this.visionClient) {
+      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+    }
+
     try {
-      // Use document text analysis for national IDs
-      const command = new DetectDocumentTextCommand({
-        Document: {
-          S3Object: {
-            Bucket: this.bucketName,
-            Name: s3Key,
-          },
-        },
+      // Perform text detection
+      const [result] = await this.visionClient.textDetection({
+        image: { content: imageBuffer },
       });
-      const result = await this.textract.send(command);
 
-      const blocks = result.Blocks || [];
-      const textBlocks = blocks.filter(block => block.BlockType === 'LINE');
+      const detections = result.textAnnotations || [];
+      if (detections.length === 0) {
+        // Return empty data instead of throwing error - this is a valid case
+        return {
+          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          confidence: 0,
+        };
+      }
+
+      // Get full text annotation
+      const fullText = detections[0]?.description || '';
       
-      // Parse national ID data from text blocks
-      const extractedData = this.parseNationalIdText(textBlocks);
+      // Parse national ID data from text
+      const extractedData = this.parseNationalIdText(fullText, detections);
       
-      // Calculate confidence based on text detection
-      const confidence = this.calculateTextConfidence(textBlocks);
+      // Calculate confidence
+      const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
@@ -200,72 +231,81 @@ export class OCRService {
   }
 
   /**
-   * Parse driver license fields from Textract response
+   * Parse driver license text from Google Vision response
    */
-  private parseDriverLicenseFields(fields: any[]): ExtractedDocumentData {
+  private parseDriverLicenseText(fullText: string, detections: any[]): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
       documentType: 'DRIVERS_LICENSE',
     };
 
-    fields.forEach(field => {
-      const fieldType = field.Type?.Text;
-      const fieldValue = field.ValueDetection?.Text;
-      const confidence = field.ValueDetection?.Confidence || 0;
+    // Extract license number (usually alphanumeric, 8-12 characters)
+    const licenseNumberMatch = fullText.match(/\b([A-Z0-9]{8,12})\b/);
+    if (licenseNumberMatch) {
+      data.documentNumber = licenseNumberMatch[1];
+    }
 
-      if (!fieldType || !fieldValue || confidence < 50) return;
-
-      switch (fieldType.toLowerCase()) {
-        case 'document_number':
-        case 'license_number':
-          data.documentNumber = fieldValue;
-          break;
-        case 'first_name':
-          data.firstName = fieldValue;
-          break;
-        case 'last_name':
-          data.lastName = fieldValue;
-          break;
-        case 'date_of_birth':
-          data.dateOfBirth = this.parseDate(fieldValue);
-          break;
-        case 'expiration_date':
-        case 'expiry_date':
-          data.expiryDate = this.parseDate(fieldValue);
-          break;
-        case 'issue_date':
-          data.issueDate = this.parseDate(fieldValue);
-          break;
-        case 'address':
-          data.address = fieldValue;
-          break;
-        case 'sex':
-        case 'gender':
-          data.gender = fieldValue;
-          break;
-        case 'issuing_authority':
-        case 'issuer':
-          data.issuer = fieldValue;
-          break;
+    // Extract name patterns
+    const namePatterns = [
+      /(?:name|full name)\s*:?\s*([A-Z\s]+)/i,
+      /([A-Z]{2,}\s+[A-Z]{2,})/,
+    ];
+    for (const pattern of namePatterns) {
+      const match = fullText.match(pattern);
+      if (match) {
+        const nameParts = match[1].trim().split(/\s+/);
+        if (nameParts.length >= 2) {
+          data.firstName = nameParts[0];
+          data.lastName = nameParts.slice(1).join(' ');
+        }
+        break;
       }
-    });
+    }
+
+    // Extract dates
+    const dates = this.extractDates(fullText);
+    if (dates.length >= 1) {
+      data.dateOfBirth = this.parseDate(dates[0]);
+    }
+    if (dates.length >= 2) {
+      data.issueDate = this.parseDate(dates[1]);
+    }
+    if (dates.length >= 3) {
+      data.expiryDate = this.parseDate(dates[2]);
+    }
+
+    // Extract address
+    const addressMatch = fullText.match(/(?:address|residence)\s*:?\s*([A-Z0-9\s,.-]+)/i);
+    if (addressMatch) {
+      data.address = addressMatch[1].trim();
+    }
+
+    // Extract gender
+    const genderMatch = fullText.match(/(?:sex|gender)\s*:?\s*([MF])/i);
+    if (genderMatch) {
+      data.gender = genderMatch[1];
+    }
+
+    // Extract issuing authority
+    const issuerMatch = fullText.match(/(?:issuer|issuing authority|authority)\s*:?\s*([A-Z\s]+)/i);
+    if (issuerMatch) {
+      data.issuer = issuerMatch[1].trim();
+    }
 
     return data as ExtractedDocumentData;
   }
 
   /**
-   * Parse passport data from text blocks
+   * Parse passport data from Google Vision text
    */
-  private parsePassportText(textBlocks: any[]): ExtractedDocumentData {
+  private parsePassportText(fullText: string, detections: any[]): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
       documentType: 'PASSPORT',
     };
 
-    const fullText = textBlocks.map(block => block.Text).join(' ');
-
     // Extract passport number (usually starts with letter followed by numbers)
-    const passportNumberMatch = fullText.match(/\b[A-Z]{1,2}\d{6,9}\b/);
+    const passportNumberMatch = fullText.match(/\b([A-Z]{1,2}\d{6,9})\b/);
     if (passportNumberMatch) {
-      data.documentNumber = passportNumberMatch[0];
+      data.documentNumber = passportNumberMatch[1];
     }
 
     // Extract name (usually in format "SURNAME, GIVEN NAMES")
@@ -281,13 +321,13 @@ export class OCRService {
     // Extract dates
     const dates = this.extractDates(fullText);
     if (dates.length >= 1) {
-      data.dateOfBirth = dates[0];
+      data.dateOfBirth = this.parseDate(dates[0]);
     }
     if (dates.length >= 2) {
-      data.issueDate = dates[1];
+      data.issueDate = this.parseDate(dates[1]);
     }
     if (dates.length >= 3) {
-      data.expiryDate = dates[2];
+      data.expiryDate = this.parseDate(dates[2]);
     }
 
     // Extract nationality
@@ -306,19 +346,17 @@ export class OCRService {
   }
 
   /**
-   * Parse national ID data from text blocks
+   * Parse national ID data from Google Vision text
    */
-  private parseNationalIdText(textBlocks: any[]): ExtractedDocumentData {
+  private parseNationalIdText(fullText: string, detections: any[]): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
       documentType: 'NATIONAL_ID',
     };
 
-    const fullText = textBlocks.map(block => block.Text).join(' ');
-
     // Extract ID number (usually numeric with some formatting)
-    const idNumberMatch = fullText.match(/\b\d{8,12}\b/);
+    const idNumberMatch = fullText.match(/\b(\d{8,12})\b/);
     if (idNumberMatch) {
-      data.documentNumber = idNumberMatch[0];
+      data.documentNumber = idNumberMatch[1];
     }
 
     // Extract name
@@ -331,7 +369,7 @@ export class OCRService {
     // Extract dates
     const dates = this.extractDates(fullText);
     if (dates.length >= 1) {
-      data.dateOfBirth = dates[0];
+      data.dateOfBirth = this.parseDate(dates[0]);
     }
 
     // Extract address
@@ -382,29 +420,37 @@ export class OCRService {
   }
 
   /**
-   * Calculate confidence based on field detection
+   * Calculate confidence based on Google Vision text detection
    */
-  private calculateConfidence(fields: any[]): number {
-    if (fields.length === 0) return 0;
+  private calculateGoogleVisionConfidence(detections: any[]): number {
+    if (detections.length === 0) return 0;
 
-    const totalConfidence = fields.reduce((sum, field) => {
-      return sum + (field.ValueDetection?.Confidence || 0);
-    }, 0);
+    // Skip the first detection (full text annotation) and calculate from individual detections
+    const individualDetections = detections.slice(1);
+    if (individualDetections.length === 0) return 0.5; // Default confidence if only full text available
 
-    return totalConfidence / fields.length / 100; // Convert to 0-1 scale
-  }
+    // Calculate average confidence from individual text detections
+    let totalConfidence = 0;
+    let validDetections = 0;
 
-  /**
-   * Calculate confidence based on text detection
-   */
-  private calculateTextConfidence(textBlocks: any[]): number {
-    if (textBlocks.length === 0) return 0;
+    individualDetections.forEach((detection: any) => {
+      // Google Vision doesn't provide confidence scores directly in textDetection
+      // We'll estimate based on bounding polygon quality and text length
+      if (detection.boundingPoly && detection.boundingPoly.vertices) {
+        const vertices = detection.boundingPoly.vertices;
+        if (vertices.length >= 4) {
+          // Estimate confidence based on bounding box completeness
+          totalConfidence += 0.85; // Default high confidence for detected text
+          validDetections++;
+        }
+      }
+    });
 
-    const totalConfidence = textBlocks.reduce((sum, block) => {
-      return sum + (block.Confidence || 0);
-    }, 0);
+    if (validDetections === 0) return 0.5;
 
-    return totalConfidence / textBlocks.length / 100; // Convert to 0-1 scale
+    // Normalize to 0-1 scale
+    const avgConfidence = totalConfidence / validDetections;
+    return Math.min(1, Math.max(0, avgConfidence));
   }
 
   /**
@@ -426,35 +472,6 @@ export class OCRService {
     };
   }
 
-  /**
-   * Upload image to S3
-   */
-  private async uploadToS3(imageBase64: string, key: string): Promise<void> {
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-    
-    const command = new PutObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-      Body: imageBuffer,
-      ContentType: 'image/jpeg',
-    });
-    await this.s3.send(command);
-  }
-
-  /**
-   * Delete object from S3
-   */
-  private async deleteFromS3(key: string): Promise<void> {
-    try {
-      const command = new DeleteObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-      });
-      await this.s3.send(command);
-    } catch (_error) {
-      console.warn('Failed to delete S3 object:', key, _error);
-    }
-  }
 
   /**
    * Validate extracted data

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // Create axios instance with default config
 const apiClient = axios.create({
@@ -208,6 +208,169 @@ export const rejectVerification = async (id: string, reason: string) => {
     return response.data.data;
   } catch (error) {
     console.error('Error rejecting verification:', error);
+    throw error;
+  }
+};
+
+// Package management API methods
+export const getPackages = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/packages', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching packages:', error);
+    throw error;
+  }
+};
+
+export const getPackageById = async (id: string) => {
+  try {
+    const response = await apiClient.get(`/packages/${id}`);
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching package:', error);
+    throw error;
+  }
+};
+
+export const updatePackageStatus = async (id: string, status: string) => {
+  try {
+    const response = await apiClient.put(`/packages/${id}/status`, { status });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error updating package status:', error);
+    throw error;
+  }
+};
+
+// Wallet management API methods
+export const getWallets = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/admin/transactions', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching wallets:', error);
+    throw error;
+  }
+};
+
+export const getWalletById = async (id: string) => {
+  try {
+    const response = await apiClient.get(`/admin/transactions/${id}`);
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching wallet:', error);
+    throw error;
+  }
+};
+
+// Analytics API methods
+export const getAnalytics = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/admin/analytics', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
+
+export const getRealTimeMetrics = async () => {
+  try {
+    const response = await apiClient.get('/admin/analytics/realtime');
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching real-time metrics:', error);
+    throw error;
+  }
+};
+
+export const exportAnalytics = async (params?: any) => {
+  try {
+    const response = await apiClient.post('/admin/analytics/export', params, {
+      responseType: 'blob',
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error exporting analytics:', error);
+    throw error;
+  }
+};
+
+// System health API methods
+export const getSystemHealth = async () => {
+  try {
+    const response = await apiClient.get('/admin/system/health');
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching system health:', error);
+    throw error;
+  }
+};
+
+export const getSystemMetrics = async () => {
+  try {
+    const response = await apiClient.get('/admin/system/metrics');
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching system metrics:', error);
+    throw error;
+  }
+};
+
+// Transaction API methods
+export const getTransactions = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/admin/transactions', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    throw error;
+  }
+};
+
+export const getTransactionAnalytics = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/admin/transactions/analytics', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching transaction analytics:', error);
+    throw error;
+  }
+};
+
+export const refundTransaction = async (id: string, amount?: number) => {
+  try {
+    const response = await apiClient.post(`/admin/transactions/${id}/refund`, { amount });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error refunding transaction:', error);
+    throw error;
+  }
+};
+
+// Audit log API methods
+export const getAuditLog = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/admin/audit-log', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching audit log:', error);
+    throw error;
+  }
+};
+
+// Bulk operations
+export const performBulkAction = async (action: string, targetIds: string[], metadata?: any) => {
+  try {
+    const response = await apiClient.post('/admin/bulk-action', {
+      action,
+      targetIds,
+      metadata,
+    });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error performing bulk action:', error);
     throw error;
   }
 };

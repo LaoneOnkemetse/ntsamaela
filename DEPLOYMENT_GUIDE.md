@@ -128,10 +128,6 @@ docker build -t ntsamaela-api:latest -f apps/api/Dockerfile .
 docker tag ntsamaela-api:latest $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ntsamaela-api:latest
 docker push $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ntsamaela-api:latest
 
-# Build and push Web image
-docker build -t ntsamaela-web:latest -f apps/web/Dockerfile .
-docker tag ntsamaela-web:latest $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ntsamaela-web:latest
-docker push $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ntsamaela-web:latest
 ```
 
 ### Step 6: Run Database Migrations

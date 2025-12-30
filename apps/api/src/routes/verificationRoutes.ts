@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import VerificationController, { upload } from '../controllers/verificationController';
+import multer from 'multer';
+import { VerificationController } from '../controllers/verificationController';
 import { authenticateToken, requireAdmin } from '../middleware/authMiddleware';
 import { validateRequest } from '../middleware/validationMiddleware';
 
@@ -18,6 +19,12 @@ try {
  * @desc Submit document verification
  * @access Private
  */
+// local multer upload config
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 3 }
+});
+
 router.post(
   '/submit',
   authenticateToken,

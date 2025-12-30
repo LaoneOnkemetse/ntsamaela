@@ -14,5 +14,32 @@ jest.useFakeTimers();
 // Mock React Native modules that might cause issues
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 
-// Note: React Navigation is not used in this app (custom navigation system)
-// No need to mock it
+// Mock navigation (works even if the package isn't installed in test env)
+try {
+  // If module exists, provide a functional mock
+  require.resolve('@react-navigation/native');
+  jest.mock('@react-navigation/native', () => ({
+    useNavigation: () => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      dispatch: jest.fn(),
+    }),
+    useRoute: () => ({ params: {} }),
+    useFocusEffect: jest.fn(),
+  }));
+} catch (_) {
+  // If module does not exist, register a virtual mock to satisfy imports
+  jest.mock(
+    '@react-navigation/native',
+    () => ({
+      useNavigation: () => ({
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+        dispatch: jest.fn(),
+      }),
+      useRoute: () => ({ params: {} }),
+      useFocusEffect: jest.fn(),
+    }),
+    { virtual: true }
+  );
+}

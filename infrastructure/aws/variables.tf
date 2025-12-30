@@ -176,6 +176,12 @@ variable "domain_name" {
   default     = "ntsamaela.com"
 }
 
+variable "create_route53_zone" {
+  description = "Whether to create Route 53 hosted zone for the domain"
+  type        = bool
+  default     = true
+}
+
 variable "certificate_domain" {
   description = "Domain for SSL certificate"
   type        = string

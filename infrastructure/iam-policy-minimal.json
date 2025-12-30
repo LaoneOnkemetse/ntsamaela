@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RekognitionMinimalPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "rekognition:CompareFaces",
+        "rekognition:DetectText"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TextractDetectDocumentText",
+      "Effect": "Allow",
+      "Action": [
+        "textract:DetectDocumentText"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3DocumentsBucketMinimalAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ntsamaela-documents/*"
+      ]
+    },
+    {
+      "Sid": "S3DocumentsBucketListAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ntsamaela-documents"
+      ],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "documents/*",
+            "verification/*",
+            "profiles/*"
+          ]
+        }
+      }
+    }
+  ]
+}
+

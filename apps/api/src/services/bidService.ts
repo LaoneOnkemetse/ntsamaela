@@ -69,6 +69,9 @@ class BidService {
   private getPrisma() {
     if (!this.prisma) {
       this.prisma = getPrismaClient();
+      if (!this.prisma) {
+        throw new Error('Database client not available');
+      }
     }
     return this.prisma;
   }
@@ -571,6 +574,132 @@ class BidService {
 
   async getPendingBids(filters: BidFilters = {}): Promise<{ bids: BidWithRelations[]; total: number }> {
     return this.getBids({ ...filters, status: 'PENDING' });
+  }
+
+  async getRecommendedBid(packageId: string): Promise<{ recommendedAmount: number; reasoning: string }> {
+    try {
+      const package_ = await this.getPrisma().package.findUnique({
+        where: { id: packageId },
+        include: {
+          bids: {
+            where: { status: 'PENDING' },
+            orderBy: { amount: 'asc' },
+            take: 5
+          }
+        }
+      });
+
+      if (!package_) {
+        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+      }
+
+      // Calculate recommended bid based on:
+      // 1. Package price offered
+      // 2. Average of existing bids
+      // 3. Distance and urgency
+      const priceOffered = package_.priceOffered;
+      const existingBids = package_.bids || [];
+      
+      let recommendedAmount = priceOffered * 0.9; // Start at 90% of offered price
+      
+      if (existingBids.length > 0) {
+        const averageBid = existingBids.reduce((sum: number, bid: any) => sum + bid.amount, 0) / existingBids.length;
+        const minBid = Math.min(...existingBids.map((bid: any) => bid.amount));
+        // Recommend slightly below average but above minimum
+        recommendedAmount = Math.max(minBid * 1.05, averageBid * 0.95);
+      }
+
+      // Adjust based on urgency
+      if (package_.urgency === 'URGENT') {
+        recommendedAmount = recommendedAmount * 1.1; // 10% premium for urgent
+      }
+
+      // Round to 2 decimal places
+      recommendedAmount = Math.round(recommendedAmount * 100) / 100;
+
+      const reasoning = existingBids.length > 0
+        ? `Based on ${existingBids.length} existing bids, recommended amount is ${recommendedAmount.toFixed(2)}`
+        : `Based on package price of ${priceOffered}, recommended amount is ${recommendedAmount.toFixed(2)}`;
+
+      return {
+        recommendedAmount,
+        reasoning
+      };
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
+        throw _error;
+      }
+      throw new AppError('Failed to get recommended bid', 'RECOMMENDED_BID_FAILED', 500);
+    }
+  }
+
+  async counterBid(bidId: string, newAmount: number, driverId: string): Promise<BidWithCommission> {
+    try {
+      const existingBid = await this.getPrisma().bid.findUnique({
+        where: { id: bidId },
+        include: { package: true }
+      });
+
+      if (!existingBid) {
+        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+      }
+
+      if (existingBid.driverId !== driverId) {
+        throw new AppError('Unauthorized to modify this bid', 'UNAUTHORIZED', 403);
+      }
+
+      if (existingBid.status !== 'PENDING') {
+        throw new AppError('Bid is not pending', 'BID_NOT_PENDING', 400);
+      }
+
+      if (newAmount <= 0) {
+        throw new AppError('Bid amount must be greater than 0', 'INVALID_AMOUNT', 400);
+      }
+
+      // Update bid amount
+      const updatedBid = await this.getPrisma().bid.update({
+        where: { id: bidId },
+        data: {
+          amount: newAmount,
+          updatedAt: new Date()
+        },
+        include: {
+          driver: {
+            include: { user: true }
+          },
+          package: {
+            include: { customer: true }
+          },
+          trip: true
+        }
+      });
+
+      const commission = this.calculateCommission(newAmount);
+
+      const formattedBid = {
+        ...this.formatBid(updatedBid),
+        commissionAmount: commission.commissionAmount,
+        driverEarnings: commission.driverEarnings,
+        platformFee: commission.platformFee
+      };
+
+      // Send real-time notification
+      try {
+        const realtimeService = getRealtimeService();
+        if (realtimeService) {
+          await realtimeService.notifyBidReceived(existingBid.packageId, formattedBid);
+        }
+      } catch (notificationError) {
+        console.error('Failed to send counter bid notification:', notificationError);
+      }
+
+      return formattedBid;
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
+        throw _error;
+      }
+      throw new AppError('Failed to counter bid', 'COUNTER_BID_FAILED', 500);
+    }
   }
 
   // Commission calculation methods

@@ -1,559 +1,397 @@
 import { Request, Response } from 'express';
-import multer from 'multer';
-import VerificationService from '../services/verificationService';
-import { 
-  DocumentVerificationRequest, 
-  ApiResponse, 
-  AuthenticatedRequest,
-  DocumentType,
-  UserType 
-} from '@shared/types';
-
-// Configure multer for file uploads
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  },
-});
+import { getPrismaClient } from '@database/index';
+// Mock verification service for now
+const verificationService = {
+  processVerification: async (verificationId: string) => {
+    console.log(`Mock processing verification: ${verificationId}`);
+    // Mock processing - in real implementation, this would call AI services
+  }
+};
+import { AuthenticatedRequest } from '@shared/types';
+// Mock S3 upload service for now
+const s3UploadService = {
+  uploadVerificationImage: async (file: any, userId: string, type: string) => {
+    // Mock implementation - return a mock URL
+    return `https://mock-s3-bucket.com/verification/${userId}/${type}-${Date.now()}.jpg`;
+  }
+};
 
 export class VerificationController {
-  private verificationService: VerificationService | null = null;
-
-  constructor() {
-    // Don't initialize verification service in constructor
-  }
-
-  private getVerificationService(): VerificationService {
-    if (!this.verificationService) {
-      this.verificationService = new VerificationService();
-    }
-    return this.verificationService;
-  }
-
-  /**
-   * Submit document verification
-   */
-  submitVerification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async submitVerification(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'User not authenticated' },
-        });
-        return;
-      }
-
-      const { documentType, userType } = req.body;
-      
-      // Validate required fields
-      if (!documentType || !userType) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'VALIDATION_ERROR', 
-            message: 'Document type and user type are required' 
-          },
-        });
-        return;
-      }
-
-      // Validate document type
-      if (!['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT'].includes(documentType)) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'INVALID_DOCUMENT_TYPE', 
-            message: 'Invalid document type' 
-          },
-        });
-        return;
-      }
-
-      // Validate user type
-      if (!['CUSTOMER', 'DRIVER'].includes(userType)) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'INVALID_USER_TYPE', 
-            message: 'Invalid user type' 
-          },
-        });
-        return;
-      }
-
-      // Check if user type matches document type requirements
-      if (userType === 'DRIVER' && documentType !== 'DRIVERS_LICENSE') {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'INVALID_DOCUMENT_FOR_USER_TYPE', 
-            message: 'Drivers must provide a driver license' 
-          },
-        });
-        return;
-      }
-
-      // Get uploaded files
+      const userId = req.user!.id;
+      const { documentType } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
-      if (!files.frontImage || files.frontImage.length === 0) {
-        res.status(400).json({
+
+      if (!files.frontImage || !files.selfieImage) {
+        return res.status(400).json({
           success: false,
-          error: { 
-            code: 'MISSING_FRONT_IMAGE', 
-            message: 'Front image is required' 
-          },
+          error: {
+            code: 'MISSING_FILES',
+            message: 'Front image and selfie are required'
+          }
         });
-        return;
       }
 
-      if (!files.selfieImage || files.selfieImage.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_SELFIE_IMAGE', 
-            message: 'Selfie image is required' 
-          },
-        });
-        return;
-      }
-
-      // Check if back image is required
-      const requiresBackImage = documentType === 'DRIVERS_LICENSE';
-      if (requiresBackImage && (!files.backImage || files.backImage.length === 0)) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_BACK_IMAGE', 
-            message: 'Back image is required for driver license' 
-          },
-        });
-        return;
-      }
-
-      // Convert images to base64
-      const frontImageBase64 = files.frontImage[0].buffer.toString('base64');
-      const selfieImageBase64 = files.selfieImage[0].buffer.toString('base64');
-      const backImageBase64 = files.backImage?.[0]?.buffer.toString('base64');
-
-      // Create verification request
-      const verificationRequest: DocumentVerificationRequest = {
+      // Upload images to S3
+      const frontImageUrl = await s3UploadService.uploadVerificationImage(
+        files.frontImage[0],
         userId,
-        documentType: documentType as DocumentType,
-        frontImageBase64,
-        backImageBase64,
-        selfieImageBase64,
-        userType: userType as UserType,
-      };
+        'front'
+      );
 
-      // Process verification
-      const result = await this.getVerificationService().processVerification(verificationRequest);
+      const selfieImageUrl = await s3UploadService.uploadVerificationImage(
+        files.selfieImage[0],
+        userId,
+        'selfie'
+      );
 
-      const response: ApiResponse = {
-        success: result.success,
-        data: result,
-        message: result.message,
-      };
+      let backImageUrl = null;
+      if (files.backImage && files.backImage[0]) {
+        backImageUrl = await s3UploadService.uploadVerificationImage(
+          files.backImage[0],
+          userId,
+          'back'
+        );
+      }
 
-      res.status(result.success ? 200 : 400).json(response);
-    } catch (_error) {
-      console.error('Failed to process verification:', _error);
-      res.status(500).json({
-        success: false,
-        error: { 
-          code: 'VERIFICATION_ERROR', 
-          message: 'Failed to process verification' 
-        },
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
+
+      // Create verification record
+      const verification = await prisma.verification.create({
+        data: {
+          userId,
+          documentType,
+          frontImageUrl,
+          backImageUrl,
+          selfieImageUrl,
+          status: 'PENDING'
+        }
       });
-    }
-  };
 
-  /**
-   * Get verification status
-   */
-  getVerificationStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'User not authenticated' },
-        });
-        return;
-      }
+      // Process verification asynchronously
+      verificationService.processVerification(verification.id).catch(console.error);
 
-      const verifications = await this.getVerificationService().getUserVerifications(userId);
-      
-      const response: ApiResponse = {
-        success: true,
-        data: verifications,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
-      res.status(500).json({
-        success: false,
-        error: { 
-          code: 'VERIFICATION_ERROR', 
-          message: 'Failed to get verification status' 
-        },
-      });
-    }
-  };
-
-  /**
-   * Get verification by ID
-   */
-  getVerificationById = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_VERIFICATION_ID', 
-            message: 'Verification ID is required' 
-          },
-        });
-        return;
-      }
-
-      const verification = await this.getVerificationService().getVerificationById(id);
-      
-      if (!verification) {
-        res.status(404).json({
-          success: false,
-          error: { 
-            code: 'VERIFICATION_NOT_FOUND', 
-            message: 'Verification not found' 
-          },
-        });
-        return;
-      }
-
-      const response: ApiResponse = {
+      res.status(201).json({
         success: true,
         data: verification,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        message: 'Verification submitted successfully'
+      });
+    } catch (_error: any) {
+      console.error('Error submitting verification:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'VERIFICATION_ERROR', 
-          message: 'Failed to get verification' 
-        },
+        error: {
+          code: 'VERIFICATION_SUBMISSION_ERROR',
+          message: 'Failed to submit verification'
+        }
       });
     }
-  };
+  }
 
-  /**
-   * Get verification metrics (Admin only)
-   */
-  getVerificationMetrics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async getVerificationStatus(req: Request, res: Response) {
     try {
-      const userType = req.user?.userType;
-      
-      if (userType !== 'ADMIN') {
-        res.status(403).json({
+      const { userId } = req.params;
+
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
           success: false,
-          error: { 
-            code: 'FORBIDDEN', 
-            message: 'Admin access required' 
-          },
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
         });
-        return;
       }
 
-      const metrics = await this.getVerificationService().getVerificationMetrics();
-      
-      const response: ApiResponse = {
+      const verification = await prisma.verification.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          documentType: true,
+          status: true,
+          riskScore: true,
+          authenticityScore: true,
+          dataValidationScore: true,
+          facialMatchScore: true,
+          reviewedAt: true,
+          rejectionReason: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      if (!verification) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'VERIFICATION_NOT_FOUND',
+            message: 'No verification found for this user'
+          }
+        });
+      }
+
+      res.status(200).json({
         success: true,
-        data: metrics,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        data: verification
+      });
+    } catch (_error: any) {
+      console.error('Error getting verification status:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'VERIFICATION_ERROR', 
-          message: 'Failed to get verification metrics' 
-        },
+        error: {
+          code: 'VERIFICATION_STATUS_ERROR',
+          message: 'Failed to get verification status'
+        }
       });
     }
-  };
+  }
 
-  /**
-   * Review verification (Admin only)
-   */
-  reviewVerification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  async getMyVerificationStatus(req: AuthenticatedRequest, res: Response) {
     try {
-      const userType = req.user?.userType;
-      const reviewedBy = req.user?.id;
-      
-      if (userType !== 'ADMIN') {
-        res.status(403).json({
+      const userId = req.user!.id;
+
+      // Get Prisma client
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
           success: false,
-          error: { 
-            code: 'FORBIDDEN', 
-            message: 'Admin access required' 
-          },
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
         });
-        return;
       }
 
+      const verification = await prisma.verification.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          documentType: true,
+          status: true,
+          riskScore: true,
+          authenticityScore: true,
+          dataValidationScore: true,
+          facialMatchScore: true,
+          reviewedAt: true,
+          rejectionReason: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      if (!verification) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'VERIFICATION_NOT_FOUND',
+            message: 'No verification found for this user'
+          }
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: verification
+      });
+    } catch (_error: any) {
+      console.error('Error getting verification status:', _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VERIFICATION_STATUS_ERROR',
+          message: 'Failed to get verification status'
+        }
+      });
+    }
+  }
+
+  async getVerificationById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const verificationService = (await import('../services/verificationService')).default;
+      const verification = await verificationService.getVerificationById(id);
+
+      if (!verification) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'VERIFICATION_NOT_FOUND',
+            message: 'Verification not found'
+          }
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: verification
+      });
+    } catch (_error: any) {
+      console.error('Error getting verification:', _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VERIFICATION_FETCH_ERROR',
+          message: 'Failed to get verification'
+        }
+      });
+    }
+  }
+
+  async getVerificationMetrics(_req: Request, res: Response) {
+    try {
+      const verificationService = (await import('../services/verificationService')).default;
+      const metrics = await verificationService.getVerificationMetrics();
+
+      res.status(200).json({
+        success: true,
+        data: metrics
+      });
+    } catch (_error: any) {
+      console.error('Error getting verification metrics:', _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VERIFICATION_METRICS_ERROR',
+          message: 'Failed to get verification metrics'
+        }
+      });
+    }
+  }
+
+  async reviewVerification(req: AuthenticatedRequest, res: Response) {
+    try {
       const { id } = req.params;
       const { decision, rejectionReason } = req.body;
-      
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_VERIFICATION_ID', 
-            message: 'Verification ID is required' 
-          },
-        });
-        return;
-      }
+      const reviewedBy = req.user!.id;
 
       if (!decision || !['APPROVED', 'REJECTED'].includes(decision)) {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
-          error: { 
-            code: 'INVALID_DECISION', 
-            message: 'Decision must be APPROVED or REJECTED' 
-          },
+          error: {
+            code: 'INVALID_DECISION',
+            message: 'Decision must be APPROVED or REJECTED'
+          }
         });
-        return;
       }
 
-      if (decision === 'REJECTED' && !rejectionReason) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_REJECTION_REASON', 
-            message: 'Rejection reason is required for rejected verifications' 
-          },
-        });
-        return;
-      }
+      const verificationService = (await import('../services/verificationService')).default;
+      await verificationService.reviewVerification(id, decision, reviewedBy, rejectionReason);
 
-      await this.getVerificationService().reviewVerification(
-        id,
-        decision,
-        reviewedBy!,
-        rejectionReason
-      );
-
-      const response: ApiResponse = {
+      res.status(200).json({
         success: true,
-        message: `Verification ${decision.toLowerCase()} successfully`,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        message: `Verification ${decision.toLowerCase()} successfully`
+      });
+    } catch (_error: any) {
+      console.error('Error reviewing verification:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'VERIFICATION_ERROR', 
-          message: 'Failed to review verification' 
-        },
+        error: {
+          code: 'VERIFICATION_REVIEW_ERROR',
+          message: _error.message || 'Failed to review verification'
+        }
       });
     }
-  };
+  }
 
-  /**
-   * Test document authenticity (Development only)
-   */
-  testDocumentAuthenticity = async (req: Request, res: Response): Promise<void> => {
+  async testDocumentAuthenticity(req: Request, res: Response) {
     try {
-      // This endpoint is for development/testing purposes only
-      if (process.env.NODE_ENV === 'production') {
-        res.status(404).json({
-          success: false,
-          error: { 
-            code: 'NOT_FOUND', 
-            message: 'Endpoint not available in production' 
-          },
-        });
-        return;
-      }
-
       const { imageBase64, documentType } = req.body;
-      
+
       if (!imageBase64 || !documentType) {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
-          error: { 
-            code: 'MISSING_PARAMETERS', 
-            message: 'Image base64 and document type are required' 
-          },
+          error: {
+            code: 'MISSING_FIELDS',
+            message: 'imageBase64 and documentType are required'
+          }
         });
-        return;
       }
 
-      // Import AWS Rekognition service for testing
-      const AWSRekognitionService = (await import('../services/awsRekognitionService')).default;
-      const rekognitionService = new AWSRekognitionService();
-      
-      const result = await rekognitionService.analyzeDocumentAuthenticity(
-        imageBase64,
-        documentType as DocumentType
-      );
+      const verificationService = (await import('../services/verificationService')).default;
+      const result = await verificationService.testDocumentAuthenticity(imageBase64, documentType);
 
-      const response: ApiResponse = {
+      res.status(200).json({
         success: true,
-        data: result,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        data: result
+      });
+    } catch (_error: any) {
+      console.error('Error testing document authenticity:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'TEST_ERROR', 
-          message: 'Failed to test document authenticity' 
-        },
+        error: {
+          code: 'DOCUMENT_AUTHENTICITY_TEST_ERROR',
+          message: 'Failed to test document authenticity'
+        }
       });
     }
-  };
+  }
 
-  /**
-   * Test facial recognition (Development only)
-   */
-  testFacialRecognition = async (req: Request, res: Response): Promise<void> => {
+  async testFacialRecognition(req: Request, res: Response) {
     try {
-      // This endpoint is for development/testing purposes only
-      if (process.env.NODE_ENV === 'production') {
-        res.status(404).json({
+      const { selfieImageBase64, documentImageBase64 } = req.body;
+
+      if (!selfieImageBase64 || !documentImageBase64) {
+        return res.status(400).json({
           success: false,
-          error: { 
-            code: 'NOT_FOUND', 
-            message: 'Endpoint not available in production' 
-          },
+          error: {
+            code: 'MISSING_FIELDS',
+            message: 'selfieImageBase64 and documentImageBase64 are required'
+          }
         });
-        return;
       }
 
-      const { documentImageBase64, selfieImageBase64, userId, documentType } = req.body;
-      
-      if (!documentImageBase64 || !selfieImageBase64 || !userId || !documentType) {
-        res.status(400).json({
-          success: false,
-          error: { 
-            code: 'MISSING_PARAMETERS', 
-            message: 'All parameters are required' 
-          },
-        });
-        return;
-      }
+      const verificationService = (await import('../services/verificationService')).default;
+      const result = await verificationService.testFacialRecognition(selfieImageBase64, documentImageBase64);
 
-      // Import Facial Recognition service for testing
-      const FacialRecognitionService = (await import('../services/facialRecognitionService')).default;
-      const facialRecognitionService = new FacialRecognitionService();
-      
-      const result = await facialRecognitionService.performFacialRecognition(
-        documentImageBase64,
-        selfieImageBase64,
-        userId,
-        documentType as DocumentType
-      );
-
-      const response: ApiResponse = {
+      res.status(200).json({
         success: true,
-        data: result,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        data: result
+      });
+    } catch (_error: any) {
+      console.error('Error testing facial recognition:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'TEST_ERROR', 
-          message: 'Failed to test facial recognition' 
-        },
+        error: {
+          code: 'FACIAL_RECOGNITION_TEST_ERROR',
+          message: 'Failed to test facial recognition'
+        }
       });
     }
-  };
+  }
 
-  /**
-   * Test OCR extraction (Development only)
-   */
-  testOCRExtraction = async (req: Request, res: Response): Promise<void> => {
+  async testOCRExtraction(req: Request, res: Response) {
     try {
-      // This endpoint is for development/testing purposes only
-      if (process.env.NODE_ENV === 'production') {
-        res.status(404).json({
-          success: false,
-          error: { 
-            code: 'NOT_FOUND', 
-            message: 'Endpoint not available in production' 
-          },
-        });
-        return;
-      }
-
       const { imageBase64, documentType } = req.body;
-      
+
       if (!imageBase64 || !documentType) {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
-          error: { 
-            code: 'MISSING_PARAMETERS', 
-            message: 'Image base64 and document type are required' 
-          },
+          error: {
+            code: 'MISSING_FIELDS',
+            message: 'imageBase64 and documentType are required'
+          }
         });
-        return;
       }
 
-      // Import OCR service for testing
-      const OCRService = (await import('../services/ocrService')).default;
-      const ocrService = new OCRService();
-      
-      const result = await ocrService.extractDocumentData(
-        imageBase64,
-        documentType as DocumentType
-      );
+      const verificationService = (await import('../services/verificationService')).default;
+      const result = await verificationService.testOCRExtraction(imageBase64, documentType);
 
-      const response: ApiResponse = {
+      res.status(200).json({
         success: true,
-        data: result,
-      };
-
-      res.json(response);
-    } catch (_error) {
-      console.error('Verification error:', _error);
+        data: result
+      });
+    } catch (_error: any) {
+      console.error('Error testing OCR extraction:', _error);
       res.status(500).json({
         success: false,
-        error: { 
-          code: 'TEST_ERROR', 
-          message: 'Failed to test OCR extraction' 
-        },
+        error: {
+          code: 'OCR_EXTRACTION_TEST_ERROR',
+          message: 'Failed to test OCR extraction'
+        }
       });
     }
-  };
+  }
 }
-
-// Export multer middleware for file uploads
-export { upload };
-
-// Default export
-export default VerificationController;
