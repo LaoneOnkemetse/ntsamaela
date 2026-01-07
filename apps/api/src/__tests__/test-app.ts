@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { getPrismaClient } from '@database/index';
+// getPrismaClient not used in test app - using mock database
 import { getRealtimeService } from '../services/realtimeService';
 import { generalRateLimit } from '../middleware/rateLimiting';
 

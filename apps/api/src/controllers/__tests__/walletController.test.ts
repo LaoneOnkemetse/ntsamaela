@@ -27,7 +27,7 @@ describe('WalletController', () => {
   beforeEach(() => {
     walletController = new WalletController();
     // Mock the getWalletService method to return our mock
-    (walletController as any).getWalletService = jest.fn().mockReturnValue(mockWalletService);
+    (walletController as unknown as { getWalletService: () => typeof mockWalletService }).getWalletService = jest.fn().mockReturnValue(mockWalletService);
     jest.clearAllMocks();
 
     mockRequest = {

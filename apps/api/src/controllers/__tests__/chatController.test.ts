@@ -62,7 +62,7 @@ describe('ChatController', () => {
       mockReq.body = chatRoomData;
       mockRealtimeService.createChatRoom.mockResolvedValue(mockChatRoom);
 
-      await chatController.createChatRoom(mockReq as any, mockRes as Response);
+      await chatController.createChatRoom(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.createChatRoom).toHaveBeenCalledWith(
         'package123',
@@ -80,7 +80,7 @@ describe('ChatController', () => {
     it('should return error when package ID is missing', async () => {
       mockReq.body = { driverId: 'driver123' };
 
-      await chatController.createChatRoom(mockReq as any, mockRes as Response);
+      await chatController.createChatRoom(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -103,7 +103,7 @@ describe('ChatController', () => {
         new AppError('Database error', 'CHAT_ROOM_CREATION_FAILED', 500)
       );
 
-      await chatController.createChatRoom(mockReq as any, mockRes as Response);
+      await chatController.createChatRoom(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -124,7 +124,7 @@ describe('ChatController', () => {
       mockReq.body = chatRoomData;
       mockRealtimeService.createChatRoom.mockRejectedValue(new Error('Database error'));
 
-      await chatController.createChatRoom(mockReq as any, mockRes as Response);
+      await chatController.createChatRoom(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -139,7 +139,7 @@ describe('ChatController', () => {
 
   describe('getChatRooms', () => {
     it('should get chat rooms successfully (placeholder implementation)', async () => {
-      await chatController.getChatRooms(mockReq as any, mockRes as Response);
+      await chatController.getChatRooms(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -174,7 +174,7 @@ describe('ChatController', () => {
         }
       };
 
-      await chatController.getChatRooms(mockReq as any, mockRes as Response);
+      await chatController.getChatRooms(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -209,7 +209,7 @@ describe('ChatController', () => {
       mockReq.query = {};
       mockRealtimeService.getChatMessages.mockResolvedValue(mockMessages);
 
-      await chatController.getChatMessages(mockReq as any, mockRes as Response);
+      await chatController.getChatMessages(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.getChatMessages).toHaveBeenCalledWith('chat123', 50, 0);
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -227,7 +227,7 @@ describe('ChatController', () => {
         new AppError('Database error', 'MESSAGES_FETCH_FAILED', 500)
       );
 
-      await chatController.getChatMessages(mockReq as any, mockRes as Response);
+      await chatController.getChatMessages(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -244,7 +244,7 @@ describe('ChatController', () => {
       mockReq.query = {};
       mockRealtimeService.getChatMessages.mockRejectedValue(new Error('Database error'));
 
-      await chatController.getChatMessages(mockReq as any, mockRes as Response);
+      await chatController.getChatMessages(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -279,7 +279,7 @@ describe('ChatController', () => {
       mockReq.body = messageData;
       mockRealtimeService.sendMessage.mockResolvedValue(mockMessage);
 
-      await chatController.sendMessage(mockReq as any, mockRes as Response);
+      await chatController.sendMessage(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.sendMessage).toHaveBeenCalledWith(
         'chat123',
@@ -299,7 +299,7 @@ describe('ChatController', () => {
     it('should return error when message is missing', async () => {
       mockReq.body = { chatRoomId: 'chat123', messageType: 'TEXT' };
 
-      await chatController.sendMessage(mockReq as any, mockRes as Response);
+      await chatController.sendMessage(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -323,7 +323,7 @@ describe('ChatController', () => {
         new AppError('Database error', 'MESSAGE_SEND_FAILED', 500)
       );
 
-      await chatController.sendMessage(mockReq as any, mockRes as Response);
+      await chatController.sendMessage(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -341,7 +341,7 @@ describe('ChatController', () => {
       mockReq.params = { messageId: 'msg123' };
       mockRealtimeService.markMessageAsRead.mockResolvedValue(undefined);
 
-      await chatController.markMessageAsRead(mockReq as any, mockRes as Response);
+      await chatController.markMessageAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.markMessageAsRead).toHaveBeenCalledWith('msg123');
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -357,7 +357,7 @@ describe('ChatController', () => {
         new AppError('Database error', 'MESSAGE_READ_FAILED', 500)
       );
 
-      await chatController.markMessageAsRead(mockReq as any, mockRes as Response);
+      await chatController.markMessageAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -373,7 +373,7 @@ describe('ChatController', () => {
       mockReq.params = { messageId: 'msg123' };
       mockRealtimeService.markMessageAsRead.mockRejectedValue(new Error('Database error'));
 
-      await chatController.markMessageAsRead(mockReq as any, mockRes as Response);
+      await chatController.markMessageAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({

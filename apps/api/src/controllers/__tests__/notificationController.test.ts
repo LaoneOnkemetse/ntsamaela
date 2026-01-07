@@ -70,7 +70,7 @@ describe('NotificationController', () => {
 
       mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
 
-      await notificationController.getUserNotifications(mockReq as any, mockRes as Response);
+      await notificationController.getUserNotifications(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 20, 0);
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -91,7 +91,7 @@ describe('NotificationController', () => {
         new AppError('Database error', 'NOTIFICATIONS_FETCH_FAILED', 500)
       );
 
-      await notificationController.getUserNotifications(mockReq as any, mockRes as Response);
+      await notificationController.getUserNotifications(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -110,7 +110,7 @@ describe('NotificationController', () => {
       mockReq.params = { notificationId };
       mockRealtimeService.markNotificationAsRead.mockResolvedValue(undefined);
 
-      await notificationController.markNotificationAsRead(mockReq as any, mockRes as Response);
+      await notificationController.markNotificationAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.markNotificationAsRead).toHaveBeenCalledWith(notificationId);
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -127,7 +127,7 @@ describe('NotificationController', () => {
         new AppError('Database error', 'NOTIFICATION_UPDATE_FAILED', 500)
       );
 
-      await notificationController.markNotificationAsRead(mockReq as any, mockRes as Response);
+      await notificationController.markNotificationAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -168,7 +168,7 @@ describe('NotificationController', () => {
       mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
       mockRealtimeService.markNotificationAsRead.mockResolvedValue(undefined);
 
-      await notificationController.markAllNotificationsAsRead(mockReq as any, mockRes as Response);
+      await notificationController.markAllNotificationsAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 100, 0);
       expect(mockRealtimeService.markNotificationAsRead).toHaveBeenCalledWith('notif123');
@@ -184,7 +184,7 @@ describe('NotificationController', () => {
         new AppError('Database error', 'NOTIFICATIONS_READ_FAILED', 500)
       );
 
-      await notificationController.markAllNotificationsAsRead(mockReq as any, mockRes as Response);
+      await notificationController.markAllNotificationsAsRead(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -224,7 +224,7 @@ describe('NotificationController', () => {
 
       mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
 
-      await notificationController.getUnreadCount(mockReq as any, mockRes as Response);
+      await notificationController.getUnreadCount(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 100, 0);
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -240,7 +240,7 @@ describe('NotificationController', () => {
         new AppError('Database error', 'UNREAD_COUNT_FAILED', 500)
       );
 
-      await notificationController.getUnreadCount(mockReq as any, mockRes as Response);
+      await notificationController.getUnreadCount(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -258,7 +258,7 @@ describe('NotificationController', () => {
       const notificationId = 'notif123';
       mockReq.params = { notificationId };
 
-      await notificationController.deleteNotification(mockReq as any, mockRes as Response);
+      await notificationController.deleteNotification(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -275,7 +275,7 @@ describe('NotificationController', () => {
       // by temporarily replacing the method implementation
       const originalDeleteNotification = notificationController.deleteNotification;
       
-      notificationController.deleteNotification = async (req: any, res: any) => {
+      notificationController.deleteNotification = async (req: Request, res: Response) => {
         try {
           throw new Error('Database error');
         } catch (_error) {
@@ -289,7 +289,7 @@ describe('NotificationController', () => {
         }
       };
 
-      await notificationController.deleteNotification(mockReq as any, mockRes as Response);
+      await notificationController.deleteNotification(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({

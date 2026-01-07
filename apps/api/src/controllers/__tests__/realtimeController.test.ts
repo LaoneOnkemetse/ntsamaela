@@ -28,7 +28,7 @@ const mockRealtimeService = {
 describe('RealtimeController', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let responseObject: any;
+  let responseObject: Partial<Response>;
 
   beforeEach(() => {
     responseObject = {};
@@ -57,7 +57,7 @@ describe('RealtimeController', () => {
         user: { id: 'user-123' }
       };
 
-      await RealtimeController.startLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.startLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.startLiveTracking).toHaveBeenCalledWith('package-123', 'user-123');
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -75,7 +75,7 @@ describe('RealtimeController', () => {
         user: undefined
       };
 
-      await RealtimeController.startLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.startLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(responseObject.success).toBe(false);
@@ -90,7 +90,7 @@ describe('RealtimeController', () => {
 
       mockRealtimeService.startLiveTracking.mockRejectedValue(new Error('Service error'));
 
-      await RealtimeController.startLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.startLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(responseObject.success).toBe(false);
@@ -105,7 +105,7 @@ describe('RealtimeController', () => {
         user: { id: 'user-123' }
       };
 
-      await RealtimeController.stopLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.stopLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.stopLiveTracking).toHaveBeenCalledWith('package-123', 'user-123');
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -161,7 +161,7 @@ describe('RealtimeController', () => {
         user: { id: 'user-123' }
       };
 
-      await RealtimeController.updatePackageStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updatePackageStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyPackageStatusUpdate).toHaveBeenCalledWith(
         'package-123',
@@ -181,7 +181,7 @@ describe('RealtimeController', () => {
         user: { id: 'driver-123' }
       };
 
-      await RealtimeController.updateDeliveryStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updateDeliveryStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyDeliveryStarted).toHaveBeenCalledWith('package-123', 'driver-123');
       expect(mockResponse.json).toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('RealtimeController', () => {
         user: { id: 'driver-123' }
       };
 
-      await RealtimeController.updateDeliveryStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updateDeliveryStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyDeliveryCompleted).toHaveBeenCalledWith(
         'package-123',
@@ -210,7 +210,7 @@ describe('RealtimeController', () => {
         user: { id: 'driver-123' }
       };
 
-      await RealtimeController.updateDeliveryStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updateDeliveryStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyDeliveryFailed).toHaveBeenCalledWith(
         'package-123',
@@ -227,7 +227,7 @@ describe('RealtimeController', () => {
         user: { id: 'driver-123' }
       };
 
-      await RealtimeController.updateDeliveryStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updateDeliveryStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyPackageStatusUpdate).toHaveBeenCalledWith(
         'package-123',
@@ -246,7 +246,7 @@ describe('RealtimeController', () => {
         user: { id: 'driver-123' }
       };
 
-      await RealtimeController.updateTripStatus(mockRequest as any, mockResponse as Response);
+      await RealtimeController.updateTripStatus(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockRealtimeService.notifyTripStatusUpdate).toHaveBeenCalledWith('trip-123', 'IN_PROGRESS');
       expect(mockResponse.json).toHaveBeenCalled();
@@ -379,7 +379,7 @@ describe('RealtimeController', () => {
       const appError = new AppError('Custom error', 'CUSTOM_ERROR', 400);
       mockRealtimeService.startLiveTracking.mockRejectedValue(appError);
 
-      await RealtimeController.startLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.startLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(responseObject.success).toBe(false);
@@ -395,7 +395,7 @@ describe('RealtimeController', () => {
 
       mockRealtimeService.startLiveTracking.mockRejectedValue(new Error('Unexpected error'));
 
-      await RealtimeController.startLiveTracking(mockRequest as any, mockResponse as Response);
+      await RealtimeController.startLiveTracking(mockRequest as unknown as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(responseObject.success).toBe(false);

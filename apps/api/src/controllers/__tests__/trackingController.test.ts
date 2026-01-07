@@ -68,7 +68,7 @@ describe('TrackingController', () => {
       mockReq.body = trackingData;
       mockRealtimeService.createTrackingUpdate.mockResolvedValue(mockTracking);
 
-      await trackingController.createTrackingUpdate(mockReq as any, mockRes as Response);
+      await trackingController.createTrackingUpdate(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.createTrackingUpdate).toHaveBeenCalledWith(
         'package123',
@@ -89,7 +89,7 @@ describe('TrackingController', () => {
     it('should return error when package ID is missing', async () => {
       mockReq.body = { status: 'IN_TRANSIT' };
 
-      await trackingController.createTrackingUpdate(mockReq as any, mockRes as Response);
+      await trackingController.createTrackingUpdate(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -104,7 +104,7 @@ describe('TrackingController', () => {
     it('should return error when status is missing', async () => {
       mockReq.body = { packageId: 'package123' };
 
-      await trackingController.createTrackingUpdate(mockReq as any, mockRes as Response);
+      await trackingController.createTrackingUpdate(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -127,7 +127,7 @@ describe('TrackingController', () => {
         new AppError('Database error', 'TRACKING_UPDATE_FAILED', 500)
       );
 
-      await trackingController.createTrackingUpdate(mockReq as any, mockRes as Response);
+      await trackingController.createTrackingUpdate(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -158,7 +158,7 @@ describe('TrackingController', () => {
       mockReq.params = { packageId: 'package123' };
       mockRealtimeService.getPackageTracking.mockResolvedValue(mockTracking);
 
-      await trackingController.getPackageTracking(mockReq as any, mockRes as Response);
+      await trackingController.getPackageTracking(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.getPackageTracking).toHaveBeenCalledWith('package123');
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -175,7 +175,7 @@ describe('TrackingController', () => {
         new AppError('Database error', 'TRACKING_FETCH_FAILED', 500)
       );
 
-      await trackingController.getPackageTracking(mockReq as any, mockRes as Response);
+      await trackingController.getPackageTracking(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -212,7 +212,7 @@ describe('TrackingController', () => {
       mockReq.body = locationData;
       mockRealtimeService.createTrackingUpdate.mockResolvedValue(mockTracking);
 
-      await trackingController.updatePackageLocation(mockReq as any, mockRes as Response);
+      await trackingController.updatePackageLocation(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.createTrackingUpdate).toHaveBeenCalledWith(
         'package123',
@@ -243,7 +243,7 @@ describe('TrackingController', () => {
         new AppError('Database error', 'LOCATION_UPDATE_FAILED', 500)
       );
 
-      await trackingController.updatePackageLocation(mockReq as any, mockRes as Response);
+      await trackingController.updatePackageLocation(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -271,7 +271,7 @@ describe('TrackingController', () => {
       mockRealtimeService.createTrackingUpdate.mockResolvedValue(mockTracking);
       mockRealtimeService.notifyDeliveryStarted.mockResolvedValue(undefined);
 
-      await trackingController.startDelivery(mockReq as any, mockRes as Response);
+      await trackingController.startDelivery(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.createTrackingUpdate).toHaveBeenCalledWith(
         'package123',
@@ -296,7 +296,7 @@ describe('TrackingController', () => {
         new AppError('Database error', 'DELIVERY_START_FAILED', 500)
       );
 
-      await trackingController.startDelivery(mockReq as any, mockRes as Response);
+      await trackingController.startDelivery(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -329,7 +329,7 @@ describe('TrackingController', () => {
       mockRealtimeService.createTrackingUpdate.mockResolvedValue(mockTracking);
       mockRealtimeService.notifyDeliveryCompleted.mockResolvedValue(undefined);
 
-      await trackingController.completeDelivery(mockReq as any, mockRes as Response);
+      await trackingController.completeDelivery(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRealtimeService.createTrackingUpdate).toHaveBeenCalledWith(
         'package123',
@@ -359,7 +359,7 @@ describe('TrackingController', () => {
         new AppError('Database error', 'DELIVERY_COMPLETE_FAILED', 500)
       );
 
-      await trackingController.completeDelivery(mockReq as any, mockRes as Response);
+      await trackingController.completeDelivery(mockReq as unknown as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
