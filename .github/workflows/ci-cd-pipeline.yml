@@ -92,10 +92,19 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_test
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/database
+          npm run generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_test
+
       - name: Run database migrations
         run: |
-          cd apps/api
+          cd packages/database
           npm run migrate:test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_test
 
       - name: Run API unit tests
         run: npm run test:api
@@ -154,10 +163,19 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/database
+          npm run generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test
+
       - name: Run database migrations
         run: |
-          cd apps/api
+          cd packages/database
           npm run migrate:test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test
 
       - name: Run integration tests
         run: npm run test:integration:api
@@ -217,10 +235,19 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/database
+          npm run generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test
+
       - name: Run database migrations
         run: |
-          cd apps/api
+          cd packages/database
           npm run migrate:test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test
 
       - name: Run performance tests
         run: npm run test:performance
