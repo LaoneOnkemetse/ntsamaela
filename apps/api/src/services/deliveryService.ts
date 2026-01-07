@@ -1,13 +1,18 @@
 import { getPrismaClient } from "@database/index";
 import { sendDeliveryPin } from "./smsService";
-import { sendPushNotification } from "./fcmService";
-import crypto from "crypto";
 
 export class DeliveryService {
   /**
    * Generate and send delivery PIN to recipient
    */
-  async generateAndSendDeliveryPin(packageId: string): Promise<{ success: boolean; pin?: string; error?: string; message?: string }> {
+  async generateAndSendDeliveryPin(
+    packageId: string,
+  ): Promise<{
+    success: boolean;
+    pin?: string;
+    error?: string;
+    message?: string;
+  }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -26,7 +31,10 @@ export class DeliveryService {
 
       // Check if package is in a state that allows PIN generation
       // PIN is generated automatically when package is picked up
-      if (packageData.status !== "PICKED_UP" && packageData.status !== "IN_TRANSIT") {
+      if (
+        packageData.status !== "PICKED_UP" &&
+        packageData.status !== "IN_TRANSIT"
+      ) {
         return {
           success: false,
           error: `Delivery PIN can only be generated for picked up packages. Current status: ${packageData.status}`,
@@ -34,11 +42,20 @@ export class DeliveryService {
       }
 
       // Check if PIN already exists and is still valid
-      if (packageData.deliveryPin && packageData.deliveryPinExpires && packageData.deliveryPinExpires > new Date()) {
+      if (
+        packageData.deliveryPin &&
+        packageData.deliveryPinExpires &&
+        packageData.deliveryPinExpires > new Date()
+      ) {
         // PIN already exists and is valid, just resend it
-        const recipientPhone = packageData.recipientPhone || packageData.customer.phone;
-        const smsResult = await sendDeliveryPin(recipientPhone, packageData.deliveryPin, packageId);
-        
+        const recipientPhone =
+          packageData.recipientPhone || packageData.customer.phone;
+        const smsResult = await sendDeliveryPin(
+          recipientPhone,
+          packageData.deliveryPin,
+          packageId,
+        );
+
         if (smsResult.success) {
           await prismaClient.package.update({
             where: { id: packageId },
@@ -48,7 +65,7 @@ export class DeliveryService {
           });
           return {
             success: true,
-            message: 'Existing delivery PIN has been resent',
+            message: "Existing delivery PIN has been resent",
           };
         }
       }
@@ -68,11 +85,12 @@ export class DeliveryService {
       });
 
       // Get recipient phone (use recipientPhone if available, otherwise customer phone)
-      const recipientPhone = packageData.recipientPhone || packageData.customer.phone;
+      const recipientPhone =
+        packageData.recipientPhone || packageData.customer.phone;
 
       // Send PIN via SMS
       const smsResult = await sendDeliveryPin(recipientPhone, pin, packageId);
-      
+
       if (smsResult.success) {
         // Mark PIN as sent
         await prismaClient.package.update({
@@ -118,7 +136,11 @@ export class DeliveryService {
   /**
    * Verify delivery PIN and complete delivery
    */
-  async verifyDeliveryPin(packageId: string, pin: string, driverId: string): Promise<{ success: boolean; error?: string }> {
+  async verifyDeliveryPin(
+    packageId: string,
+    pin: string,
+    driverId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -144,7 +166,10 @@ export class DeliveryService {
       }
 
       // Check if PIN has expired
-      if (!packageData.deliveryPinExpires || packageData.deliveryPinExpires < new Date()) {
+      if (
+        !packageData.deliveryPinExpires ||
+        packageData.deliveryPinExpires < new Date()
+      ) {
         return {
           success: false,
           error: "Delivery PIN has expired. Please request a new PIN.",
@@ -197,7 +222,8 @@ export class DeliveryService {
           userId: packageData.customerId,
           type: "DELIVERY_COMPLETED",
           title: "Delivery Completed",
-          message: "Your package has been successfully delivered and confirmed.",
+          message:
+            "Your package has been successfully delivered and confirmed.",
           data: JSON.stringify({ packageId, driverId, confirmed: true }),
           isRead: false,
         },
@@ -218,7 +244,9 @@ export class DeliveryService {
   /**
    * Resend delivery PIN if expired or not received
    */
-  async resendDeliveryPin(packageId: string): Promise<{ success: boolean; error?: string }> {
+  async resendDeliveryPin(
+    packageId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -240,10 +268,15 @@ export class DeliveryService {
         packageData.deliveryPinExpires < new Date() ||
         !packageData.deliveryPinSent;
 
-      if (!shouldResend && packageData.deliveryPinExpires && packageData.deliveryPinExpires > new Date()) {
+      if (
+        !shouldResend &&
+        packageData.deliveryPinExpires &&
+        packageData.deliveryPinExpires > new Date()
+      ) {
         return {
           success: false,
-          error: "A valid delivery PIN already exists. Please wait for it to expire before requesting a new one.",
+          error:
+            "A valid delivery PIN already exists. Please wait for it to expire before requesting a new one.",
         };
       }
 
@@ -260,4 +293,3 @@ export class DeliveryService {
 }
 
 export const deliveryService = new DeliveryService();
-

@@ -1,13 +1,13 @@
-import { Request, Response } from 'express';
-import { getPrismaClient } from '@database/index';
-import { AuthenticatedRequest } from '@shared/types';
-import cloudStorageService from '../services/cloudStorageService';
+import { Request, Response } from "express";
+import { getPrismaClient } from "@database/index";
+import { AuthenticatedRequest } from "@shared/types";
+import cloudStorageService from "../services/cloudStorageService";
 
 export class DriverController {
   async createDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const { carRegistration, carDescription, vehicleType, vehicleCapacity } = req.body;
+      const { carRegistration, vehicleType, vehicleCapacity } = req.body;
       const file = req.file;
 
       // Get Prisma client
@@ -21,16 +21,16 @@ export class DriverController {
 
       // Check if driver profile already exists
       const existingDriver = await prisma.driver.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (existingDriver) {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'DRIVER_PROFILE_EXISTS',
-            message: 'Driver profile already exists'
-          }
+            code: "DRIVER_PROFILE_EXISTS",
+            message: "Driver profile already exists",
+          },
         });
       }
 
@@ -39,7 +39,7 @@ export class DriverController {
         const uploadResult = await cloudStorageService.uploadPackageImage(
           file,
           userId,
-          `driver-car-${Date.now()}`
+          `driver-car-${Date.now()}`,
         );
         carPhotoUrl = uploadResult.url;
       }
@@ -49,30 +49,30 @@ export class DriverController {
         data: {
           userId,
           licensePlate: carRegistration,
-          vehicleType: vehicleType || 'CAR',
-          vehicleCapacity: vehicleCapacity || 'MEDIUM',
+          vehicleType: vehicleType || "CAR",
+          vehicleCapacity: vehicleCapacity || "MEDIUM",
           active: true,
           rating: 0,
-          totalDeliveries: 0
-        }
+          totalDeliveries: 0,
+        },
       });
 
       res.status(201).json({
         success: true,
         data: {
           ...driverProfile,
-          carPhotoUrl
+          carPhotoUrl,
         },
-        message: 'Driver profile created successfully'
+        message: "Driver profile created successfully",
       });
     } catch (_error: any) {
-      console.error('Error creating driver profile:', _error);
+      console.error("Error creating driver profile:", _error);
       res.status(500).json({
         success: false,
         error: {
-          code: 'DRIVER_PROFILE_CREATION_ERROR',
-          message: 'Failed to create driver profile'
-        }
+          code: "DRIVER_PROFILE_CREATION_ERROR",
+          message: "Failed to create driver profile",
+        },
       });
     }
   }
@@ -100,34 +100,34 @@ export class DriverController {
               lastName: true,
               phone: true,
               email: true,
-              identityVerified: true
-            }
-          }
-        }
+              identityVerified: true,
+            },
+          },
+        },
       });
 
       if (!driverProfile) {
         return res.status(404).json({
           success: false,
           error: {
-            code: 'DRIVER_PROFILE_NOT_FOUND',
-            message: 'Driver profile not found'
-          }
+            code: "DRIVER_PROFILE_NOT_FOUND",
+            message: "Driver profile not found",
+          },
         });
       }
 
       res.status(200).json({
         success: true,
-        data: driverProfile
+        data: driverProfile,
       });
     } catch (_error: any) {
-      console.error('Error getting driver profile:', _error);
+      console.error("Error getting driver profile:", _error);
       res.status(500).json({
         success: false,
         error: {
-          code: 'DRIVER_PROFILE_ERROR',
-          message: 'Failed to get driver profile'
-        }
+          code: "DRIVER_PROFILE_ERROR",
+          message: "Failed to get driver profile",
+        },
       });
     }
   }
@@ -135,7 +135,7 @@ export class DriverController {
   async updateDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const { carRegistration, carDescription, vehicleType, vehicleCapacity } = req.body;
+      const { carRegistration, vehicleType, vehicleCapacity } = req.body;
       const file = req.file;
 
       // Get Prisma client
@@ -148,16 +148,16 @@ export class DriverController {
       }
 
       const existingDriver = await prisma.driver.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (!existingDriver) {
         return res.status(404).json({
           success: false,
           error: {
-            code: 'DRIVER_PROFILE_NOT_FOUND',
-            message: 'Driver profile not found'
-          }
+            code: "DRIVER_PROFILE_NOT_FOUND",
+            message: "Driver profile not found",
+          },
         });
       }
 
@@ -166,7 +166,7 @@ export class DriverController {
         const uploadResult = await cloudStorageService.uploadPackageImage(
           file,
           userId,
-          `driver-car-${Date.now()}`
+          `driver-car-${Date.now()}`,
         );
         carPhotoUrl = uploadResult.url;
       }
@@ -176,26 +176,26 @@ export class DriverController {
         data: {
           licensePlate: carRegistration,
           vehicleType: vehicleType || existingDriver.vehicleType,
-          vehicleCapacity: vehicleCapacity || existingDriver.vehicleCapacity
-        }
+          vehicleCapacity: vehicleCapacity || existingDriver.vehicleCapacity,
+        },
       });
 
       res.status(200).json({
         success: true,
         data: {
           ...updatedDriver,
-          carPhotoUrl
+          carPhotoUrl,
         },
-        message: 'Driver profile updated successfully'
+        message: "Driver profile updated successfully",
       });
     } catch (_error: any) {
-      console.error('Error updating driver profile:', _error);
+      console.error("Error updating driver profile:", _error);
       res.status(500).json({
         success: false,
         error: {
-          code: 'DRIVER_PROFILE_UPDATE_ERROR',
-          message: 'Failed to update driver profile'
-        }
+          code: "DRIVER_PROFILE_UPDATE_ERROR",
+          message: "Failed to update driver profile",
+        },
       });
     }
   }
@@ -216,11 +216,11 @@ export class DriverController {
       const drivers = await prisma.driver.findMany({
         where: {
           active: true,
-          ...(verified === 'true' && {
+          ...(verified === "true" && {
             user: {
-              identityVerified: true
-            }
-          })
+              identityVerified: true,
+            },
+          }),
         },
         include: {
           user: {
@@ -229,29 +229,29 @@ export class DriverController {
               firstName: true,
               lastName: true,
               phone: true,
-              identityVerified: true
-            }
-          }
+              identityVerified: true,
+            },
+          },
         },
         take: parseInt(limit as string),
         skip: parseInt(offset as string),
         orderBy: {
-          rating: 'desc'
-        }
+          rating: "desc",
+        },
       });
 
       res.status(200).json({
         success: true,
-        data: drivers
+        data: drivers,
       });
     } catch (_error: any) {
-      console.error('Error getting all drivers:', _error);
+      console.error("Error getting all drivers:", _error);
       res.status(500).json({
         success: false,
         error: {
-          code: 'DRIVERS_FETCH_ERROR',
-          message: 'Failed to get drivers'
-        }
+          code: "DRIVERS_FETCH_ERROR",
+          message: "Failed to get drivers",
+        },
       });
     }
   }

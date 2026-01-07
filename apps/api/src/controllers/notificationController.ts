@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { AuthenticatedRequest } from '@shared/types';
-import { getRealtimeService } from '../services/realtimeService';
+import { Response } from "express";
+import { AuthenticatedRequest } from "@shared/types";
+import { getRealtimeService } from "../services/realtimeService";
 
 export class NotificationController {
   async getUserNotifications(req: AuthenticatedRequest, res: Response) {
@@ -9,7 +9,11 @@ export class NotificationController {
       const limit = 20;
       const offset = 0;
       const realtime = getRealtimeService();
-      const notifications = await realtime.getUserNotifications(userId, limit, offset);
+      const notifications = await realtime.getUserNotifications(
+        userId,
+        limit,
+        offset,
+      );
 
       res.status(200).json({
         success: true,
@@ -18,16 +22,16 @@ export class NotificationController {
           page: 1,
           limit,
           total: notifications.length,
-          totalPages: 1
-        }
+          totalPages: 1,
+        },
       });
     } catch (_error: any) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'NOTIFICATIONS_FETCH_FAILED',
-          message: _error?.message || 'Database error'
-        }
+          code: "NOTIFICATIONS_FETCH_FAILED",
+          message: _error?.message || "Database error",
+        },
       });
     }
   }
@@ -41,15 +45,15 @@ export class NotificationController {
       res.status(200).json({
         success: true,
         data: { count },
-        message: 'Unread notification count retrieved'
+        message: "Unread notification count retrieved",
       });
     } catch (_error: any) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'UNREAD_COUNT_FAILED',
-          message: 'Failed to get unread notification count'
-        }
+          code: "UNREAD_COUNT_FAILED",
+          message: "Failed to get unread notification count",
+        },
       });
     }
   }
@@ -59,9 +63,19 @@ export class NotificationController {
       const { notificationId } = req.params as any;
       const realtime = getRealtimeService();
       await realtime.markNotificationAsRead(notificationId);
-      res.status(200).json({ success: true, message: 'Notification marked as read' });
+      res
+        .status(200)
+        .json({ success: true, message: "Notification marked as read" });
     } catch (_error: any) {
-      res.status(500).json({ success: false, error: { code: 'NOTIFICATION_UPDATE_FAILED', message: 'Database error' } });
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: {
+            code: "NOTIFICATION_UPDATE_FAILED",
+            message: "Database error",
+          },
+        });
     }
   }
 
@@ -74,17 +88,40 @@ export class NotificationController {
       for (const n of unread) {
         await realtime.markNotificationAsRead(n.id);
       }
-      res.status(200).json({ success: true, message: `Marked ${unread.length} notifications as read` });
+      res
+        .status(200)
+        .json({
+          success: true,
+          message: `Marked ${unread.length} notifications as read`,
+        });
     } catch (_error: any) {
-      res.status(500).json({ success: false, error: { code: 'NOTIFICATIONS_READ_FAILED', message: 'Failed to mark all notifications as read' } });
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: {
+            code: "NOTIFICATIONS_READ_FAILED",
+            message: "Failed to mark all notifications as read",
+          },
+        });
     }
   }
 
   async deleteNotification(req: AuthenticatedRequest, res: Response) {
     try {
-      res.status(200).json({ success: true, message: 'Notification deleted successfully' });
+      res
+        .status(200)
+        .json({ success: true, message: "Notification deleted successfully" });
     } catch (_error: any) {
-      res.status(500).json({ success: false, error: { code: 'NOTIFICATION_DELETE_FAILED', message: 'Failed to delete notification' } });
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: {
+            code: "NOTIFICATION_DELETE_FAILED",
+            message: "Failed to delete notification",
+          },
+        });
     }
   }
 

@@ -32,9 +32,16 @@ export class FileUploadService {
    * @returns Upload response with URL and key
    */
   async uploadFile(
-    file: MulterFile | { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    file:
+      | MulterFile
+      | {
+          buffer: Buffer;
+          originalname: string;
+          mimetype: string;
+          size: number;
+        },
     userId: string,
-    folder: string = "uploads"
+    folder: string = "uploads",
   ): Promise<UploadResponse> {
     try {
       // Validate file
@@ -58,7 +65,11 @@ export class FileUploadService {
 
       // Use cloud storage service for package images
       // For generic files, we'll create a similar upload method
-      const result = await this.uploadToCloudStorage(multerFile, userId, folder);
+      const result = await this.uploadToCloudStorage(
+        multerFile,
+        userId,
+        folder,
+      );
 
       return {
         success: true,
@@ -66,11 +77,11 @@ export class FileUploadService {
         key: result.key,
         message: "File uploaded successfully",
       };
-    } catch (error: any) {
-      if (error instanceof AppError) {
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
         return {
           success: false,
-          error: error.message,
+          error: _error.message,
         };
       }
       return {
@@ -87,7 +98,7 @@ export class FileUploadService {
     file: Buffer | MulterFile,
     filename: string,
     userId?: string,
-    packageId?: string
+    packageId?: string,
   ): Promise<UploadResponse> {
     try {
       // Convert Buffer to MulterFile if needed
@@ -108,14 +119,25 @@ export class FileUploadService {
       // Use Cloudinary upload service
       let result;
       if (packageId) {
-        result = await cloudinaryUploadService.uploadPackageImage(multerFile, userId || "unknown", packageId);
+        result = await cloudinaryUploadService.uploadPackageImage(
+          multerFile,
+          userId || "unknown",
+          packageId,
+        );
       } else if (userId) {
-        result = await cloudinaryUploadService.uploadProfilePicture(multerFile, userId);
+        result = await cloudinaryUploadService.uploadProfilePicture(
+          multerFile,
+          userId,
+        );
       } else {
         // Generic image upload
-        result = await cloudinaryUploadService.uploadFile(multerFile, "images", {
-          metadata: { userId: userId || "unknown" },
-        });
+        result = await cloudinaryUploadService.uploadFile(
+          multerFile,
+          "images",
+          {
+            metadata: { userId: userId || "unknown" },
+          },
+        );
       }
 
       return {
@@ -124,11 +146,11 @@ export class FileUploadService {
         key: result.key,
         message: "Image uploaded successfully",
       };
-    } catch (error: any) {
-      if (error instanceof AppError) {
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
         return {
           success: false,
-          error: error.message,
+          error: _error.message,
         };
       }
       return {
@@ -151,11 +173,11 @@ export class FileUploadService {
         success: true,
         message: "File deleted successfully",
       };
-    } catch (error: any) {
-      if (error instanceof AppError) {
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
         return {
           success: false,
-          error: error.message,
+          error: _error.message,
         };
       }
       return {
@@ -170,11 +192,18 @@ export class FileUploadService {
    * @param key - S3 key
    * @param expiresIn - Expiration time in seconds (default: 1 hour)
    */
-  async getPresignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  async getPresignedUrl(
+    key: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
     try {
       return await cloudinaryUploadService.getSignedUrl(key, expiresIn);
-    } catch (error: any) {
-      throw new AppError("Failed to generate presigned URL", "PRESIGNED_URL_ERROR", 500);
+    } catch (_error: any) {
+      throw new AppError(
+        "Failed to generate presigned URL",
+        "PRESIGNED_URL_ERROR",
+        500,
+      );
     }
   }
 
@@ -184,7 +213,7 @@ export class FileUploadService {
   private async uploadToCloudStorage(
     file: MulterFile,
     userId: string,
-    folder: string
+    folder: string,
   ): Promise<{ url: string; key: string }> {
     // Use Cloudinary for cloud storage
     const result = await cloudinaryUploadService.uploadFile(file, folder, {
@@ -201,7 +230,16 @@ export class FileUploadService {
   /**
    * Validate file before upload
    */
-  private validateFile(file: MulterFile | { buffer: Buffer; originalname: string; mimetype: string; size: number }): {
+  private validateFile(
+    file:
+      | MulterFile
+      | {
+          buffer: Buffer;
+          originalname: string;
+          mimetype: string;
+          size: number;
+        },
+  ): {
     isValid: boolean;
     errors: string[];
   } {
@@ -279,13 +317,13 @@ export class FileUploadService {
   private extractKeyFromUrl(url: string): string | null {
     try {
       // Handle Cloudinary URLs: https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}
-      if (url.includes('cloudinary.com')) {
+      if (url.includes("cloudinary.com")) {
         const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
         return match ? match[1] : null;
       }
-      
+
       // Handle cloud storage URLs
-      const cloudStorageUrlPattern = /https?:\/\/[^\/]+\/(.+)$/;
+      const cloudStorageUrlPattern = /https?:\/\/[^/]+\/(.+)$/;
       const match = url.match(cloudStorageUrlPattern);
       return match ? match[1] : null;
     } catch {
@@ -302,11 +340,13 @@ export const uploadImage = async (
   file: Buffer | MulterFile,
   filename: string,
   userId?: string,
-  packageId?: string
+  packageId?: string,
 ): Promise<UploadResponse> => {
   return await fileUploadService.uploadImage(file, filename, userId, packageId);
 };
 
-export const deleteImage = async (urlOrKey: string): Promise<UploadResponse> => {
+export const deleteImage = async (
+  urlOrKey: string,
+): Promise<UploadResponse> => {
   return await fileUploadService.deleteImage(urlOrKey);
 };

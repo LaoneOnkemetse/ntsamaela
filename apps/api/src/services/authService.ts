@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { getPrismaClient } from "@database/index";
 import { RegisterRequest } from "@shared/types";
-import { sendOtp, sendVerificationCode } from "./smsService";
+import { sendOtp } from "./smsService";
 import { sendAccountRecoveryEmail } from "./emailService";
 
 export class AuthService {
@@ -11,51 +11,61 @@ export class AuthService {
     try {
       const { email, password, firstName, lastName, phone, userType } =
         userData;
-      
-      console.log('📝 Starting user registration:', { email, phone, userType });
-      
+
+      console.log("📝 Starting user registration:", { email, phone, userType });
+
       let prismaClient;
       try {
         prismaClient = getPrismaClient();
         if (!prismaClient) {
-          console.error('❌ CRITICAL: Prisma client is null during registration');
-          throw new Error('Database client not available');
+          console.error(
+            "❌ CRITICAL: Prisma client is null during registration",
+          );
+          throw new Error("Database client not available");
         }
-        console.log('✅ Prisma client obtained for registration');
+        console.log("✅ Prisma client obtained for registration");
       } catch (prismaError: any) {
-        console.error('❌ CRITICAL: Failed to get Prisma client:', prismaError);
-        console.error('❌ Error message:', prismaError?.message);
-        throw new Error(`Database connection failed: ${prismaError?.message || 'Unknown error'}`);
+        console.error("❌ CRITICAL: Failed to get Prisma client:", prismaError);
+        console.error("❌ Error message:", prismaError?.message);
+        throw new Error(
+          `Database connection failed: ${prismaError?.message || "Unknown error"}`,
+        );
       }
 
       // Check if user already exists by email or phone
-      console.log('🔍 Checking if user exists by email...');
+      console.log("🔍 Checking if user exists by email...");
       const existingUserByEmail = await prismaClient.user.findUnique({
         where: { email },
       });
 
       if (existingUserByEmail) {
-        console.log('❌ User already exists with email:', email);
+        console.log("❌ User already exists with email:", email);
         return {
           success: false,
-          error: { code: "USER_EXISTS", message: "User with this email already exists" },
+          error: {
+            code: "USER_EXISTS",
+            message: "User with this email already exists",
+          },
         };
       }
 
-      console.log('🔍 Checking if user exists by phone...');
+      console.log("🔍 Checking if user exists by phone...");
       const existingUserByPhone = await prismaClient.user.findUnique({
         where: { phone },
       });
 
       if (existingUserByPhone) {
-        console.log('❌ User already exists with phone:', phone);
+        console.log("❌ User already exists with phone:", phone);
         return {
           success: false,
-          error: { code: "PHONE_EXISTS", message: "User with this phone number already exists" },
+          error: {
+            code: "PHONE_EXISTS",
+            message: "User with this phone number already exists",
+          },
         };
       }
 
-      console.log('✅ No existing user found, proceeding with registration');
+      console.log("✅ No existing user found, proceeding with registration");
 
       // Hash password
       const saltRounds = 12;
@@ -66,7 +76,7 @@ export class AuthService {
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Create user (phone not verified yet)
-      console.log('📝 Creating user in database...');
+      console.log("📝 Creating user in database...");
       let user;
       try {
         user = await prismaClient.user.create({
@@ -84,16 +94,16 @@ export class AuthService {
             emailVerified: true, // Email is kept for account recovery only
           },
         });
-        console.log('✅ User created successfully:', user.id);
+        console.log("✅ User created successfully:", user.id);
       } catch (dbError: any) {
-        console.error('❌ Database error creating user:', dbError);
-        console.error('❌ Error code:', dbError?.code);
-        console.error('❌ Error message:', dbError?.message);
+        console.error("❌ Database error creating user:", dbError);
+        console.error("❌ Error code:", dbError?.code);
+        console.error("❌ Error message:", dbError?.message);
         throw dbError;
       }
 
       // Create wallet for user
-      console.log('📝 Creating wallet for user...');
+      console.log("📝 Creating wallet for user...");
       try {
         await prismaClient.wallet.create({
           data: {
@@ -102,15 +112,15 @@ export class AuthService {
             reservedBalance: 0,
           },
         });
-        console.log('✅ Wallet created successfully');
+        console.log("✅ Wallet created successfully");
       } catch (walletError: any) {
-        console.error('❌ Error creating wallet:', walletError);
+        console.error("❌ Error creating wallet:", walletError);
         // Don't fail registration if wallet creation fails, but log it
       }
 
       // Create driver profile if user is a driver
       if (userType === "DRIVER") {
-        console.log('📝 Creating driver profile...');
+        console.log("📝 Creating driver profile...");
         try {
           await prismaClient.driver.create({
             data: {
@@ -118,26 +128,29 @@ export class AuthService {
               active: true,
             },
           });
-          console.log('✅ Driver profile created successfully');
+          console.log("✅ Driver profile created successfully");
         } catch (driverError: any) {
-          console.error('❌ Error creating driver profile:', driverError);
+          console.error("❌ Error creating driver profile:", driverError);
           // Don't fail registration if driver profile creation fails, but log it
         }
       }
 
       // Send SMS OTP (non-blocking)
-      console.log('📱 Sending SMS OTP to:', phone);
-      sendOtp(phone, otp, 'registration')
+      console.log("📱 Sending SMS OTP to:", phone);
+      sendOtp(phone, otp, "registration")
         .then((result) => {
           if (result.success) {
-            console.log('✅ SMS OTP sent successfully');
+            console.log("✅ SMS OTP sent successfully");
           } else {
-            console.error('❌ SMS OTP sending failed:', result.error);
+            console.error("❌ SMS OTP sending failed:", result.error);
           }
         })
         .catch((error) => {
-          console.error('❌ Failed to send SMS OTP during registration:', error);
-          console.error('❌ SMS Error details:', error.message);
+          console.error(
+            "❌ Failed to send SMS OTP during registration:",
+            error,
+          );
+          console.error("❌ SMS Error details:", error.message);
           // Don't fail registration if SMS fails, but log it
         });
 
@@ -165,14 +178,17 @@ export class AuthService {
         },
       };
     } catch (_error: any) {
-      console.error('❌ Registration error:', _error);
-      console.error('❌ Error name:', _error?.name);
-      console.error('❌ Error message:', _error?.message);
-      console.error('❌ Error code:', _error?.code);
-      console.error('❌ Error stack:', _error?.stack);
+      console.error("❌ Registration error:", _error);
+      console.error("❌ Error name:", _error?.name);
+      console.error("❌ Error message:", _error?.message);
+      console.error("❌ Error code:", _error?.code);
+      console.error("❌ Error stack:", _error?.stack);
       return {
         success: false,
-        error: { code: "REGISTRATION_ERROR", message: _error.message || "Failed to register user" },
+        error: {
+          code: "REGISTRATION_ERROR",
+          message: _error.message || "Failed to register user",
+        },
       };
     }
   }
@@ -198,7 +214,9 @@ export class AuthService {
 
       // Verify password
       if (!password || !user.passwordHash) {
-        console.log(`❌ Password validation failed: Missing password or passwordHash`);
+        console.log(
+          `❌ Password validation failed: Missing password or passwordHash`,
+        );
         return {
           success: false,
           error: {
@@ -210,7 +228,9 @@ export class AuthService {
 
       const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
-        console.log(`❌ Password validation failed: Password does not match for user ${email}`);
+        console.log(
+          `❌ Password validation failed: Password does not match for user ${email}`,
+        );
         return {
           success: false,
           error: {
@@ -245,23 +265,26 @@ export class AuthService {
         },
       };
     } catch (_error: any) {
-      console.error('❌ AuthService.login error:', _error);
-      console.error('❌ Error name:', _error?.name);
-      console.error('❌ Error message:', _error?.message);
-      console.error('❌ Error code:', _error?.code);
+      console.error("❌ AuthService.login error:", _error);
+      console.error("❌ Error name:", _error?.name);
+      console.error("❌ Error message:", _error?.message);
+      console.error("❌ Error code:", _error?.code);
       return {
         success: false,
-        error: { code: "LOGIN_ERROR", message: _error.message || "Login failed" },
+        error: {
+          code: "LOGIN_ERROR",
+          message: _error.message || "Login failed",
+        },
       };
     }
   }
 
-  async requestPasswordReset(phone: string) {
+  async requestPasswordReset(email: string) {
     try {
       const prismaClient = getPrismaClient();
 
       const user = await prismaClient.user.findUnique({
-        where: { phone },
+        where: { email },
       });
 
       if (!user) {
@@ -269,33 +292,36 @@ export class AuthService {
         return {
           success: true,
           message:
-            "If an account with this phone number exists, a password reset code has been sent",
+            "If an account with this email exists, a reset link has been sent",
         };
       }
 
-      // Generate OTP for password reset
-      const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
       // Store reset token in database
       await prismaClient.user.update({
         where: { id: user.id },
         data: {
-          passwordResetToken: otp,
+          passwordResetToken: resetToken,
           passwordResetExpires: expiresAt,
         },
       });
 
-      // Send password reset OTP via SMS
-      const smsResult = await sendOtp(phone, otp, 'password_reset');
-      if (!smsResult.success) {
-        console.error("Failed to send password reset SMS:", smsResult.error);
+      // Send password reset email
+      const emailResult = await sendAccountRecoveryEmail(email, resetToken);
+      if (!emailResult.success) {
+        console.error(
+          "Failed to send password reset email:",
+          emailResult.error,
+        );
         // Still return success as token is generated, but log the error
       }
 
       return {
         success: true,
-        message: "If the phone number exists, a reset code has been sent",
+        message: "If the email exists, a reset link has been sent",
       };
     } catch (_error: any) {
       return {
@@ -413,7 +439,10 @@ export class AuthService {
         };
       }
 
-      if (!user.phoneVerificationExpires || user.phoneVerificationExpires < new Date()) {
+      if (
+        !user.phoneVerificationExpires ||
+        user.phoneVerificationExpires < new Date()
+      ) {
         return {
           success: false,
           error: {
@@ -482,7 +511,7 @@ export class AuthService {
       });
 
       // Send OTP via SMS
-      const smsResult = await sendOtp(phone, otp, 'registration');
+      const smsResult = await sendOtp(phone, otp, "registration");
       if (!smsResult.success) {
         console.error("Failed to send SMS OTP:", smsResult.error);
         // Still return success as OTP is generated, but log the error
@@ -535,9 +564,15 @@ export class AuthService {
       });
 
       // Send account recovery email
-      const emailResult = await sendAccountRecoveryEmail(user.email, recoveryToken);
+      const emailResult = await sendAccountRecoveryEmail(
+        user.email,
+        recoveryToken,
+      );
       if (!emailResult.success) {
-        console.error("Failed to send account recovery email:", emailResult.error);
+        console.error(
+          "Failed to send account recovery email:",
+          emailResult.error,
+        );
         // Still return success as token is generated, but log the error
       }
 
@@ -572,7 +607,10 @@ export class AuthService {
       }
 
       // Check if token has expired
-      if (user.accountRecoveryExpires && user.accountRecoveryExpires < new Date()) {
+      if (
+        user.accountRecoveryExpires &&
+        user.accountRecoveryExpires < new Date()
+      ) {
         return {
           success: false,
           error: {
@@ -609,10 +647,12 @@ export class AuthService {
         // Generate new OTP for phone verification
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         updateData.phoneVerificationOtp = otp;
-        updateData.phoneVerificationExpires = new Date(Date.now() + 10 * 60 * 1000);
+        updateData.phoneVerificationExpires = new Date(
+          Date.now() + 10 * 60 * 1000,
+        );
 
         // Send OTP to new phone
-        sendOtp(newPhone, otp, 'registration').catch((error) => {
+        sendOtp(newPhone, otp, "registration").catch((error) => {
           console.error("Failed to send OTP to new phone:", error);
         });
       }
@@ -722,6 +762,140 @@ export class AuthService {
     // For JWT, logout is typically handled client-side by removing the token
     // In a more sophisticated setup, you might maintain a blacklist of tokens
     return { success: true, message: "Logged out successfully" };
+  }
+
+  async verifyEmail(token: string) {
+    try {
+      const prismaClient = getPrismaClient();
+      const user = await prismaClient.user.findFirst({
+        where: { emailVerificationToken: token },
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          error: {
+            code: "INVALID_VERIFICATION_TOKEN",
+            message: "Invalid verification token",
+          },
+        };
+      }
+
+      if (user.emailVerified) {
+        return {
+          success: false,
+          error: {
+            code: "EMAIL_ALREADY_VERIFIED",
+            message: "Email is already verified",
+          },
+        };
+      }
+
+      if (
+        user.emailVerificationExpires &&
+        user.emailVerificationExpires < new Date()
+      ) {
+        return {
+          success: false,
+          error: {
+            code: "VERIFICATION_TOKEN_EXPIRED",
+            message: "Verification token has expired",
+          },
+        };
+      }
+
+      await prismaClient.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          emailVerificationToken: null,
+          emailVerificationExpires: null,
+        },
+      });
+
+      return {
+        success: true,
+        message: "Email verified successfully",
+      };
+    } catch (_error) {
+      return {
+        success: false,
+        error: {
+          code: "VERIFICATION_ERROR",
+          message: "Failed to verify email",
+        },
+      };
+    }
+  }
+
+  async resendVerificationEmail(email: string) {
+    try {
+      const prismaClient = getPrismaClient();
+      const user = await prismaClient.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
+        };
+      }
+
+      if (user.emailVerified) {
+        return {
+          success: false,
+          error: {
+            code: "EMAIL_ALREADY_VERIFIED",
+            message: "Email is already verified",
+          },
+        };
+      }
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await prismaClient.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerificationToken: verificationToken,
+          emailVerificationExpires: expiresAt,
+        },
+      });
+
+      // Send verification email (non-blocking)
+      sendAccountRecoveryEmail(email, verificationToken)
+        .then((result) => {
+          if (result.success) {
+            console.log("✅ Verification email sent successfully");
+          } else {
+            console.error(
+              "❌ Failed to send verification email:",
+              result.error,
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Error sending verification email:", error);
+        });
+
+      return {
+        success: true,
+        message: "Verification email sent",
+      };
+    } catch (_error) {
+      return {
+        success: false,
+        error: {
+          code: "EMAIL_SEND_ERROR",
+          message: "Failed to resend verification email",
+        },
+      };
+    }
   }
 }
 

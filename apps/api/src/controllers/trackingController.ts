@@ -1,32 +1,36 @@
-import { Response } from 'express';
-import { getRealtimeService } from '../services/realtimeService';
-import { deliveryService } from '../services/deliveryService';
-import { 
-  PackageTracking, 
+import { Response } from "express";
+import { getRealtimeService } from "../services/realtimeService";
+import { deliveryService } from "../services/deliveryService";
+import {
+  PackageTracking,
   // CreateTrackingUpdateRequest,
   // TrackingFilters,
   ApiResponse,
   // PaginatedResponse,
-  AuthenticatedRequest
-} from '@ntsamaela/shared/types';
-import { AppError } from '../utils/errors';
+  AuthenticatedRequest,
+} from "@ntsamaela/shared/types";
+import { AppError } from "../utils/errors";
 
 export class TrackingController {
   private get realtimeService() {
     return getRealtimeService();
   }
 
-  createTrackingUpdate = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  createTrackingUpdate = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
-      const { packageId, status, location, latitude, longitude, notes } = req.body;
+      const { packageId, status, location, latitude, longitude, notes } =
+        req.body;
 
       if (!packageId || !status) {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_REQUIRED_FIELDS',
-            message: 'Package ID and status are required'
-          }
+            code: "MISSING_REQUIRED_FIELDS",
+            message: "Package ID and status are required",
+          },
         });
         return;
       }
@@ -37,13 +41,13 @@ export class TrackingController {
         location,
         latitude,
         longitude,
-        notes
+        notes,
       );
 
       const response: ApiResponse<PackageTracking> = {
         success: true,
         data: tracking,
-        message: 'Tracking update created successfully'
+        message: "Tracking update created successfully",
       };
 
       res.status(201).json(response);
@@ -53,22 +57,25 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'TRACKING_UPDATE_FAILED',
-            message: 'Failed to create tracking update'
-          }
+            code: "TRACKING_UPDATE_FAILED",
+            message: "Failed to create tracking update",
+          },
         });
       }
     }
-  }
+  };
 
-  getPackageTracking = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getPackageTracking = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
 
@@ -76,9 +83,9 @@ export class TrackingController {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_PACKAGE_ID',
-            message: 'Package ID is required'
-          }
+            code: "MISSING_PACKAGE_ID",
+            message: "Package ID is required",
+          },
         });
         return;
       }
@@ -88,7 +95,7 @@ export class TrackingController {
       const response: ApiResponse<PackageTracking[]> = {
         success: true,
         data: tracking,
-        message: 'Package tracking retrieved successfully'
+        message: "Package tracking retrieved successfully",
       };
 
       res.status(200).json(response);
@@ -98,22 +105,25 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'TRACKING_FETCH_FAILED',
-            message: 'Failed to fetch package tracking'
-          }
+            code: "TRACKING_FETCH_FAILED",
+            message: "Failed to fetch package tracking",
+          },
         });
       }
     }
-  }
+  };
 
-  updatePackageLocation = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  updatePackageLocation = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
       const { latitude, longitude, location } = req.body;
@@ -122,9 +132,9 @@ export class TrackingController {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_REQUIRED_FIELDS',
-            message: 'Package ID, latitude, and longitude are required'
-          }
+            code: "MISSING_REQUIRED_FIELDS",
+            message: "Package ID, latitude, and longitude are required",
+          },
         });
         return;
       }
@@ -132,25 +142,29 @@ export class TrackingController {
       // Create a location update tracking entry
       const tracking = await this.realtimeService.createTrackingUpdate(
         packageId,
-        'LOCATION_UPDATE',
+        "LOCATION_UPDATE",
         location,
         latitude,
         longitude,
-        'Location updated'
+        "Location updated",
       );
 
       // Emit real-time location update
-      this.realtimeService.emitToRoom(`package:${packageId}`, 'package:location:update', {
-        packageId,
-        latitude,
-        longitude,
-        location
-      });
+      this.realtimeService.emitToRoom(
+        `package:${packageId}`,
+        "package:location:update",
+        {
+          packageId,
+          latitude,
+          longitude,
+          location,
+        },
+      );
 
       const response: ApiResponse<PackageTracking> = {
         success: true,
         data: tracking,
-        message: 'Package location updated successfully'
+        message: "Package location updated successfully",
       };
 
       res.status(200).json(response);
@@ -160,22 +174,25 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'LOCATION_UPDATE_FAILED',
-            message: 'Failed to update package location'
-          }
+            code: "LOCATION_UPDATE_FAILED",
+            message: "Failed to update package location",
+          },
         });
       }
     }
-  }
+  };
 
-  startDelivery = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  startDelivery = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
       const driverId = req.user!.id;
@@ -184,9 +201,9 @@ export class TrackingController {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_PACKAGE_ID',
-            message: 'Package ID is required'
-          }
+            code: "MISSING_PACKAGE_ID",
+            message: "Package ID is required",
+          },
         });
         return;
       }
@@ -194,11 +211,11 @@ export class TrackingController {
       // Create tracking update
       const tracking = await this.realtimeService.createTrackingUpdate(
         packageId,
-        'IN_TRANSIT',
-        'Delivery started',
+        "IN_TRANSIT",
+        "Delivery started",
         undefined,
         undefined,
-        'Driver has started the delivery'
+        "Driver has started the delivery",
       );
 
       // Notify delivery started
@@ -207,7 +224,7 @@ export class TrackingController {
       const response: ApiResponse<PackageTracking> = {
         success: true,
         data: tracking,
-        message: 'Delivery started successfully'
+        message: "Delivery started successfully",
       };
 
       res.status(200).json(response);
@@ -217,26 +234,28 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'DELIVERY_START_FAILED',
-            message: 'Failed to start delivery'
-          }
+            code: "DELIVERY_START_FAILED",
+            message: "Failed to start delivery",
+          },
         });
       }
     }
-  }
-
+  };
 
   /**
    * Verify delivery PIN and complete delivery
    */
-  verifyDeliveryPin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  verifyDeliveryPin = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
       const { pin } = req.body;
@@ -246,24 +265,28 @@ export class TrackingController {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_FIELDS',
-            message: 'Package ID and PIN are required'
-          }
+            code: "MISSING_FIELDS",
+            message: "Package ID and PIN are required",
+          },
         });
         return;
       }
 
-      const result = await deliveryService.verifyDeliveryPin(packageId, pin, driverId);
+      const result = await deliveryService.verifyDeliveryPin(
+        packageId,
+        pin,
+        driverId,
+      );
 
       if (result.success) {
         // Create tracking update
         const tracking = await this.realtimeService.createTrackingUpdate(
           packageId,
-          'DELIVERED',
-          'Package delivered',
+          "DELIVERED",
+          "Package delivered",
           undefined,
           undefined,
-          'Package has been successfully delivered and confirmed'
+          "Package has been successfully delivered and confirmed",
         );
 
         // Notify delivery completed
@@ -272,15 +295,15 @@ export class TrackingController {
         res.status(200).json({
           success: true,
           data: tracking,
-          message: 'Delivery confirmed successfully'
+          message: "Delivery confirmed successfully",
         });
       } else {
         res.status(400).json({
           success: false,
           error: {
-            code: 'PIN_VERIFICATION_FAILED',
-            message: result.error || 'Failed to verify delivery PIN'
-          }
+            code: "PIN_VERIFICATION_FAILED",
+            message: result.error || "Failed to verify delivery PIN",
+          },
         });
       }
     } catch (_error) {
@@ -289,25 +312,28 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'PIN_VERIFICATION_ERROR',
-            message: 'Failed to verify delivery PIN'
-          }
+            code: "PIN_VERIFICATION_ERROR",
+            message: "Failed to verify delivery PIN",
+          },
         });
       }
     }
-  }
+  };
 
   /**
    * Resend delivery PIN
    */
-  resendDeliveryPin = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  resendDeliveryPin = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
 
@@ -315,9 +341,9 @@ export class TrackingController {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_PACKAGE_ID',
-            message: 'Package ID is required'
-          }
+            code: "MISSING_PACKAGE_ID",
+            message: "Package ID is required",
+          },
         });
         return;
       }
@@ -327,52 +353,65 @@ export class TrackingController {
       if (result.success) {
         res.status(200).json({
           success: true,
-          message: 'Delivery PIN has been resent to the recipient'
+          message: "Delivery PIN has been resent to the recipient",
         });
       } else {
         res.status(400).json({
           success: false,
           error: {
-            code: 'PIN_RESEND_FAILED',
-            message: result.error || 'Failed to resend delivery PIN'
-          }
+            code: "PIN_RESEND_FAILED",
+            message: result.error || "Failed to resend delivery PIN",
+          },
         });
       }
     } catch (_error) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'PIN_RESEND_ERROR',
-          message: 'Failed to resend delivery PIN'
-        }
+          code: "PIN_RESEND_ERROR",
+          message: "Failed to resend delivery PIN",
+        },
       });
     }
-  }
+  };
 
-  completeDelivery = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  completeDelivery = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { packageId } = req.params;
+      const { notes } = req.body || {};
       const driverId = req.user!.id;
 
       if (!packageId) {
         res.status(400).json({
           success: false,
           error: {
-            code: 'MISSING_PACKAGE_ID',
-            message: 'Package ID is required'
-          }
+            code: "MISSING_PACKAGE_ID",
+            message: "Package ID is required",
+          },
         });
         return;
       }
 
-      // Note: PIN is automatically generated when status changes to PICKED_UP
-      // This endpoint is for verifying the PIN and completing delivery
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'USE_VERIFY_PIN_ENDPOINT',
-          message: 'Please use the verify-delivery-pin endpoint to complete delivery. The PIN was automatically sent when the package was picked up.'
-        }
+      // Create tracking update for delivery completion
+      const trackingUpdate = await this.realtimeService.createTrackingUpdate(
+        packageId,
+        "DELIVERED",
+        "Package delivered",
+        undefined,
+        undefined,
+        notes || "Package has been successfully delivered",
+      );
+
+      // Notify delivery completed
+      await this.realtimeService.notifyDeliveryCompleted(packageId, driverId);
+
+      res.status(200).json({
+        success: true,
+        data: trackingUpdate,
+        message: "Delivery completed successfully",
       });
     } catch (_error) {
       if (_error instanceof AppError) {
@@ -380,20 +419,20 @@ export class TrackingController {
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       } else {
         res.status(500).json({
           success: false,
           error: {
-            code: 'DELIVERY_COMPLETE_FAILED',
-            message: 'Failed to complete delivery'
-          }
+            code: "DELIVERY_COMPLETE_FAILED",
+            message: "Failed to complete delivery",
+          },
         });
       }
     }
-  }
+  };
 }
 
 export default new TrackingController();

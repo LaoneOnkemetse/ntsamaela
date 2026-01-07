@@ -1,6 +1,5 @@
 // Mock Package Service for development
-import { prisma } from '@database/index';
-import { PackageStatus, PackageSize } from '@shared/types';
+import { PackageStatus, PackageSize } from "@shared/types";
 
 export interface PackageFilters {
   status?: PackageStatus;
@@ -14,8 +13,8 @@ export interface PackageFilters {
   maxWeight?: number;
   dateFrom?: string;
   dateTo?: string;
-  sortBy?: 'createdAt' | 'priceOffered' | 'weight' | 'status';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "createdAt" | "priceOffered" | "weight" | "status";
+  sortOrder?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
@@ -27,16 +26,16 @@ export class MockPackageService {
       const mockPackage = {
         id: `pkg_${Date.now()}`,
         ...packageData,
-        status: 'PENDING',
+        status: "PENDING",
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       console.log(`Mock: Created package ${mockPackage.id}`);
       return mockPackage;
     } catch (error) {
-      console.error('Mock package creation error:', error);
-      throw new Error('Failed to create package');
+      console.error("Mock package creation error:", error);
+      throw new Error("Failed to create package");
     }
   }
 
@@ -45,64 +44,72 @@ export class MockPackageService {
       // Mock packages data
       const mockPackages = [
         {
-          id: 'pkg_1',
-          customerId: 'customer_1',
-          description: 'Mock package 1',
-          pickupAddress: '123 Main St, Gaborone',
+          id: "pkg_1",
+          customerId: "customer_1",
+          description: "Mock package 1",
+          pickupAddress: "123 Main St, Gaborone",
           pickupLat: -24.6541,
           pickupLng: 25.9087,
-          deliveryAddress: '456 Airport Rd, Gaborone',
+          deliveryAddress: "456 Airport Rd, Gaborone",
           deliveryLat: -24.6541,
           deliveryLng: 25.9087,
           priceOffered: 150,
-          status: 'PENDING',
-          size: 'MEDIUM',
+          status: "PENDING",
+          size: "MEDIUM",
           weight: 2.5,
           deliveryDate: new Date(Date.now() + 86400000).toISOString(),
-          urgency: 'NORMAL',
-          recipientPhone: '71234567',
+          urgency: "NORMAL",
+          recipientPhone: "71234567",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         },
         {
-          id: 'pkg_2',
-          customerId: 'customer_2',
-          description: 'Mock package 2',
-          pickupAddress: '789 Broad St, Francistown',
+          id: "pkg_2",
+          customerId: "customer_2",
+          description: "Mock package 2",
+          pickupAddress: "789 Broad St, Francistown",
           pickupLat: -21.1702,
           pickupLng: 27.4916,
-          deliveryAddress: '321 Mall St, Francistown',
+          deliveryAddress: "321 Mall St, Francistown",
           deliveryLat: -21.1702,
           deliveryLng: 27.4916,
           priceOffered: 200,
-          status: 'ACCEPTED',
-          size: 'LARGE',
+          status: "ACCEPTED",
+          size: "LARGE",
           weight: 5.0,
           deliveryDate: new Date(Date.now() + 172800000).toISOString(),
-          urgency: 'URGENT',
-          recipientPhone: '72345678',
+          urgency: "URGENT",
+          recipientPhone: "72345678",
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          updatedAt: new Date().toISOString(),
+        },
       ];
 
       // Apply filters (mock implementation)
       let filteredPackages = mockPackages;
 
       if (filters.status) {
-        filteredPackages = filteredPackages.filter(pkg => pkg.status === filters.status);
+        filteredPackages = filteredPackages.filter(
+          (pkg) => pkg.status === filters.status,
+        );
       }
 
       if (filters.minPrice) {
-        filteredPackages = filteredPackages.filter(pkg => pkg.priceOffered >= filters.minPrice!);
+        filteredPackages = filteredPackages.filter(
+          (pkg) => pkg.priceOffered >= filters.minPrice!,
+        );
       }
 
       if (filters.maxPrice) {
-        filteredPackages = filteredPackages.filter(pkg => pkg.priceOffered <= filters.maxPrice!);
+        filteredPackages = filteredPackages.filter(
+          (pkg) => pkg.priceOffered <= filters.maxPrice!,
+        );
       }
 
       if (filters.customerId) {
-        filteredPackages = filteredPackages.filter(pkg => pkg.customerId === filters.customerId);
+        filteredPackages = filteredPackages.filter(
+          (pkg) => pkg.customerId === filters.customerId,
+        );
       }
 
       // Apply pagination
@@ -120,12 +127,12 @@ export class MockPackageService {
           packages: paginatedPackages,
           total: filteredPackages.length,
           limit,
-          offset
-        }
+          offset,
+        },
       };
     } catch (error) {
-      console.error('Mock get packages error:', error);
-      throw new Error('Failed to get packages');
+      console.error("Mock get packages error:", error);
+      throw new Error("Failed to get packages");
     }
   }
 
@@ -134,30 +141,30 @@ export class MockPackageService {
       // Mock package by ID
       const mockPackage = {
         id,
-        customerId: 'customer_1',
-        description: 'Mock package details',
-        pickupAddress: '123 Main St, Gaborone',
+        customerId: "customer_1",
+        description: "Mock package details",
+        pickupAddress: "123 Main St, Gaborone",
         pickupLat: -24.6541,
         pickupLng: 25.9087,
-        deliveryAddress: '456 Airport Rd, Gaborone',
+        deliveryAddress: "456 Airport Rd, Gaborone",
         deliveryLat: -24.6541,
         deliveryLng: 25.9087,
         priceOffered: 150,
-        status: 'PENDING',
-        size: 'MEDIUM',
+        status: "PENDING",
+        size: "MEDIUM",
         weight: 2.5,
         deliveryDate: new Date(Date.now() + 86400000).toISOString(),
-        urgency: 'NORMAL',
-        recipientPhone: '71234567',
+        urgency: "NORMAL",
+        recipientPhone: "71234567",
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
       console.log(`Mock: Retrieved package ${id}`);
       return mockPackage;
     } catch (error) {
-      console.error('Mock get package by ID error:', error);
-      throw new Error('Failed to get package');
+      console.error("Mock get package by ID error:", error);
+      throw new Error("Failed to get package");
     }
   }
 
@@ -168,12 +175,12 @@ export class MockPackageService {
         id,
         status,
         notes,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       return { data: payload, ...payload } as any;
     } catch (error) {
-      console.error('Mock update package status error:', error);
-      throw new Error('Failed to update package status');
+      console.error("Mock update package status error:", error);
+      throw new Error("Failed to update package status");
     }
   }
 
@@ -182,34 +189,34 @@ export class MockPackageService {
       const updated = {
         id,
         ...updateData,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       console.log(`Mock: Updated package ${id}`);
       return updated;
     } catch (error) {
-      console.error('Mock update package error:', error);
-      throw new Error('Failed to update package');
+      console.error("Mock update package error:", error);
+      throw new Error("Failed to update package");
     }
   }
 
   async deletePackage(id: string) {
     try {
       console.log(`Mock: Deleted package ${id}`);
-      return { success: true, message: 'Package deleted successfully' };
+      return { success: true, message: "Package deleted successfully" };
     } catch (error) {
-      console.error('Mock delete package error:', error);
-      throw new Error('Failed to delete package');
+      console.error("Mock delete package error:", error);
+      throw new Error("Failed to delete package");
     }
   }
 
-  async uploadPackageImage(packageId: string, file: any, userId: string) {
+  async uploadPackageImage(packageId: string, _file: any, _userId: string) {
     try {
       const mockUrl = `https://mock-s3-bucket.com/packages/${packageId}/image-${Date.now()}.jpg`;
       console.log(`Mock: Uploaded image for package ${packageId}`);
       return { url: mockUrl };
     } catch (error) {
-      console.error('Mock upload package image error:', error);
-      throw new Error('Failed to upload package image');
+      console.error("Mock upload package image error:", error);
+      throw new Error("Failed to upload package image");
     }
   }
 
@@ -219,13 +226,20 @@ export class MockPackageService {
       console.log(`Mock: Retrieved package image ${key}`);
       return { url: mockUrl };
     } catch (error) {
-      console.error('Mock get package image error:', error);
-      throw new Error('Failed to get package image');
+      console.error("Mock get package image error:", error);
+      throw new Error("Failed to get package image");
     }
   }
 
-  async searchPackagesByLocation(lat: number, lng: number, radius: number, _filters: PackageFilters) {
-    console.log(`Mock: Search packages near (${lat}, ${lng}) within ${radius}km`);
+  async searchPackagesByLocation(
+    lat: number,
+    lng: number,
+    radius: number,
+    _filters: PackageFilters,
+  ) {
+    console.log(
+      `Mock: Search packages near (${lat}, ${lng}) within ${radius}km`,
+    );
     const mock = await this.getPackages({ limit: 20, offset: 0 });
     return { data: mock.packages };
   }

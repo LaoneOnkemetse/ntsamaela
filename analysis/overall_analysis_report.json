@@ -1,0 +1,151 @@
+{
+  "timestamp": "2026-01-07T14:29:37.604Z",
+  "project": "Ntsamaela",
+  "status": {
+    "structure": {
+      "apps": {
+        "api": true,
+        "mobile": true,
+        "web-admin": true,
+        "web": true
+      },
+      "packages": {
+        "database": true,
+        "shared": true,
+        "testing": true
+      },
+      "configFiles": {
+        "package.json": true,
+        "tsconfig.json": true,
+        "docker-compose.yml": true
+      }
+    },
+    "dependencies": {
+      "rootDependencies": 11,
+      "rootDevDependencies": 54,
+      "workspaces": 2,
+      "workspaceStatus": {
+        "apps/*/api": {
+          "exists": true,
+          "hasDependencies": true
+        },
+        "apps/*/mobile": {
+          "exists": true,
+          "hasDependencies": true
+        },
+        "apps/*/web": {
+          "exists": true,
+          "hasDependencies": true
+        },
+        "apps/*/web-admin": {
+          "exists": true,
+          "hasDependencies": true
+        },
+        "packages/*/database": {
+          "exists": true,
+          "hasDependencies": true
+        },
+        "packages/*/shared": {
+          "exists": true,
+          "hasDependencies": false
+        },
+        "packages/*/testing": {
+          "exists": true,
+          "hasDependencies": true
+        }
+      }
+    },
+    "build": {
+      "api": {
+        "built": true,
+        "distExists": true
+      },
+      "webAdmin": {
+        "built": true,
+        "nextExists": true
+      },
+      "mobile": {
+        "built": false,
+        "buildExists": false
+      }
+    },
+    "tests": {
+      "testFiles": 642,
+      "coverageExists": true,
+      "testScripts": {
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:coverage:comprehensive": "cd apps/api && node scripts/test-coverage.js",
+        "test:ci": "jest --ci --coverage --watchAll=false",
+        "test:api": "cd apps/api && npm test",
+        "test:mobile": "jest --selectProjects='Mobile' && mkdir -p coverage/mobile && { [ -f coverage/lcov.info ] && mv coverage/lcov.info coverage/mobile/ || true; [ -d coverage/lcov-report ] && mv coverage/lcov-report coverage/mobile/ || true; }",
+        "test:web-admin": "cd apps/web-admin && npm test",
+        "test:shared": "cd packages/shared && npm test",
+        "test:integration": "npm run test:integration:api && npm run test:integration:database",
+        "test:integration:api": "cd apps/api && npm run test:integration",
+        "test:integration:database": "cd packages/database && npm test",
+        "test:e2e": "npm run test:e2e:mobile && npm run test:e2e:web-admin",
+        "test:e2e:mobile": "cd apps/mobile && npm run test:e2e",
+        "test:e2e:web-admin": "cd apps/web-admin && npm run test:e2e",
+        "test:performance": "npm run test:performance:api && npm run test:performance:web-admin",
+        "test:performance:api": "cd apps/api && npm run test:performance",
+        "test:performance:web-admin": "cd apps/web-admin && npm run test:performance",
+        "test:smoke": "cd apps/api && npm run test:smoke",
+        "test:security": "npm run security:audit && npm run security:scan",
+        "db:setup:test": "cd packages/database && npm run setup:test",
+        "db:migrate:test": "cd packages/database && npm run migrate:test",
+        "db:seed:test": "cd packages/database && npm run seed:test"
+      }
+    },
+    "linting": {
+      "eslintConfigExists": true,
+      "prettierConfigExists": false,
+      "lintScripts": [
+        "lint",
+        "lint:api",
+        "lint:web-admin",
+        "lint:mobile",
+        "lint:shared",
+        "lint:fix",
+        "lint:fix:api",
+        "lint:fix:web-admin",
+        "lint:fix:mobile",
+        "lint:fix:shared"
+      ]
+    },
+    "typescript": {
+      "tsconfigExists": true,
+      "tsFiles": 376,
+      "typeCheckScripts": [
+        "type-check",
+        "type-check:api",
+        "type-check:web-admin",
+        "type-check:mobile",
+        "type-check:shared"
+      ]
+    },
+    "github": {
+      "workflowsExist": true,
+      "workflows": ["ci-cd-pipeline.yml", "ci.yml", "simple-ci.yml"],
+      "repository": "https://github.com/your-org/ntsamaela.git"
+    }
+  },
+  "metrics": {
+    "progress": 88,
+    "score": 88.33333333333333,
+    "maxScore": 100
+  },
+  "issues": [],
+  "recommendations": [],
+  "summary": {
+    "overallProgress": 88,
+    "status": "Active Development",
+    "keyMetrics": {
+      "testFiles": 642,
+      "typeScriptFiles": 376,
+      "workflows": 3,
+      "buildsReady": 2
+    }
+  }
+}

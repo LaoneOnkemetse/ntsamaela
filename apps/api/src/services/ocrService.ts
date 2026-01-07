@@ -1,13 +1,9 @@
 // OCR Service using Google Cloud Vision API
 // Provides OCR capabilities for document processing.
 
-import { ImageAnnotatorClient } from '@google-cloud/vision';
-import { 
-  OCRResult, 
-  ExtractedDocumentData, 
-  DocumentType 
-} from '@shared/types';
-import { AppError } from '../utils/AppError';
+import { ImageAnnotatorClient } from "@google-cloud/vision";
+import { OCRResult, ExtractedDocumentData, DocumentType } from "@shared/types";
+import { AppError } from "../utils/AppError";
 
 export class OCRService {
   private visionClient: ImageAnnotatorClient | null = null;
@@ -23,15 +19,16 @@ export class OCRService {
       try {
         // Configure Google Cloud credentials
         const credentials = {
-          type: 'service_account',
+          type: "service_account",
           project_id: projectId,
-          private_key_id: '',
-          private_key: privateKey.replace(/\\n/g, '\n'),
+          private_key_id: "",
+          private_key: privateKey.replace(/\\n/g, "\n"),
           client_email: clientEmail,
-          client_id: '',
-          auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-          token_uri: 'https://oauth2.googleapis.com/token',
-          auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+          client_id: "",
+          auth_uri: "https://accounts.google.com/o/oauth2/auth",
+          token_uri: "https://oauth2.googleapis.com/token",
+          auth_provider_x509_cert_url:
+            "https://www.googleapis.com/oauth2/v1/certs",
           client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(clientEmail)}`,
         };
 
@@ -41,11 +38,16 @@ export class OCRService {
         });
         this.isConfigured = true;
       } catch (error: any) {
-        console.warn('Google Cloud Vision not configured. OCR will fail. Error:', error.message);
+        console.warn(
+          "Google Cloud Vision not configured. OCR will fail. Error:",
+          error.message,
+        );
         this.isConfigured = false;
       }
     } else {
-      console.warn('Google Cloud Vision not configured. Set GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_PRIVATE_KEY, and GOOGLE_CLOUD_CLIENT_EMAIL environment variables.');
+      console.warn(
+        "Google Cloud Vision not configured. Set GOOGLE_CLOUD_PROJECT_ID, GOOGLE_CLOUD_PRIVATE_KEY, and GOOGLE_CLOUD_CLIENT_EMAIL environment variables.",
+      );
       this.isConfigured = false;
     }
   }
@@ -55,13 +57,13 @@ export class OCRService {
    */
   async extractDocumentData(
     imageBase64: string,
-    documentType: DocumentType
+    documentType: DocumentType,
   ): Promise<OCRResult> {
     const startTime = Date.now();
     const errors: string[] = [];
 
     if (!this.isConfigured || !this.visionClient) {
-      errors.push('Google Cloud Vision is not configured');
+      errors.push("Google Cloud Vision is not configured");
       return {
         extractedData: this.getEmptyDocumentData(documentType),
         confidence: 0,
@@ -72,17 +74,17 @@ export class OCRService {
 
     try {
       // Convert base64 to buffer
-      const imageBuffer = Buffer.from(imageBase64, 'base64');
+      const imageBuffer = Buffer.from(imageBase64, "base64");
 
       // Use appropriate extraction method based on document type
       let extractedData: ExtractedDocumentData;
       let confidence: number;
 
-      if (documentType === 'DRIVERS_LICENSE') {
+      if (documentType === "DRIVERS_LICENSE") {
         const result = await this.extractDriverLicenseData(imageBuffer);
         extractedData = result.data;
         confidence = result.confidence;
-      } else if (documentType === 'PASSPORT') {
+      } else if (documentType === "PASSPORT") {
         const result = await this.extractPassportData(imageBuffer);
         extractedData = result.data;
         confidence = result.confidence;
@@ -101,9 +103,11 @@ export class OCRService {
         errors,
       };
     } catch (_error) {
-      console.error('OCR service error:', _error);
-      errors.push(`OCR extraction failed: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
-      
+      console.error("OCR service error:", _error);
+      errors.push(
+        `OCR extraction failed: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
+
       return {
         extractedData: this.getEmptyDocumentData(documentType),
         confidence: 0,
@@ -116,9 +120,15 @@ export class OCRService {
   /**
    * Extract data from driver's license using Google Cloud Vision
    */
-  private async extractDriverLicenseData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+  private async extractDriverLicenseData(
+    imageBuffer: Buffer,
+  ): Promise<{ data: ExtractedDocumentData; confidence: number }> {
     if (!this.visionClient) {
-      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Google Cloud Vision client not initialized",
+        "VISION_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -131,23 +141,23 @@ export class OCRService {
       if (detections.length === 0) {
         // Return empty data instead of throwing error - this is a valid case
         return {
-          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          data: this.getEmptyDocumentData("DRIVERS_LICENSE"),
           confidence: 0,
         };
       }
 
       // Get full text annotation (first element contains all text)
-      const fullText = detections[0]?.description || '';
-      
+      const fullText = detections[0]?.description || "";
+
       // Extract fields from the text
       const extractedData = this.parseDriverLicenseText(fullText, detections);
-      
+
       // Calculate confidence based on text detection quality
       const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
-      console.error('OCR service error:', _error);
+      console.error("OCR service error:", _error);
       throw _error;
     }
   }
@@ -155,9 +165,15 @@ export class OCRService {
   /**
    * Extract data from passport using Google Cloud Vision
    */
-  private async extractPassportData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+  private async extractPassportData(
+    imageBuffer: Buffer,
+  ): Promise<{ data: ExtractedDocumentData; confidence: number }> {
     if (!this.visionClient) {
-      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Google Cloud Vision client not initialized",
+        "VISION_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -170,23 +186,23 @@ export class OCRService {
       if (detections.length === 0) {
         // Return empty data instead of throwing error - this is a valid case
         return {
-          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          data: this.getEmptyDocumentData("DRIVERS_LICENSE"),
           confidence: 0,
         };
       }
 
       // Get full text annotation
-      const fullText = detections[0]?.description || '';
-      
+      const fullText = detections[0]?.description || "";
+
       // Parse passport data from text
       const extractedData = this.parsePassportText(fullText, detections);
-      
+
       // Calculate confidence
       const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
-      console.error('OCR service error:', _error);
+      console.error("OCR service error:", _error);
       throw _error;
     }
   }
@@ -194,9 +210,15 @@ export class OCRService {
   /**
    * Extract data from national ID using Google Cloud Vision
    */
-  private async extractNationalIdData(imageBuffer: Buffer): Promise<{ data: ExtractedDocumentData; confidence: number }> {
+  private async extractNationalIdData(
+    imageBuffer: Buffer,
+  ): Promise<{ data: ExtractedDocumentData; confidence: number }> {
     if (!this.visionClient) {
-      throw new AppError('Google Cloud Vision client not initialized', 'VISION_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Google Cloud Vision client not initialized",
+        "VISION_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -209,23 +231,23 @@ export class OCRService {
       if (detections.length === 0) {
         // Return empty data instead of throwing error - this is a valid case
         return {
-          data: this.getEmptyDocumentData('DRIVERS_LICENSE'),
+          data: this.getEmptyDocumentData("DRIVERS_LICENSE"),
           confidence: 0,
         };
       }
 
       // Get full text annotation
-      const fullText = detections[0]?.description || '';
-      
+      const fullText = detections[0]?.description || "";
+
       // Parse national ID data from text
       const extractedData = this.parseNationalIdText(fullText, detections);
-      
+
       // Calculate confidence
       const confidence = this.calculateGoogleVisionConfidence(detections);
 
       return { data: extractedData, confidence };
     } catch (_error) {
-      console.error('OCR service error:', _error);
+      console.error("OCR service error:", _error);
       throw _error;
     }
   }
@@ -233,9 +255,12 @@ export class OCRService {
   /**
    * Parse driver license text from Google Vision response
    */
-  private parseDriverLicenseText(fullText: string, detections: any[]): ExtractedDocumentData {
+  private parseDriverLicenseText(
+    fullText: string,
+    _detections: any[],
+  ): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
-      documentType: 'DRIVERS_LICENSE',
+      documentType: "DRIVERS_LICENSE",
     };
 
     // Extract license number (usually alphanumeric, 8-12 characters)
@@ -255,7 +280,7 @@ export class OCRService {
         const nameParts = match[1].trim().split(/\s+/);
         if (nameParts.length >= 2) {
           data.firstName = nameParts[0];
-          data.lastName = nameParts.slice(1).join(' ');
+          data.lastName = nameParts.slice(1).join(" ");
         }
         break;
       }
@@ -274,7 +299,9 @@ export class OCRService {
     }
 
     // Extract address
-    const addressMatch = fullText.match(/(?:address|residence)\s*:?\s*([A-Z0-9\s,.-]+)/i);
+    const addressMatch = fullText.match(
+      /(?:address|residence)\s*:?\s*([A-Z0-9\s,.-]+)/i,
+    );
     if (addressMatch) {
       data.address = addressMatch[1].trim();
     }
@@ -286,7 +313,9 @@ export class OCRService {
     }
 
     // Extract issuing authority
-    const issuerMatch = fullText.match(/(?:issuer|issuing authority|authority)\s*:?\s*([A-Z\s]+)/i);
+    const issuerMatch = fullText.match(
+      /(?:issuer|issuing authority|authority)\s*:?\s*([A-Z\s]+)/i,
+    );
     if (issuerMatch) {
       data.issuer = issuerMatch[1].trim();
     }
@@ -297,9 +326,12 @@ export class OCRService {
   /**
    * Parse passport data from Google Vision text
    */
-  private parsePassportText(fullText: string, detections: any[]): ExtractedDocumentData {
+  private parsePassportText(
+    fullText: string,
+    _detections: any[],
+  ): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
-      documentType: 'PASSPORT',
+      documentType: "PASSPORT",
     };
 
     // Extract passport number (usually starts with letter followed by numbers)
@@ -311,7 +343,7 @@ export class OCRService {
     // Extract name (usually in format "SURNAME, GIVEN NAMES")
     const nameMatch = fullText.match(/([A-Z\s,]+)\s*([A-Z\s]+)/);
     if (nameMatch) {
-      const nameParts = nameMatch[1].split(',');
+      const nameParts = nameMatch[1].split(",");
       if (nameParts.length >= 2) {
         data.lastName = nameParts[0].trim();
         data.firstName = nameParts[1].trim();
@@ -331,7 +363,9 @@ export class OCRService {
     }
 
     // Extract nationality
-    const nationalityMatch = fullText.match(/(?:nationality|citizen)\s*:?\s*([A-Z]{3})/i);
+    const nationalityMatch = fullText.match(
+      /(?:nationality|citizen)\s*:?\s*([A-Z]{3})/i,
+    );
     if (nationalityMatch) {
       data.nationality = nationalityMatch[1];
     }
@@ -348,9 +382,12 @@ export class OCRService {
   /**
    * Parse national ID data from Google Vision text
    */
-  private parseNationalIdText(fullText: string, detections: any[]): ExtractedDocumentData {
+  private parseNationalIdText(
+    fullText: string,
+    _detections: any[],
+  ): ExtractedDocumentData {
     const data: Partial<ExtractedDocumentData> = {
-      documentType: 'NATIONAL_ID',
+      documentType: "NATIONAL_ID",
     };
 
     // Extract ID number (usually numeric with some formatting)
@@ -373,7 +410,9 @@ export class OCRService {
     }
 
     // Extract address
-    const addressMatch = fullText.match(/(?:address|residence)\s*:?\s*([A-Z0-9\s,.-]+)/i);
+    const addressMatch = fullText.match(
+      /(?:address|residence)\s*:?\s*([A-Z0-9\s,.-]+)/i,
+    );
     if (addressMatch) {
       data.address = addressMatch[1].trim();
     }
@@ -393,7 +432,7 @@ export class OCRService {
 
     const dates: string[] = [];
 
-    datePatterns.forEach(pattern => {
+    datePatterns.forEach((pattern) => {
       const matches = text.match(pattern);
       if (matches) {
         dates.push(...matches);
@@ -413,7 +452,7 @@ export class OCRService {
       if (isNaN(date.getTime())) {
         return dateString; // Return original if parsing fails
       }
-      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+      return date.toISOString().split("T")[0]; // Return YYYY-MM-DD format
     } catch (_error) {
       return dateString;
     }
@@ -456,73 +495,77 @@ export class OCRService {
   /**
    * Get empty document data structure
    */
-  private getEmptyDocumentData(documentType: DocumentType): ExtractedDocumentData {
+  private getEmptyDocumentData(
+    documentType: DocumentType,
+  ): ExtractedDocumentData {
     return {
-      documentNumber: '',
-      firstName: '',
-      lastName: '',
-      dateOfBirth: '',
-      expiryDate: '',
-      issueDate: '',
-      address: '',
-      nationality: '',
-      gender: '',
-      issuer: '',
+      documentNumber: "",
+      firstName: "",
+      lastName: "",
+      dateOfBirth: "",
+      expiryDate: "",
+      issueDate: "",
+      address: "",
+      nationality: "",
+      gender: "",
+      issuer: "",
       documentType,
     };
   }
 
-
   /**
    * Validate extracted data
    */
-  validateExtractedData(data: ExtractedDocumentData): { isValid: boolean; errors: string[] } {
+  validateExtractedData(data: ExtractedDocumentData): {
+    isValid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     // Required fields validation
     if (!data.documentNumber) {
-      errors.push('Document number is required');
+      errors.push("Document number is required");
     }
 
     if (!data.firstName) {
-      errors.push('First name is required');
+      errors.push("First name is required");
     }
 
     if (!data.lastName) {
-      errors.push('Last name is required');
+      errors.push("Last name is required");
     }
 
     if (!data.dateOfBirth) {
-      errors.push('Date of birth is required');
+      errors.push("Date of birth is required");
     }
 
     // Document type specific validation
-    if (data.documentType === 'DRIVERS_LICENSE') {
+    if (data.documentType === "DRIVERS_LICENSE") {
       if (!data.expiryDate) {
-        errors.push('Expiry date is required for driver license');
+        errors.push("Expiry date is required for driver license");
       }
     }
 
-    if (data.documentType === 'PASSPORT') {
+    if (data.documentType === "PASSPORT") {
       if (!data.nationality) {
-        errors.push('Nationality is required for passport');
+        errors.push("Nationality is required for passport");
       }
       if (!data.expiryDate) {
-        errors.push('Expiry date is required for passport');
+        errors.push("Expiry date is required for passport");
       }
     }
 
     // Date format validation
     if (data.dateOfBirth && !this.isValidDate(data.dateOfBirth)) {
-      errors.push('Invalid date of birth format');
+      errors.push("Invalid date of birth format");
     }
 
     if (data.expiryDate && !this.isValidDate(data.expiryDate)) {
-      errors.push('Invalid expiry date format');
+      errors.push("Invalid expiry date format");
     }
 
     if (data.issueDate && !this.isValidDate(data.issueDate)) {
-      errors.push('Invalid issue date format');
+      errors.push("Invalid issue date format");
     }
 
     return {

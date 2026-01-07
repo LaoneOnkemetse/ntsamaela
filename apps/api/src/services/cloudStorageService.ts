@@ -39,9 +39,38 @@ class CloudStorageService {
     userId: string,
     packageId?: string,
   ): Promise<UploadResult> {
+    // Validate image first
+    const validation = this.validateImage(file);
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.join(", ");
+      if (errorMessage.includes("File too large")) {
+        throw new AppError(
+          "Invalid image: File too large. Maximum size is 10MB",
+          "INVALID_IMAGE",
+          400,
+        );
+      }
+      if (errorMessage.includes("Invalid file type")) {
+        throw new AppError(
+          "Invalid image: Invalid file type. Only JPEG, PNG, and WebP are allowed",
+          "INVALID_IMAGE",
+          400,
+        );
+      }
+      throw new AppError(
+        `Invalid image: ${errorMessage}`,
+        "INVALID_IMAGE",
+        400,
+      );
+    }
+
     // Use Cloudinary for cloud storage
     try {
-      return await cloudinaryUploadService.uploadPackageImage(file, userId, packageId);
+      return await cloudinaryUploadService.uploadPackageImage(
+        file,
+        userId,
+        packageId,
+      );
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;

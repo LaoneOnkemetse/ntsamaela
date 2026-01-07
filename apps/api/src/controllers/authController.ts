@@ -5,8 +5,6 @@ import {
   AuthenticatedRequest,
   LoginRequest,
   RegisterRequest,
-  PasswordResetRequest,
-  PasswordResetConfirmRequest,
 } from "@shared/types";
 import { resetLoginAttempts } from "../middleware/rateLimiting";
 
@@ -16,7 +14,11 @@ export class AuthController {
       const { email, password, firstName, lastName, phone, userType } =
         req.body;
 
-      console.log('📝 Registration request received:', { email, phone, userType });
+      console.log("📝 Registration request received:", {
+        email,
+        phone,
+        userType,
+      });
 
       const result = await authService.register({
         email,
@@ -28,7 +30,7 @@ export class AuthController {
       });
 
       if (result.success) {
-        console.log('✅ Registration successful for:', email);
+        console.log("✅ Registration successful for:", email);
         res.status(201).json({
           success: true,
           data: result.data,
@@ -36,17 +38,21 @@ export class AuthController {
             "User registered successfully. Please check your phone for the verification code.",
         });
       } else {
-        console.log('❌ Registration failed:', result.error?.code, result.error?.message);
+        console.log(
+          "❌ Registration failed:",
+          result.error?.code,
+          result.error?.message,
+        );
         res.status(400).json({
           success: false,
           error: result.error,
         });
       }
     } catch (_error: any) {
-      console.error('❌ Registration controller error:', _error);
-      console.error('❌ Error name:', _error?.name);
-      console.error('❌ Error message:', _error?.message);
-      console.error('❌ Error stack:', _error?.stack);
+      console.error("❌ Registration controller error:", _error);
+      console.error("❌ Error name:", _error?.name);
+      console.error("❌ Error message:", _error?.message);
+      console.error("❌ Error stack:", _error?.stack);
       res.status(500).json({
         success: false,
         error: {
@@ -90,13 +96,13 @@ export class AuthController {
       // Normalize phone number format - handle both with and without + prefix
       let normalizedPhone = phone.trim();
       // If phone doesn't start with +, try to add it for Botswana (+267)
-      if (!normalizedPhone.startsWith('+')) {
+      if (!normalizedPhone.startsWith("+")) {
         // If it starts with 267, add +
-        if (normalizedPhone.startsWith('267')) {
-          normalizedPhone = '+' + normalizedPhone;
+        if (normalizedPhone.startsWith("267")) {
+          normalizedPhone = "+" + normalizedPhone;
         } else if (normalizedPhone.length === 8) {
           // If it's 8 digits, assume Botswana and add +267
-          normalizedPhone = '+267' + normalizedPhone;
+          normalizedPhone = "+267" + normalizedPhone;
         }
       }
 
@@ -105,21 +111,28 @@ export class AuthController {
       try {
         prisma = getPrismaClient();
         if (!prisma) {
-          console.error('❌ CRITICAL: Prisma client is null or undefined');
+          console.error("❌ CRITICAL: Prisma client is null or undefined");
           throw new Error("Database client not available");
         }
-        
+
         // Check if we're using mock client (shouldn't happen in production)
-        if (process.env.DISABLE_PRISMA === 'true') {
-          console.warn('⚠️ WARNING: Using mock database client - login will not work with real data');
+        if (process.env.DISABLE_PRISMA === "true") {
+          console.warn(
+            "⚠️ WARNING: Using mock database client - login will not work with real data",
+          );
         }
-        
-        console.log('✅ Prisma client obtained, type:', typeof prisma);
-        console.log('✅ Prisma client has user.findFirst:', typeof prisma.user?.findFirst === 'function');
+
+        console.log("✅ Prisma client obtained, type:", typeof prisma);
+        console.log(
+          "✅ Prisma client has user.findFirst:",
+          typeof prisma.user?.findFirst === "function",
+        );
       } catch (prismaError: any) {
-        console.error('❌ CRITICAL: Failed to get Prisma client:', prismaError);
-        console.error('❌ Error message:', prismaError?.message);
-        throw new Error(`Database connection failed: ${prismaError?.message || 'Unknown error'}`);
+        console.error("❌ CRITICAL: Failed to get Prisma client:", prismaError);
+        console.error("❌ Error message:", prismaError?.message);
+        throw new Error(
+          `Database connection failed: ${prismaError?.message || "Unknown error"}`,
+        );
       }
 
       // Try to find user by phone number (try both formats)
@@ -129,12 +142,15 @@ export class AuthController {
         user = await prisma.user.findFirst({
           where: { phone: normalizedPhone },
         });
-        console.log(`🔍 Query result:`, user ? `Found user ${user.id}` : 'No user found');
+        console.log(
+          `🔍 Query result:`,
+          user ? `Found user ${user.id}` : "No user found",
+        );
       } catch (dbError: any) {
-        console.error('❌ Database query error:', dbError);
-        console.error('❌ Error name:', dbError?.name);
-        console.error('❌ Error message:', dbError?.message);
-        console.error('❌ Error code:', dbError?.code);
+        console.error("❌ Database query error:", dbError);
+        console.error("❌ Error name:", dbError?.name);
+        console.error("❌ Error message:", dbError?.message);
+        console.error("❌ Error code:", dbError?.code);
         throw dbError; // Re-throw to be caught by outer catch
       }
 
@@ -146,14 +162,16 @@ export class AuthController {
       }
 
       // If still not found, try without + prefix
-      if (!user && normalizedPhone.startsWith('+')) {
+      if (!user && normalizedPhone.startsWith("+")) {
         user = await prisma.user.findFirst({
           where: { phone: normalizedPhone.substring(1) },
         });
       }
 
       if (!user) {
-        console.log(`❌ Login attempt failed: User not found for phone ${normalizedPhone}`);
+        console.log(
+          `❌ Login attempt failed: User not found for phone ${normalizedPhone}`,
+        );
         return res.status(401).json({
           success: false,
           error: {
@@ -167,11 +185,14 @@ export class AuthController {
       let result;
       try {
         result = await authService.login(user.email, password);
-        console.log(`🔍 AuthService.login result:`, result.success ? 'SUCCESS' : 'FAILED');
+        console.log(
+          `🔍 AuthService.login result:`,
+          result.success ? "SUCCESS" : "FAILED",
+        );
       } catch (authError: any) {
-        console.error('❌ AuthService.login error:', authError);
-        console.error('❌ Error name:', authError?.name);
-        console.error('❌ Error message:', authError?.message);
+        console.error("❌ AuthService.login error:", authError);
+        console.error("❌ Error name:", authError?.name);
+        console.error("❌ Error message:", authError?.message);
         throw authError; // Re-throw to be caught by outer catch
       }
 
@@ -180,7 +201,9 @@ export class AuthController {
         resetLoginAttempts(req);
         res.status(200).json(result);
       } else {
-        console.log(`❌ Login failed for user: ${user.email}, reason: ${result.error?.message || 'Invalid password'}`);
+        console.log(
+          `❌ Login failed for user: ${user.email}, reason: ${result.error?.message || "Invalid password"}`,
+        );
         // Return specific error for wrong password
         res.status(401).json({
           success: false,
@@ -191,19 +214,20 @@ export class AuthController {
         });
       }
     } catch (_error: any) {
-      console.error('❌ Login with phone error:', _error);
-      console.error('❌ Error name:', _error?.name);
-      console.error('❌ Error message:', _error?.message);
-      console.error('❌ Error stack:', _error?.stack);
-      
+      console.error("❌ Login with phone error:", _error);
+      console.error("❌ Error name:", _error?.name);
+      console.error("❌ Error message:", _error?.message);
+      console.error("❌ Error stack:", _error?.stack);
+
       // Check if it's a database connection error
-      if (_error.message && (
-        _error.message.includes("Can't reach database server") ||
-        _error.message.includes("P1001") || // Prisma connection error code
-        _error.message.includes("connect ECONNREFUSED") ||
-        _error.message.includes("Database client not available")
-      )) {
-        console.error('❌ Database connection error detected');
+      if (
+        _error.message &&
+        (_error.message.includes("Can't reach database server") ||
+          _error.message.includes("P1001") || // Prisma connection error code
+          _error.message.includes("connect ECONNREFUSED") ||
+          _error.message.includes("Database client not available"))
+      ) {
+        console.error("❌ Database connection error detected");
         return res.status(503).json({
           success: false,
           error: {
@@ -212,10 +236,10 @@ export class AuthController {
           },
         });
       }
-      
+
       // Check if it's a Prisma query error
-      if (_error.code && _error.code.startsWith('P')) {
-        console.error('❌ Prisma error detected:', _error.code);
+      if (_error.code && _error.code.startsWith("P")) {
+        console.error("❌ Prisma error detected:", _error.code);
         return res.status(500).json({
           success: false,
           error: {
@@ -224,7 +248,7 @@ export class AuthController {
           },
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: {
@@ -244,7 +268,7 @@ export class AuthController {
           error: { code: "DATABASE_ERROR", message: "Database unavailable" },
         });
       }
-      
+
       const userId = req.user!.id;
 
       const user = await prisma.user.findUnique({
@@ -579,7 +603,6 @@ export class AuthController {
       });
     }
   }
-
 
   async createDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {

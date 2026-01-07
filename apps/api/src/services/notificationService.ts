@@ -1,6 +1,5 @@
 import { getPrismaClient } from "@database/index";
-import { sendPushNotification, sendPushNotificationToMultiple, fcmService } from "./fcmService";
-import { FCMNotification } from "./fcmService";
+import { fcmService } from "./fcmService";
 
 export interface NotificationData {
   type: string;
@@ -17,7 +16,9 @@ export class NotificationService {
   /**
    * Send notification to a user (both push and in-app)
    */
-  async sendNotification(notificationData: NotificationData): Promise<{ success: boolean; error?: string }> {
+  async sendNotification(
+    notificationData: NotificationData,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -29,7 +30,9 @@ export class NotificationService {
             type: notificationData.type,
             title: notificationData.title,
             message: notificationData.message,
-            data: notificationData.data ? JSON.stringify(notificationData.data) : null,
+            data: notificationData.data
+              ? JSON.stringify(notificationData.data)
+              : null,
             isRead: false,
           },
         });
@@ -39,23 +42,22 @@ export class NotificationService {
       if (fcmService.isReady() && notificationData.userId) {
         // Get user's FCM tokens (you'll need to store these in your database)
         // For now, we'll try to send to the user ID as token (you should update this)
-        const fcmNotification: FCMNotification = {
-          title: notificationData.title,
-          body: notificationData.message,
-          data: notificationData.data || {},
-        };
-
         // TODO: Get actual FCM token from user's device
         // For now, we'll just create the in-app notification
         // When you implement FCM token storage, uncomment below:
         /*
+        const _fcmNotification: FCMNotification = {
+          title: notificationData.title,
+          body: notificationData.message,
+          data: notificationData.data || {},
+        };
         const user = await prismaClient.user.findUnique({
           where: { id: notificationData.userId },
           select: { fcmTokens: true } // You'll need to add this field to User model
         });
 
         if (user?.fcmTokens && user.fcmTokens.length > 0) {
-          await sendPushNotificationToMultiple(user.fcmTokens, fcmNotification);
+          await sendPushNotificationToMultiple(user.fcmTokens, _fcmNotification);
         }
         */
       }
@@ -75,7 +77,9 @@ export class NotificationService {
   /**
    * Send notification to multiple users
    */
-  async sendNotificationToMultiple(notificationData: NotificationData): Promise<{ success: boolean; error?: string }> {
+  async sendNotificationToMultiple(
+    notificationData: NotificationData,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -92,7 +96,9 @@ export class NotificationService {
         type: notificationData.type,
         title: notificationData.title,
         message: notificationData.message,
-        data: notificationData.data ? JSON.stringify(notificationData.data) : null,
+        data: notificationData.data
+          ? JSON.stringify(notificationData.data)
+          : null,
         isRead: false,
       }));
 
@@ -125,7 +131,7 @@ export class NotificationService {
     userId: string,
     packageId: string,
     status: string,
-    message?: string
+    message?: string,
   ): Promise<{ success: boolean }> {
     const statusMessages: Record<string, string> = {
       PENDING: "Your package is pending pickup",
@@ -139,7 +145,10 @@ export class NotificationService {
     return await this.sendNotification({
       type: "PACKAGE_STATUS_UPDATE",
       title: "Package Status Update",
-      message: message || statusMessages[status] || `Your package status has been updated to: ${status}`,
+      message:
+        message ||
+        statusMessages[status] ||
+        `Your package status has been updated to: ${status}`,
       userId,
       data: {
         packageId,
@@ -158,7 +167,7 @@ export class NotificationService {
     packageId: string,
     bidId: string,
     amount: number,
-    type: "RECEIVED" | "ACCEPTED" | "REJECTED"
+    type: "RECEIVED" | "ACCEPTED" | "REJECTED",
   ): Promise<{ success: boolean }> {
     const messages: Record<string, string> = {
       RECEIVED: `You received a new bid of ${amount} for your package`,
@@ -184,11 +193,15 @@ export class NotificationService {
   /**
    * Send delivery PIN notification
    */
-  async sendDeliveryPinNotification(userId: string, packageId: string): Promise<{ success: boolean }> {
+  async sendDeliveryPinNotification(
+    userId: string,
+    packageId: string,
+  ): Promise<{ success: boolean }> {
     return await this.sendNotification({
       type: "DELIVERY_PIN_SENT",
       title: "Delivery Confirmation PIN",
-      message: "A delivery confirmation PIN has been sent to the recipient's phone number.",
+      message:
+        "A delivery confirmation PIN has been sent to the recipient's phone number.",
       userId,
       data: {
         packageId,
@@ -201,7 +214,10 @@ export class NotificationService {
   /**
    * Send delivery completed notification
    */
-  async sendDeliveryCompletedNotification(userId: string, packageId: string): Promise<{ success: boolean }> {
+  async sendDeliveryCompletedNotification(
+    userId: string,
+    packageId: string,
+  ): Promise<{ success: boolean }> {
     return await this.sendNotification({
       type: "DELIVERY_COMPLETED",
       title: "Delivery Completed",
@@ -218,7 +234,10 @@ export class NotificationService {
   /**
    * Mark notification as read
    */
-  async markAsRead(notificationId: string, userId: string): Promise<{ success: boolean }> {
+  async markAsRead(
+    notificationId: string,
+    userId: string,
+  ): Promise<{ success: boolean }> {
     try {
       const prismaClient = getPrismaClient();
 
@@ -266,7 +285,11 @@ export class NotificationService {
   /**
    * Get user's notifications
    */
-  async getUserNotifications(userId: string, limit: number = 50, offset: number = 0) {
+  async getUserNotifications(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ) {
     try {
       const prismaClient = getPrismaClient();
 
@@ -296,4 +319,3 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService();
-
