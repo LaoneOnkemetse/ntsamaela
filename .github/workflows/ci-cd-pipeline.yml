@@ -30,11 +30,9 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: true
 
       - name: Run TypeScript check
         run: npm run type-check
-        continue-on-error: true
 
       - name: Security audit
         run: npm run security:audit
@@ -91,16 +89,16 @@ jobs:
           echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
           echo "NODE_ENV=test" >> apps/api/.env.test
           echo "DISABLE_PRISMA=false" >> apps/api/.env.test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_test
 
       - name: Run database migrations
         run: |
           cd apps/api
-          npm run migrate:test || echo "Migrations skipped"
-        continue-on-error: true
+          npm run migrate:test
 
       - name: Run API unit tests
         run: npm run test:api
-        continue-on-error: true
 
   # Job 3: Integration Tests
   integration-tests:
@@ -153,16 +151,16 @@ jobs:
           echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
           echo "NODE_ENV=test" >> apps/api/.env.test
           echo "DISABLE_PRISMA=false" >> apps/api/.env.test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_integration_test
 
       - name: Run database migrations
         run: |
           cd apps/api
-          npm run migrate:test || echo "Migrations skipped"
-        continue-on-error: true
+          npm run migrate:test
 
       - name: Run integration tests
         run: npm run test:integration:api
-        continue-on-error: true
 
   # Job 4: Performance Tests
   performance-tests:
@@ -216,16 +214,16 @@ jobs:
           echo "ADMIN_JWT_SECRET=test-admin-jwt-secret" >> apps/api/.env.test
           echo "NODE_ENV=test" >> apps/api/.env.test
           echo "DISABLE_PRISMA=false" >> apps/api/.env.test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ntsamaela_perf_test
 
       - name: Run database migrations
         run: |
           cd apps/api
-          npm run migrate:test || echo "Migrations skipped"
-        continue-on-error: true
+          npm run migrate:test
 
       - name: Run performance tests
         run: npm run test:performance
-        continue-on-error: true
 
   # Job 5: Build Docker Images (verify builds work)
   build-images:

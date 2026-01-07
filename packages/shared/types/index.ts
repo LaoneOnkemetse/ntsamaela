@@ -512,7 +512,7 @@ export interface VerificationConfig {
   riskThresholds: RiskThresholds;
   facialRecognition: FacialRecognitionConfig;
   ocr: OCRConfig;
-  aws: AWSConfig;
+  aws?: AWSConfig; // Optional - AWS services have been migrated to Google Cloud Vision
 }
 
 export interface DocumentTypeConfig {
