@@ -48,7 +48,7 @@ COPY --from=builder /app/packages ./packages
 
 # Copy Prisma schema and migrations for runtime
 COPY --from=builder /app/packages/database/schema.prisma ./packages/database/
-COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+COPY --from=builder /app/packages/database/migrations ./packages/database/migrations
 
 # Make startup script executable
 RUN chmod +x ./railway-start.sh
