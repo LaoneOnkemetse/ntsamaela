@@ -26,6 +26,10 @@ COPY apps/api ./apps/api
 COPY packages ./packages
 COPY tsconfig.json tsconfig.base.json ./
 
+# Generate Prisma client before build
+WORKDIR /app/packages/database
+RUN npx prisma generate --schema=./schema.prisma
+
 # Build the application
 WORKDIR /app/apps/api
 RUN npm run build
