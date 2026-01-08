@@ -68,7 +68,7 @@ jest.mock("../decisionEngineService", () => {
   }));
 });
 
-import VerificationService from "../verificationService";
+import verificationService from "../verificationService";
 import {
   DocumentData,
   VerificationResult,
@@ -78,11 +78,8 @@ import {
 } from "@shared/types";
 
 describe("VerificationService", () => {
-  let verificationService: VerificationService;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    verificationService = new VerificationService();
 
     // Set up default audit log mock
     mockPrisma.verificationAuditLog.create.mockResolvedValue({

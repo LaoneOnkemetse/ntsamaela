@@ -152,8 +152,8 @@ describe("AuthService", () => {
       const bcrypt = require("bcryptjs");
       const jwt = require("jsonwebtoken");
 
-      // Reset mocks but keep implementations
-      jest.resetAllMocks();
+      // Clear previous call history but keep implementations
+      jest.clearAllMocks();
 
       // Set up mocks
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
@@ -204,8 +204,8 @@ describe("AuthService", () => {
         updatedAt: new Date(),
       };
 
-      // Reset mocks but keep implementations
-      jest.resetAllMocks();
+      // Clear previous call history but keep implementations
+      jest.clearAllMocks();
 
       // Set up mocks
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
