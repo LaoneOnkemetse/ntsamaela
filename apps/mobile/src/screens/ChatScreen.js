@@ -31,6 +31,7 @@ export const ChatScreen = ({ navigation, route }) => {
 
     return () => {
       socketService.off('new_message');
+      socketService.off('chat:message');
       socketService.off('message_read');
     };
   }, [roomId]);
@@ -78,9 +79,30 @@ export const ChatScreen = ({ navigation, route }) => {
   };
 
   const setupSocketListeners = () => {
+    socketService.on('chat:message', (message) => {
+      if (message.chatRoomId === roomId || message.chatRoomId === chatRoom?.id) {
+        setMessages((prev) => {
+          // Avoid duplicates
+          if (prev.find((m) => m.id === message.id)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    });
+
     socketService.on('new_message', (message) => {
       if (message.chatRoomId === roomId || message.chatRoomId === chatRoom?.id) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          // Avoid duplicates
+          if (prev.find((m) => m.id === message.id)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -106,7 +128,8 @@ export const ChatScreen = ({ navigation, route }) => {
       const response = await apiService.sendMessage(roomId, messageToSend);
       if (response.success) {
         // Message will be added via socket listener
-        socketService.emit('send_message', {
+        // Also emit socket event for real-time updates
+        socketService.emit('chat:message', {
           chatRoomId: roomId,
           message: messageToSend,
           messageType: 'TEXT',

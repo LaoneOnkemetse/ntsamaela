@@ -224,6 +224,21 @@ class ApiService {
       method: 'PUT',
     });
   }
+
+  // FCM Token Management
+  async registerFcmToken(fcmToken) {
+    return this.request('/api/auth/fcm-token/register', {
+      method: 'POST',
+      body: JSON.stringify({ fcmToken }),
+    });
+  }
+
+  async removeFcmToken(fcmToken) {
+    return this.request('/api/auth/fcm-token/remove', {
+      method: 'POST',
+      body: JSON.stringify({ fcmToken }),
+    });
+  }
 }
 
 export default new ApiService();

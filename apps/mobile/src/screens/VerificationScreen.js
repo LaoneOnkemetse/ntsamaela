@@ -105,7 +105,6 @@ export const VerificationScreen = ({ navigation, route }) => {
       const formData = new FormData();
       
       // Add images
-      const frontFormData = createFormData(frontImage, 'frontImage');
       formData.append('frontImage', {
         uri: frontImage.uri,
         type: 'image/jpeg',

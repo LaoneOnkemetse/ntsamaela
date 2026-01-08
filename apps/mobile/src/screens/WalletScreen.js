@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
@@ -67,13 +68,18 @@ export const WalletScreen = ({ navigation, route }) => {
       
       if (response.success) {
         if (response.data?.paymentUrl) {
-          // Open payment URL (in production, use WebView or Linking)
-          Alert.alert(
-            'Payment',
-            'Redirecting to payment gateway...',
-            [{ text: 'OK', onPress: () => setShowRechargeModal(false) }]
-          );
-          // In production: Linking.openURL(response.data.paymentUrl);
+          // Open payment URL in browser
+          const canOpen = await Linking.canOpenURL(response.data.paymentUrl);
+          if (canOpen) {
+            await Linking.openURL(response.data.paymentUrl);
+            Alert.alert(
+              'Payment',
+              'Redirecting to payment gateway. Please complete the payment and return to the app.',
+              [{ text: 'OK', onPress: () => setShowRechargeModal(false) }]
+            );
+          } else {
+            Alert.alert('Error', 'Cannot open payment URL');
+          }
         } else {
           Alert.alert('Success', 'Wallet recharged successfully');
           setShowRechargeModal(false);

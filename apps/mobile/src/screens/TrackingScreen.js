@@ -35,7 +35,9 @@ export const TrackingScreen = ({ navigation, route }) => {
 
     return () => {
       socketService.off('location_update');
+      socketService.off('package:location:update');
       socketService.off('package_status_update');
+      socketService.off('delivery:status:updated');
     };
   }, [packageId]);
 
@@ -84,6 +86,9 @@ export const TrackingScreen = ({ navigation, route }) => {
   };
 
   const setupSocketListeners = () => {
+    // Subscribe to package tracking updates
+    socketService.emit('package:track', { packageId });
+
     socketService.on('location_update', (data) => {
       if (data.packageId === packageId) {
         setDriverLocation({
@@ -94,7 +99,23 @@ export const TrackingScreen = ({ navigation, route }) => {
       }
     });
 
+    socketService.on('package:location:update', (data) => {
+      if (data.packageId === packageId) {
+        setDriverLocation({
+          latitude: data.latitude,
+          longitude: data.longitude,
+        });
+        updateMapRegion(data.latitude, data.longitude);
+      }
+    });
+
     socketService.on('package_status_update', (data) => {
+      if (data.packageId === packageId) {
+        loadTrackingData();
+      }
+    });
+
+    socketService.on('delivery:status:updated', (data) => {
       if (data.packageId === packageId) {
         loadTrackingData();
       }
