@@ -16,7 +16,7 @@ const nextConfig = {
     NEXT_PUBLIC_DEPLOYMENT_ID: 'replit-deployment',
   },
   images: {
-    domains: ['localhost', 'your-s3-bucket.s3.amazonaws.com'],
+    domains: ['localhost'],
   },
   async rewrites() {
     return [

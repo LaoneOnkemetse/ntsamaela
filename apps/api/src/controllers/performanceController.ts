@@ -407,7 +407,7 @@ class PerformanceController {
   private async checkStorageHealth(): Promise<'healthy' | 'degraded' | 'critical'> {
     try {
       // Mock storage health check
-      // In real implementation, this would check AWS S3 connectivity
+      // In real implementation, this would check cloud storage connectivity
       if (Math.random() > 0.1) { // 90% chance of success
         return 'healthy';
       } else {

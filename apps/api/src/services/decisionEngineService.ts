@@ -547,12 +547,6 @@ export class DecisionEngineService {
         supportedLanguages: ['en'],
         customFields: [],
       },
-      aws: {
-        region: 'us-east-1',
-        rekognitionCollectionId: 'ntsamaela-verification',
-        textractRoleArn: '',
-        s3Bucket: 'ntsamaela-documents',
-      },
     };
   }
 }

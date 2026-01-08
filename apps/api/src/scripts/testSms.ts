@@ -19,7 +19,7 @@ async function main() {
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-  console.log(`📤 Sending test OTP ${code} to ${phone} using AWS SNS...`);
+  console.log(`📤 Sending test OTP ${code} to ${phone}...`);
 
   try {
     const result = await sendOtp(phone, code, "registration");

@@ -38,49 +38,7 @@ jest.mock("../../utils/AppError", () => ({
   },
 }));
 
-// Mock AWS SDK v3 - mock is set up in setup.ts
-jest.mock("@aws-sdk/client-rekognition", () => ({
-  RekognitionClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn().mockImplementation((command) => {
-      const commandName = command.constructor.name;
-
-      switch (commandName) {
-        case "AnalyzeDocumentCommand":
-          return Promise.resolve({
-            Blocks: [{ BlockType: "LINE", Text: "Test Document" }],
-            DocumentMetadata: { Pages: 1 },
-          });
-        case "DetectFacesCommand":
-          return Promise.resolve({
-            FaceDetails: [{ Confidence: 99.5 }],
-          });
-        case "CompareFacesCommand":
-          return Promise.resolve({
-            FaceMatches: [{ Similarity: 95.5 }],
-          });
-        default:
-          return Promise.resolve({});
-      }
-    }),
-  })),
-  AnalyzeDocumentCommand: jest.fn(),
-  DetectFacesCommand: jest.fn(),
-  CompareFacesCommand: jest.fn(),
-}));
-
-jest.mock("@aws-sdk/client-textract", () => ({
-  TextractClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn().mockResolvedValue({
-      Blocks: [
-        { BlockType: "LINE", Text: "John Doe" },
-        { BlockType: "LINE", Text: "Date of Birth: 01/01/1990" },
-        { BlockType: "LINE", Text: "Document Number: ABC123456" },
-      ],
-      DocumentMetadata: { Pages: 1 },
-    }),
-  })),
-  AnalyzeDocumentCommand: jest.fn(),
-}));
+// AWS services removed - using Google Cloud Vision instead
 
 describe("Verification Service Mocks", () => {
   beforeEach(() => {
@@ -93,7 +51,6 @@ describe("Verification Service Mocks", () => {
     const { sendEmail } = require("../emailService");
     const { sendSms } = require("../smsService");
     const { AppError } = require("../../utils/AppError");
-    // AWS SDK v3 is mocked at the module level
 
     expect(prisma).toBeDefined();
     expect(prisma.user.findUnique).toBeDefined();
@@ -101,7 +58,6 @@ describe("Verification Service Mocks", () => {
     expect(sendEmail).toBeDefined();
     expect(sendSms).toBeDefined();
     expect(AppError).toBeDefined();
-    // AWS SDK v3 services are mocked at module level
     expect(true).toBe(true);
   });
 
@@ -135,11 +91,6 @@ describe("Verification Service Mocks", () => {
     expect(verification.id).toBe("verification-123");
   });
 
-  it("should mock AWS services", async () => {
-    // AWS SDK v3 is mocked at the module level
-    // The mocks are set up in the jest.mock() calls at the top of the file
-    expect(true).toBe(true); // Placeholder test since mocks are verified at module level
-  });
 
   it("should mock email and SMS services", async () => {
     const { sendEmail } = require("../emailService");

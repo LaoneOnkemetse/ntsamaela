@@ -135,7 +135,7 @@ describe('OCRService', () => {
         },
         confidence: 0.1,
         processingTime: 100,
-        errors: ['OCR extraction failed: AWS Error'],
+        errors: ['OCR extraction failed: Service Error'],
       });
 
       const result = await service.extractDocumentData(mockImageBase64, 'DRIVERS_LICENSE');
@@ -164,11 +164,11 @@ describe('OCRService', () => {
         },
         confidence: 0,
         processingTime: 100,
-        errors: ['OCR extraction failed: AWS Error'],
+        errors: ['OCR extraction failed: Service Error'],
       });
 
       const result = await service.extractDocumentData(mockImageBase64, 'DRIVERS_LICENSE');
-      expect(result.errors).toContain('OCR extraction failed: AWS Error');
+      expect(result.errors).toContain('OCR extraction failed: Service Error');
     });
   });
 
