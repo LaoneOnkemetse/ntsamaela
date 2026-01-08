@@ -10,6 +10,7 @@ import {
   CreateNotificationRequest
 } from '@ntsamaela/shared/types';
 import { AppError } from '../utils/errors';
+import jwt from 'jsonwebtoken';
 
 export class RealtimeService {
   private io: SocketIOServer;
@@ -45,8 +46,26 @@ export class RealtimeService {
         if (!token) {
           return next(new Error('Authentication required'));
         }
-        // TODO: Verify JWT token here
-        next();
+        
+        try {
+          // Verify JWT token
+          const secret = process.env.JWT_SECRET || "your-secret-key";
+          const decoded = jwt.verify(token, secret) as { id: string; email: string; userType: string; iat?: number; exp?: number };
+          
+          // Store user info in socket data for later use
+          // Note: JWT payload uses 'id' but we store as 'userId' for consistency
+          socket.data = {
+            userId: decoded.id,
+            email: decoded.email,
+            userType: decoded.userType,
+            token: token
+          };
+          
+          next();
+        } catch (error) {
+          console.error(`JWT verification failed for socket ${socket.id}:`, error);
+          return next(new Error('Invalid or expired token'));
+        }
       });
 
       // User connection
@@ -124,16 +143,27 @@ export class RealtimeService {
   }
 
   private handleUserConnect(socket: Socket, data: { userId: string; userType: string }): void {
-    this.connectedUsers.set(data.userId, socket.id);
+    // Use verified user data from socket if available, otherwise use provided data
+    const userId = socket.data?.userId || data.userId;
+    const userType = socket.data?.userType || data.userType;
+    
+    // Verify that the userId from token matches the provided userId
+    if (socket.data?.userId && socket.data.userId !== data.userId) {
+      console.warn(`User ID mismatch: token has ${socket.data.userId}, provided ${data.userId}`);
+      socket.emit('error', { message: 'User ID mismatch' });
+      return;
+    }
+    
+    this.connectedUsers.set(userId, socket.id);
     this.userSockets.set(socket.id, socket);
     
     // Join user-specific room
-    socket.join(`user:${data.userId}`);
+    socket.join(`user:${userId}`);
     
-    console.log(`User ${data.userId} connected with socket ${socket.id}`);
+    console.log(`User ${userId} (${userType}) connected with socket ${socket.id}`);
     
     // Send any pending notifications
-    this.sendPendingNotifications(data.userId);
+    this.sendPendingNotifications(userId);
   }
 
   private handleUserDisconnect(socket: Socket): void {
@@ -161,8 +191,10 @@ export class RealtimeService {
 
   private async handleChatMessage(socket: Socket, data: CreateChatMessageRequest): Promise<void> {
     try {
-      // Get user info from socket
-      const userId = this.getUserIdFromSocket(socket);
+      // Get user info from verified socket data
+      const userId = socket.data?.userId || this.getUserIdFromSocket(socket);
+      const userType = socket.data?.userType || 'CUSTOMER';
+      
       if (!userId) {
         socket.emit('error', { message: 'User not authenticated' });
         return;
@@ -172,7 +204,7 @@ export class RealtimeService {
       const message = await this.sendMessage(
         data.chatRoomId,
         userId,
-        'CUSTOMER', // TODO: Determine user type
+        userType,
         data.message,
         data.messageType
       );
@@ -191,7 +223,7 @@ export class RealtimeService {
     socket.to(`chat:${data.chatRoomId}`).emit('chat:typing', {
       chatRoomId: data.chatRoomId,
       isTyping: data.isTyping,
-      userId: this.getUserIdFromSocket(socket)
+      userId: socket.data?.userId || this.getUserIdFromSocket(socket)
     });
   }
 
@@ -702,7 +734,7 @@ export class RealtimeService {
       if (!this.prisma) return;
 
       // Verify user has permission to update this package location
-      const userId = this.getUserIdFromSocket(socket);
+      const userId = socket.data?.userId || this.getUserIdFromSocket(socket);
       if (!userId) return;
 
       // Create tracking update
@@ -758,7 +790,7 @@ export class RealtimeService {
     try {
       if (!this.prisma) return;
 
-      const userId = this.getUserIdFromSocket(socket);
+      const userId = socket.data?.userId || this.getUserIdFromSocket(socket);
       if (!userId) return;
 
       // Create tracking update
@@ -833,7 +865,7 @@ export class RealtimeService {
     try {
       if (!this.prisma) return;
 
-      const userId = this.getUserIdFromSocket(socket);
+      const userId = socket.data?.userId || this.getUserIdFromSocket(socket);
       if (!userId) return;
 
       // Update trip status
