@@ -38,8 +38,7 @@ jest.mock("../../utils/AppError", () => ({
   },
 }));
 
-// Mock AWS SDK v3 - create mock before any imports
-// Note: This mock will work even if the module isn't installed
+// Mock AWS SDK v3 - mock is set up in setup.ts
 jest.mock("@aws-sdk/client-rekognition", () => ({
   RekognitionClient: jest.fn().mockImplementation(() => ({
     send: jest.fn().mockImplementation((command) => {

@@ -61,7 +61,7 @@ jobs:
         run: npm run test:${{ matrix.app }}
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./coverage/${{ matrix.app }}/lcov.info
           flags: ${{ matrix.app }}
@@ -230,7 +230,7 @@ jobs:
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
 
       - name: Start Android emulator
         uses: reactivecircus/android-emulator-runner@v2

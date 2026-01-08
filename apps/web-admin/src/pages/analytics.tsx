@@ -101,7 +101,7 @@ export default function Analytics() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load analytics. Please try again.
+          {error instanceof Error ? error.message : 'Failed to load analytics. Please try again.'}
         </Alert>
       )}
 

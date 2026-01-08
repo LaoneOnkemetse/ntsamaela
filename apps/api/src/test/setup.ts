@@ -85,6 +85,17 @@ jest.mock('@/services/fileUploadService', () => ({
   deleteImage: jest.fn().mockResolvedValue({ success: true }),
 }));
 
+// Mock AWS SDK - create mock that works even if module doesn't exist
+jest.doMock('@aws-sdk/client-rekognition', () => ({
+  RekognitionClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn().mockResolvedValue({}),
+  })),
+  AnalyzeDocumentCommand: jest.fn(),
+  DetectFacesCommand: jest.fn(),
+  CompareFacesCommand: jest.fn(),
+  DetectDocumentTextCommand: jest.fn(),
+}));
+
 // Global test utilities
 (global as { testUtils?: unknown }).testUtils = {
   // Add any global test utilities here

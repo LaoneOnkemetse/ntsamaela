@@ -192,7 +192,7 @@ export default function Users() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load users. Please try again.
+          {error instanceof Error ? error.message : 'Failed to load users. Please try again.'}
         </Alert>
       )}
 

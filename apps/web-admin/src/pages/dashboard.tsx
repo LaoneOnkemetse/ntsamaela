@@ -320,7 +320,16 @@ export default function Dashboard() {
     },
   ];
 
-  const recentPackages = (packagesData || []).map((pkg: any) => ({
+  interface PackageItem {
+    id: string;
+    customer: string;
+    driver: string;
+    route: string;
+    amount: number;
+    status: string;
+  }
+
+  const recentPackages = (packagesData || []).map((pkg: any): PackageItem => ({
     id: pkg.id || pkg.packageId,
     customer: pkg.customer?.firstName ? `${pkg.customer.firstName} ${pkg.customer.lastName}` : pkg.customerName || 'Unknown',
     driver: pkg.driver?.firstName ? `${pkg.driver.firstName} ${pkg.driver.lastName}` : pkg.driverName || 'Unassigned',
@@ -329,7 +338,16 @@ export default function Dashboard() {
     status: pkg.status?.toLowerCase() || 'pending',
   }));
 
-  const pendingVerifications = (verificationsData || []).map((ver: any) => ({
+  interface VerificationItem {
+    id: string;
+    userId: string;
+    userName: string;
+    documentType: string;
+    status: string;
+    submittedAt: string;
+  }
+
+  const pendingVerifications = (verificationsData || []).map((ver: any): VerificationItem => ({
     id: ver.id || ver.verificationId,
     name: ver.user?.firstName ? `${ver.user.firstName} ${ver.user.lastName}` : ver.userName || 'Unknown',
     type: ver.documentType || 'Unknown',
@@ -350,9 +368,9 @@ export default function Dashboard() {
     return colors[statusLower] || colors.pending;
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string): React.ReactElement | undefined => {
     const statusLower = status.toLowerCase();
-    const icons: Record<string, React.ReactNode> = {
+    const icons: Record<string, React.ReactElement> = {
       delivered: <CheckCircle sx={{ fontSize: 18 }} />,
       'in-transit': <LocalShipping sx={{ fontSize: 18 }} />,
       'in_transit': <LocalShipping sx={{ fontSize: 18 }} />,

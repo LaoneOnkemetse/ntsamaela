@@ -152,14 +152,15 @@ describe("AuthService", () => {
       const bcrypt = require("bcryptjs");
       const jwt = require("jsonwebtoken");
 
-      // Clear previous mocks
-      jest.clearAllMocks();
+      // Reset mocks but keep implementations
+      jest.resetAllMocks();
 
+      // Set up mocks
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
       jwt.sign.mockReturnValue("mock-jwt-token");
 
-      const result = await authService.login(mockCredentials);
+      const result = await authService.login(mockCredentials.email, mockCredentials.password);
 
       expect(result.success).toBe(true);
       expect(result.data?.user.email).toBe(mockCredentials.email);
@@ -178,7 +179,7 @@ describe("AuthService", () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(false);
 
-      const result = await authService.login(mockCredentials);
+      const result = await authService.login(mockCredentials.email, mockCredentials.password);
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe("INVALID_CREDENTIALS");
@@ -203,11 +204,15 @@ describe("AuthService", () => {
         updatedAt: new Date(),
       };
 
+      // Reset mocks but keep implementations
+      jest.resetAllMocks();
+
+      // Set up mocks
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
       jwt.sign.mockReturnValue("mock-jwt-token");
 
-      const result = await authService.login(mockCredentials);
+      const result = await authService.login(mockCredentials.email, mockCredentials.password);
 
       expect(result.success).toBe(true);
       expect(result.data?.user.email).toBe(mockCredentials.email);

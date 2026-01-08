@@ -99,6 +99,26 @@ export const deleteUser = async (id: string) => {
   }
 };
 
+export const suspendUser = async (id: string, reason?: string) => {
+  try {
+    const response = await apiClient.post(`/admin/users/${id}/suspend`, { reason });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error suspending user:', error);
+    throw error;
+  }
+};
+
+export const unsuspendUser = async (id: string) => {
+  try {
+    const response = await apiClient.post(`/admin/users/${id}/unsuspend`);
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error unsuspending user:', error);
+    throw error;
+  }
+};
+
 // Driver management API methods
 export const getDrivers = async (params?: any) => {
   try {

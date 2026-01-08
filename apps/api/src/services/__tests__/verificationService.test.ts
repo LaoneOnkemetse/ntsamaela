@@ -27,13 +27,8 @@ jest.mock("../emailService", () => ({
   sendEmail: jest.fn(),
 }));
 
-// Mock AWS SDK - create mock before any imports
-// Note: This mock will work even if the module isn't installed
-try {
-  require("@aws-sdk/client-rekognition");
-} catch (e) {
-  // Module doesn't exist, create a mock
-}
+// Mock AWS SDK - mock is set up in setup.ts
+// This allows the mock to work even if the module doesn't exist
 jest.mock("@aws-sdk/client-rekognition", () => ({
   RekognitionClient: jest.fn().mockImplementation(() => ({
     send: jest.fn().mockImplementation((command) => {

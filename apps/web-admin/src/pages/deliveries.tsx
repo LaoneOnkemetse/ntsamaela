@@ -121,7 +121,7 @@ export default function Deliveries() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load deliveries. Please try again.
+          {error instanceof Error ? error.message : 'Failed to load deliveries. Please try again.'}
         </Alert>
       )}
 
@@ -191,7 +191,7 @@ export default function Deliveries() {
                           size="small"
                           onClick={() => {
                             // Navigate to package details
-                            toast.info('Package details view coming soon');
+                            toast('Package details view coming soon');
                           }}
                         >
                           <Visibility fontSize="small" />
@@ -200,7 +200,7 @@ export default function Deliveries() {
                           size="small"
                           onClick={() => {
                             // Edit package
-                            toast.info('Package edit coming soon');
+                            toast('Package edit coming soon');
                           }}
                         >
                           <Edit fontSize="small" />

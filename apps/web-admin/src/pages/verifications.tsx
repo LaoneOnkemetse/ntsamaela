@@ -224,7 +224,7 @@ export default function Verifications() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load verifications. Please try again.
+          {error instanceof Error ? error.message : 'Failed to load verifications. Please try again.'}
         </Alert>
       )}
 
