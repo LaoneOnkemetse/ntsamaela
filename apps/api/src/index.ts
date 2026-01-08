@@ -13,12 +13,12 @@ initializePrisma();
 
 // All middleware and routes are already configured in app.ts
 
-// Start server
-server.listen(PORT, () => {
+// Start server - listen on 0.0.0.0 to accept connections from outside container
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API base: http://localhost:${PORT}/api`);
+  console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`🔗 API base: http://0.0.0.0:${PORT}/api`);
   console.log(`🔌 Socket.IO enabled for real-time features`);
 });
 
