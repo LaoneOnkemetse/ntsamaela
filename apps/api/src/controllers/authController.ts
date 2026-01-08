@@ -680,7 +680,7 @@ export class AuthController {
 
       // Remove token if present
       const existingTokens = user.fcmTokens || [];
-      const updatedTokens = existingTokens.filter((token) => token !== fcmToken);
+      const updatedTokens = existingTokens.filter((token: string) => token !== fcmToken);
 
       // Update user
       await prismaClient.user.update({
