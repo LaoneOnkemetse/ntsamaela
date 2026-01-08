@@ -1,5 +1,5 @@
 # Multi-stage build for Ntsamaela API
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -12,8 +12,8 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/database/package.json ./packages/database/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev for Prisma CLI)
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -42,19 +42,28 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the built application
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/apps/api/railway-start.sh ./railway-start.sh
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
+
+# Copy Prisma schema and migrations for runtime
+COPY --from=builder /app/packages/database/schema.prisma ./packages/database/
+COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
+
+# Make startup script executable
+RUN chmod +x ./railway-start.sh
 
 # Railway provides PORT automatically, but we set a default
 ENV PORT=3000
 
-USER nodejs
+# Keep root user for migrations (Railway handles security)
+# USER nodejs
 
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Railway will override PORT, so we use it from env
-CMD ["node", "dist/index.js"]
+# Use startup script that runs migrations first
+CMD ["./railway-start.sh"]

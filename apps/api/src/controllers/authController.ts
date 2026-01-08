@@ -114,14 +114,14 @@ export class AuthController {
           console.error("❌ CRITICAL: Prisma client is null or undefined");
           throw new Error("Database client not available");
         }
-
+        
         // Check if we're using mock client (shouldn't happen in production)
         if (process.env.DISABLE_PRISMA === "true") {
           console.warn(
             "⚠️ WARNING: Using mock database client - login will not work with real data",
           );
         }
-
+        
         console.log("✅ Prisma client obtained, type:", typeof prisma);
         console.log(
           "✅ Prisma client has user.findFirst:",
@@ -218,13 +218,13 @@ export class AuthController {
       console.error("❌ Error name:", _error?.name);
       console.error("❌ Error message:", _error?.message);
       console.error("❌ Error stack:", _error?.stack);
-
+      
       // Check if it's a database connection error
       if (
         _error.message &&
         (_error.message.includes("Can't reach database server") ||
-          _error.message.includes("P1001") || // Prisma connection error code
-          _error.message.includes("connect ECONNREFUSED") ||
+        _error.message.includes("P1001") || // Prisma connection error code
+        _error.message.includes("connect ECONNREFUSED") ||
           _error.message.includes("Database client not available"))
       ) {
         console.error("❌ Database connection error detected");
@@ -236,7 +236,7 @@ export class AuthController {
           },
         });
       }
-
+      
       // Check if it's a Prisma query error
       if (_error.code && _error.code.startsWith("P")) {
         console.error("❌ Prisma error detected:", _error.code);
@@ -248,7 +248,7 @@ export class AuthController {
           },
         });
       }
-
+      
       res.status(500).json({
         success: false,
         error: {
@@ -268,7 +268,7 @@ export class AuthController {
           error: { code: "DATABASE_ERROR", message: "Database unavailable" },
         });
       }
-
+      
       const userId = req.user!.id;
 
       const user = await prisma.user.findUnique({

@@ -40,6 +40,7 @@ const nextConfig = {
     ];
   },
   distDir: '.next',
+  output: 'standalone',
   experimental: {
     webpackBuildWorker: false,
   },

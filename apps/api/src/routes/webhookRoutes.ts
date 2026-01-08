@@ -38,11 +38,11 @@ router.post("/paystack", async (req: Request, res: Response) => {
   try {
     const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
     const isDevelopment = process.env.NODE_ENV !== "production";
-
+    
     // Get payload and signature
     const payload = req.body.toString();
     const signature = req.headers["x-paystack-signature"] as string;
-
+    
     // Verify signature if secret is configured
     if (webhookSecret && webhookSecret !== "hsk_your-paystack-webhook-secret") {
       if (!signature) {
@@ -176,10 +176,10 @@ async function handleChargeSuccess(data: any, prisma: any) {
             type: "PAYMENT_SUCCESS",
             title: "Payment Successful",
             message: `Your payment of ${amount} has been processed successfully`,
-            data: {
-              transactionId: dbTransaction.id,
+              data: {
+                transactionId: dbTransaction.id,
               type: "PAYMENT_SUCCESS",
-            },
+              },
           });
         }
       }
@@ -233,10 +233,10 @@ async function handleChargeFailed(data: any, prisma: any) {
           type: "PAYMENT_FAILED",
           title: "Payment Failed",
           message: `Your payment failed: ${reason}`,
-          data: {
-            transactionId: dbTransaction.id,
+            data: {
+              transactionId: dbTransaction.id,
             type: "PAYMENT_FAILED",
-          },
+            },
         });
       }
     }
@@ -415,7 +415,7 @@ router.post("/stripe", async (req: Request, res: Response) => {
         return res
           .status(500)
           .json({ error: "Stripe webhook secret not configured" });
-      }
+    }
       console.warn(
         "⚠️  Development mode: Stripe webhook secret not configured. Signature verification skipped.",
       );
