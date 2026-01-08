@@ -33,7 +33,7 @@ initializePrisma();
 
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Initialize Real-time Service (only if server is provided)
 if (server) {
