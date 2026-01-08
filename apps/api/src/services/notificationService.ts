@@ -1,5 +1,5 @@
 import { getPrismaClient } from "@database/index";
-import { fcmService } from "./fcmService";
+import { fcmService, sendPushNotificationToMultiple, FCMNotification } from "./fcmService";
 
 export interface NotificationData {
   type: string;
@@ -40,26 +40,26 @@ export class NotificationService {
 
       // Send push notification if FCM is available
       if (fcmService.isReady() && notificationData.userId) {
-        // Get user's FCM tokens (you'll need to store these in your database)
-        // For now, we'll try to send to the user ID as token (you should update this)
-        // TODO: Get actual FCM token from user's device
-        // For now, we'll just create the in-app notification
-        // When you implement FCM token storage, uncomment below:
-        /*
-        const _fcmNotification: FCMNotification = {
-          title: notificationData.title,
-          body: notificationData.message,
-          data: notificationData.data || {},
-        };
-        const user = await prismaClient.user.findUnique({
-          where: { id: notificationData.userId },
-          select: { fcmTokens: true } // You'll need to add this field to User model
-        });
+        try {
+          // Get user's FCM tokens from database
+          const user = await prismaClient.user.findUnique({
+            where: { id: notificationData.userId },
+            select: { fcmTokens: true },
+          });
 
-        if (user?.fcmTokens && user.fcmTokens.length > 0) {
-          await sendPushNotificationToMultiple(user.fcmTokens, _fcmNotification);
+          if (user?.fcmTokens && user.fcmTokens.length > 0) {
+            const fcmNotification: FCMNotification = {
+              title: notificationData.title,
+              body: notificationData.message,
+              data: notificationData.data || {},
+            };
+
+            await sendPushNotificationToMultiple(user.fcmTokens, fcmNotification);
+          }
+        } catch (error: any) {
+          // Log error but don't fail the notification creation
+          console.error("Error sending push notification:", error);
         }
-        */
       }
 
       return {
@@ -107,9 +107,35 @@ export class NotificationService {
       });
 
       // Send push notifications if FCM is available
-      if (fcmService.isReady()) {
-        // TODO: Get FCM tokens for all users and send
-        // For now, we'll just create in-app notifications
+      if (fcmService.isReady() && notificationData.userIds) {
+        try {
+          // Get FCM tokens for all users
+          const users = await prismaClient.user.findMany({
+            where: { id: { in: notificationData.userIds } },
+            select: { fcmTokens: true },
+          });
+
+          // Collect all FCM tokens
+          const allTokens: string[] = [];
+          users.forEach((user) => {
+            if (user.fcmTokens && user.fcmTokens.length > 0) {
+              allTokens.push(...user.fcmTokens);
+            }
+          });
+
+          if (allTokens.length > 0) {
+            const fcmNotification: FCMNotification = {
+              title: notificationData.title,
+              body: notificationData.message,
+              data: notificationData.data || {},
+            };
+
+            await sendPushNotificationToMultiple(allTokens, fcmNotification);
+          }
+        } catch (error: any) {
+          // Log error but don't fail the notification creation
+          console.error("Error sending push notifications to multiple users:", error);
+        }
       }
 
       return {

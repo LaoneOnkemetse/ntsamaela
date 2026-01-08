@@ -554,6 +554,159 @@ export class AuthController {
   }
 
   // Additional methods to match route expectations
+  /**
+   * Register FCM token for push notifications
+   */
+  async registerFcmToken(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const { fcmToken } = req.body;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "User not authenticated",
+          },
+        });
+        return;
+      }
+
+      if (!fcmToken || typeof fcmToken !== "string") {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: "INVALID_TOKEN",
+            message: "Valid FCM token is required",
+          },
+        });
+        return;
+      }
+
+      const prismaClient = getPrismaClient();
+
+      // Get current user to check existing tokens
+      const user = await prismaClient.user.findUnique({
+        where: { id: userId },
+        select: { fcmTokens: true },
+      });
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
+        });
+        return;
+      }
+
+      // Add token if not already present (prevent duplicates)
+      const existingTokens = user.fcmTokens || [];
+      const updatedTokens = existingTokens.includes(fcmToken)
+        ? existingTokens
+        : [...existingTokens, fcmToken];
+
+      // Update user with new token
+      await prismaClient.user.update({
+        where: { id: userId },
+        data: { fcmTokens: updatedTokens },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "FCM token registered successfully",
+        data: {
+          tokenCount: updatedTokens.length,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error registering FCM token:", error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "FCM_TOKEN_REGISTRATION_ERROR",
+          message: error.message || "Failed to register FCM token",
+        },
+      });
+    }
+  }
+
+  /**
+   * Remove FCM token (e.g., on logout)
+   */
+  async removeFcmToken(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const { fcmToken } = req.body;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "User not authenticated",
+          },
+        });
+        return;
+      }
+
+      const prismaClient = getPrismaClient();
+
+      // Get current user
+      const user = await prismaClient.user.findUnique({
+        where: { id: userId },
+        select: { fcmTokens: true },
+      });
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "User not found",
+          },
+        });
+        return;
+      }
+
+      // Remove token if present
+      const existingTokens = user.fcmTokens || [];
+      const updatedTokens = existingTokens.filter((token) => token !== fcmToken);
+
+      // Update user
+      await prismaClient.user.update({
+        where: { id: userId },
+        data: { fcmTokens: updatedTokens },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "FCM token removed successfully",
+        data: {
+          tokenCount: updatedTokens.length,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error removing FCM token:", error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "FCM_TOKEN_REMOVAL_ERROR",
+          message: error.message || "Failed to remove FCM token",
+        },
+      });
+    }
+  }
+
   async logout(req: AuthenticatedRequest, res: Response) {
     try {
       res.status(200).json({

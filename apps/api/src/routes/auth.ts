@@ -67,6 +67,8 @@ router.post('/request-account-recovery', accountRecoveryValidation, validateRequ
 router.post('/confirm-account-recovery', accountRecoveryConfirmValidation, validateRequest, authController.confirmAccountRecovery.bind(authController));
 router.post('/logout', requireAuth, authController.logout.bind(authController));
 router.post('/change-password', requireAuth, authController.changePassword.bind(authController));
+router.post('/fcm-token/register', requireAuth, [body('fcmToken').notEmpty().withMessage('FCM token is required')], validateRequest, authController.registerFcmToken.bind(authController));
+router.post('/fcm-token/remove', requireAuth, [body('fcmToken').notEmpty().withMessage('FCM token is required')], validateRequest, authController.removeFcmToken.bind(authController));
 
 export default router;
 
