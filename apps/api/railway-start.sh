@@ -13,15 +13,34 @@ cd /app
 # Resolve any failed migrations first (this is safe to run multiple times)
 echo "🔧 Resolving any failed migrations..."
 npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
-npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
 
-# Deploy migrations
+# Deploy migrations (Prisma will apply them in order)
 echo "📦 Deploying migrations..."
-if npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1; then
+MIGRATION_OUTPUT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
+MIGRATION_EXIT=$?
+
+if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
+elif echo "$MIGRATION_OUTPUT" | grep -q "relation.*does not exist"; then
+  echo "⚠️  Migration failed: Database tables don't exist"
+  echo "💡 This means the initial migration hasn't been applied"
+  echo "💡 Attempting to apply initial migration first..."
+  
+  # Try to apply just the init migration
+  echo "📦 Applying initial migration..."
+  npx prisma migrate deploy --schema=./packages/database/schema.prisma --name 20250905171658_init 2>&1 || {
+    echo "⚠️  Could not apply initial migration automatically"
+    echo "💡 You may need to reset the database or apply migrations manually"
+  }
+  
+  # Try deploying all migrations again
+  echo "📦 Retrying all migrations..."
+  npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1 || {
+    echo "⚠️  Migrations still failing - continuing anyway"
+    echo "💡 Server will start but database operations may fail"
+  }
 else
-  echo "⚠️  Migration failed - this might be due to missing initial migration or database state"
-  echo "💡 If this is a fresh database, migrations will be applied on next attempt"
+  echo "⚠️  Migration failed: $MIGRATION_OUTPUT"
   echo "💡 Continuing anyway - server will start but database operations may fail"
 fi
 
@@ -35,12 +54,13 @@ fi
 
 echo "✅ Setup complete"
 
-# Verify dist/index.js exists (search for it)
+# Verify dist/index.js exists (search for it, prioritize API entry point)
 echo "🔍 Searching for index.js..."
-SERVER_FILE=$(find /app/dist -name "index.js" -type f 2>/dev/null | grep -v node_modules | head -1)
+# Prioritize the API's index.js (not packages/database or other index.js files)
+SERVER_FILE=$(find /app/dist -name "index.js" -type f 2>/dev/null | grep -v node_modules | grep -v packages | grep -v apps/api/dist | head -1)
 
-if [ -z "$SERVER_FILE" ]; then
-  # Try common locations as fallback
+# If not found, try specific API locations
+if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
   for path in "/app/dist/index.js" "/app/dist/apps/api/index.js" "/app/dist/apps/api/dist/index.js"; do
     if [ -f "$path" ]; then
       SERVER_FILE="$path"
@@ -50,7 +70,7 @@ if [ -z "$SERVER_FILE" ]; then
 fi
 
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  echo "❌ ERROR: index.js not found!"
+  echo "❌ ERROR: API index.js not found!"
   echo "📁 Listing /app/dist structure:"
   ls -laR /app/dist/ 2>/dev/null | head -50 || echo "dist directory does not exist"
   echo "📁 All index.js files found:"
