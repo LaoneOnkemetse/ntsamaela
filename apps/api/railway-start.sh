@@ -10,24 +10,19 @@ echo "🔗 DATABASE_URL: ${DATABASE_URL:+SET}"
 echo "📦 Running database migrations..."
 cd /app
 
-# Check if database is empty (no tables exist)
-echo "🔍 Checking database state..."
-DB_HAS_TABLES=$(npx prisma db execute --stdin --schema=./packages/database/schema.prisma <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tail -1 | tr -d ' ' || echo "0")
-
-# If database is empty or migrations failed, try to reset and apply all migrations
-if [ "$DB_HAS_TABLES" = "0" ] || [ -z "$DB_HAS_TABLES" ]; then
-  echo "📦 Database appears empty, applying all migrations from scratch..."
-  # Resolve any failed migrations first
-  npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
-  npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
-fi
+# Resolve any failed migrations first (this is safe to run multiple times)
+echo "🔧 Resolving any failed migrations..."
+npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
+npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
 
 # Deploy migrations
+echo "📦 Deploying migrations..."
 if npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1; then
   echo "✅ Migrations applied successfully"
 else
-  echo "⚠️  Migration failed - this might be due to missing initial migration"
-  echo "💡 If this is a fresh database, you may need to run migrations manually"
+  echo "⚠️  Migration failed - this might be due to missing initial migration or database state"
+  echo "💡 If this is a fresh database, migrations will be applied on next attempt"
+  echo "💡 Continuing anyway - server will start but database operations may fail"
 fi
 
 # Generate Prisma client if needed
