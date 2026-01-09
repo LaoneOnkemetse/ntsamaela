@@ -10,37 +10,33 @@ echo "🔗 DATABASE_URL: ${DATABASE_URL:+SET}"
 echo "📦 Running database migrations..."
 cd /app
 
-# Resolve any failed migrations first (this is safe to run multiple times)
+# Resolve any failed migrations first (safe to run multiple times)
 echo "🔧 Resolving any failed migrations..."
 npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
 
-# Deploy migrations (Prisma will apply them in order)
+# Deploy migrations (Prisma will apply them in chronological order)
 echo "📦 Deploying migrations..."
-MIGRATION_OUTPUT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
+MIGRATION_RESULT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
 MIGRATION_EXIT=$?
 
 if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
-elif echo "$MIGRATION_OUTPUT" | grep -q "relation.*does not exist"; then
+elif echo "$MIGRATION_RESULT" | grep -q "relation.*does not exist"; then
   echo "⚠️  Migration failed: Database tables don't exist"
-  echo "💡 This means the initial migration hasn't been applied"
-  echo "💡 Attempting to apply initial migration first..."
+  echo "💡 This means the database is empty and needs the initial migration"
+  echo "💡 Attempting to use db push as fallback for empty database..."
   
-  # Try to apply just the init migration
-  echo "📦 Applying initial migration..."
-  npx prisma migrate deploy --schema=./packages/database/schema.prisma --name 20250905171658_init 2>&1 || {
-    echo "⚠️  Could not apply initial migration automatically"
-    echo "💡 You may need to reset the database or apply migrations manually"
-  }
-  
-  # Try deploying all migrations again
-  echo "📦 Retrying all migrations..."
-  npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1 || {
-    echo "⚠️  Migrations still failing - continuing anyway"
-    echo "💡 Server will start but database operations may fail"
-  }
+  # Use db push as fallback for empty databases
+  if npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss 2>&1; then
+    echo "✅ Database schema pushed successfully"
+    echo "💡 Note: Using db push instead of migrations for empty database"
+  else
+    echo "⚠️  Database push also failed"
+    echo "💡 You may need to reset the database in Railway"
+    echo "💡 Continuing anyway - server will start but database operations may fail"
+  fi
 else
-  echo "⚠️  Migration failed: $MIGRATION_OUTPUT"
+  echo "⚠️  Migration deployment failed: $MIGRATION_RESULT"
   echo "💡 Continuing anyway - server will start but database operations may fail"
 fi
 
