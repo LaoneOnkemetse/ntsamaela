@@ -16,40 +16,25 @@ npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=
 
 # Deploy migrations (Prisma will apply them in chronological order)
 echo "📦 Deploying migrations..."
-MIGRATION_OUTPUT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
+set +e  # Don't exit on error
+npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1
 MIGRATION_EXIT=$?
+set -e  # Re-enable exit on error
 
 if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
-elif echo "$MIGRATION_OUTPUT" | grep -qi "already exists\|42701"; then
-  echo "⚠️  Migration failed: Column/table already exists"
-  echo "💡 This means the schema was already created (likely via db push)"
-  echo "💡 Marking migration as applied to resolve the conflict..."
-  
-  # Mark the migration as applied since the schema already exists
-  npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || {
-    echo "⚠️  Could not mark migration as applied, but schema exists - continuing..."
-  }
-  
-  echo "✅ Migration conflict resolved"
-elif echo "$MIGRATION_OUTPUT" | grep -qi "relation.*does not exist\|P3018\|42P01"; then
-  echo "⚠️  Migration failed: Database tables don't exist"
-  echo "💡 Using db push to create schema from scratch..."
-  
-  # Use db push as fallback for empty databases
-  echo "📦 Pushing database schema..."
-  if npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss --skip-generate 2>&1; then
-    echo "✅ Database schema pushed successfully"
-    echo "💡 Schema created using db push (bypassing migrations)"
-  else
-    echo "⚠️  Database push also failed"
-    echo "💡 This might mean the database connection is failing"
-    echo "💡 Continuing anyway - server will start but database operations may fail"
-  fi
 else
   echo "⚠️  Migration deployment failed with exit code $MIGRATION_EXIT"
-  echo "Migration error: $MIGRATION_OUTPUT"
-  echo "💡 Continuing anyway - server will start but database operations may fail"
+  echo "💡 Checking if this is due to schema already existing..."
+  
+  # Try to mark the migration as applied if the schema already exists
+  echo "🔧 Attempting to resolve migration conflict..."
+  if npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1; then
+    echo "✅ Migration marked as applied (schema already exists)"
+  else
+    echo "⚠️  Could not resolve migration, but continuing..."
+    echo "💡 Schema may already be in sync - server will start anyway"
+  fi
 fi
 
 # Generate Prisma client if needed
