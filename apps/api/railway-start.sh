@@ -40,28 +40,30 @@ fi
 
 echo "✅ Setup complete"
 
-# Verify dist/index.js exists (check multiple possible locations)
-if [ -f "/app/dist/index.js" ]; then
-  echo "✅ Found /app/dist/index.js"
-  SERVER_FILE="/app/dist/index.js"
-elif [ -f "/app/dist/apps/api/dist/index.js" ]; then
-  echo "✅ Found /app/dist/apps/api/dist/index.js"
-  SERVER_FILE="/app/dist/apps/api/dist/index.js"
-elif [ -f "/app/dist/apps/api/index.js" ]; then
-  echo "✅ Found /app/dist/apps/api/index.js"
-  SERVER_FILE="/app/dist/apps/api/index.js"
-else
-  echo "❌ ERROR: index.js not found in expected locations!"
-  echo "📁 Listing /app directory:"
-  ls -la /app/ || true
-  echo "📁 Listing /app/dist (if exists):"
-  ls -la /app/dist/ || echo "dist directory does not exist"
-  echo "📁 Listing /app/dist/apps (if exists):"
-  ls -la /app/dist/apps/ 2>/dev/null || echo "apps directory does not exist in dist"
-  echo "📁 Searching for index.js in dist:"
+# Verify dist/index.js exists (search for it)
+echo "🔍 Searching for index.js..."
+SERVER_FILE=$(find /app/dist -name "index.js" -type f 2>/dev/null | grep -v node_modules | head -1)
+
+if [ -z "$SERVER_FILE" ]; then
+  # Try common locations as fallback
+  for path in "/app/dist/index.js" "/app/dist/apps/api/index.js" "/app/dist/apps/api/dist/index.js"; do
+    if [ -f "$path" ]; then
+      SERVER_FILE="$path"
+      break
+    fi
+  done
+fi
+
+if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
+  echo "❌ ERROR: index.js not found!"
+  echo "📁 Listing /app/dist structure:"
+  ls -laR /app/dist/ 2>/dev/null | head -50 || echo "dist directory does not exist"
+  echo "📁 All index.js files found:"
   find /app/dist -name "index.js" -type f 2>/dev/null | head -10
   exit 1
 fi
+
+echo "✅ Found server file: $SERVER_FILE"
 
 echo "🌐 Starting server on port ${PORT:-3000}..."
 echo "📝 Server will listen on 0.0.0.0:${PORT:-3000}"
