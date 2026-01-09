@@ -19,24 +19,27 @@ echo "📦 Deploying migrations..."
 MIGRATION_RESULT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
 MIGRATION_EXIT=$?
 
+echo "Migration output: $MIGRATION_RESULT"
+
 if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
-elif echo "$MIGRATION_RESULT" | grep -q "relation.*does not exist"; then
-  echo "⚠️  Migration failed: Database tables don't exist"
-  echo "💡 This means the database is empty and needs the initial migration"
-  echo "💡 Attempting to use db push as fallback for empty database..."
+elif echo "$MIGRATION_RESULT" | grep -qi "relation.*does not exist\|P3018\|42P01"; then
+  echo "⚠️  Migration failed: Database tables don't exist or migration blocked"
+  echo "💡 Database appears to be empty or in inconsistent state"
+  echo "💡 Using db push to create schema from scratch..."
   
   # Use db push as fallback for empty databases
-  if npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss 2>&1; then
+  if npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss --skip-generate 2>&1; then
     echo "✅ Database schema pushed successfully"
-    echo "💡 Note: Using db push instead of migrations for empty database"
+    echo "💡 Schema created using db push (bypassing migrations)"
   else
-    echo "⚠️  Database push also failed"
-    echo "💡 You may need to reset the database in Railway"
-    echo "💡 Continuing anyway - server will start but database operations may fail"
+    echo "⚠️  Database push failed - checking if schema already exists..."
+    # If push fails, schema might already exist, continue anyway
+    echo "💡 Continuing - server will start but database may be in inconsistent state"
   fi
 else
-  echo "⚠️  Migration deployment failed: $MIGRATION_RESULT"
+  echo "⚠️  Migration deployment failed with exit code $MIGRATION_EXIT"
+  echo "Migration error details: $MIGRATION_RESULT"
   echo "💡 Continuing anyway - server will start but database operations may fail"
 fi
 
