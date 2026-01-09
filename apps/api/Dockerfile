@@ -46,7 +46,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the built application
 # Verify dist exists in builder before copying
 RUN ls -la /app/apps/api/dist/ || echo "WARNING: dist directory not found in builder"
-COPY --from=builder /app/apps/api/dist ./dist
+RUN ls -la /app/apps/api/dist/index.js || echo "WARNING: index.js not found in dist"
+# Copy only the dist contents, not the entire dist directory structure
+COPY --from=builder /app/apps/api/dist/* ./dist/
+COPY --from=builder /app/apps/api/dist/index.js ./dist/index.js
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/railway-start.sh ./railway-start.sh
 COPY --from=builder /app/node_modules ./node_modules
