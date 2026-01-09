@@ -32,7 +32,12 @@ RUN npx prisma generate --schema=./schema.prisma
 
 # Build the application
 WORKDIR /app/apps/api
-RUN npm run build
+RUN echo "📦 Starting build..." && \
+    npm run build && \
+    echo "📁 Build complete, checking dist directory:" && \
+    ls -la dist/ | head -20 && \
+    echo "📁 Looking for index.js:" && \
+    find dist -name "index.js" -type f 2>/dev/null | head -5 || echo "No index.js found in dist"
 
 # Production image, copy all the files and run the app
 FROM base AS runner
