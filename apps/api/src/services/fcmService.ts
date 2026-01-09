@@ -40,10 +40,10 @@ class FCMService {
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
       if (!projectId || !privateKey || !clientEmail) {
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error('Firebase credentials are required in production');
-        }
         console.warn('⚠️  Firebase credentials not configured. Push notifications will be disabled.');
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('💡 To enable push notifications, set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables.');
+        }
         return;
       }
 
@@ -71,13 +71,9 @@ class FCMService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('❌ Firebase initialization error:', errorMessage);
       
-      if (process.env.NODE_ENV === 'production') {
-        throw new AppError(
-          'FCM_INIT_ERROR',
-          `Failed to initialize Firebase: ${errorMessage}`,
-          500
-        );
-      }
+      // Don't crash the server - just log the error and continue without FCM
+      console.warn('⚠️  Continuing without Firebase push notifications. The server will still function normally.');
+      this.isInitialized = false;
     }
   }
 
