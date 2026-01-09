@@ -24,9 +24,20 @@ else
 fi
 
 echo "✅ Setup complete"
+
+# Verify dist/index.js exists
+if [ ! -f "/app/dist/index.js" ]; then
+  echo "❌ ERROR: /app/dist/index.js not found!"
+  echo "📁 Listing /app directory:"
+  ls -la /app/ || true
+  echo "📁 Listing /app/dist (if exists):"
+  ls -la /app/dist/ || echo "dist directory does not exist"
+  exit 1
+fi
+
+echo "✅ Found /app/dist/index.js"
 echo "🌐 Starting server on port ${PORT:-3000}..."
 echo "📝 Server will listen on 0.0.0.0:${PORT:-3000}"
 
-# Start the server (use exec to replace shell process)
-# Don't use exec so we can see errors
-node dist/index.js
+# Start the server
+exec node /app/dist/index.js
