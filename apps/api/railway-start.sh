@@ -48,29 +48,51 @@ echo "✅ Setup complete"
 
 # Verify dist/index.js exists (search for it, prioritize API entry point)
 echo "🔍 Searching for index.js..."
-# Prioritize the API's index.js (not packages/database or other index.js files)
-SERVER_FILE=$(find /app/dist -name "index.js" -type f 2>/dev/null | grep -v node_modules | grep -v packages | grep -v apps/api/dist | head -1)
+# First, try the most likely locations (root of dist)
+for path in "/app/dist/index.js" "/app/dist/apps/api/index.js" "/app/dist/apps/api/dist/index.js"; do
+  if [ -f "$path" ]; then
+    SERVER_FILE="$path"
+    echo "✅ Found server file at: $SERVER_FILE"
+    break
+  fi
+done
 
-# If not found, try specific API locations
+# If not found in expected locations, search but exclude nested directories
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  for path in "/app/dist/index.js" "/app/dist/apps/api/index.js" "/app/dist/apps/api/dist/index.js"; do
-    if [ -f "$path" ]; then
-      SERVER_FILE="$path"
-      break
-    fi
-  done
+  echo "🔍 Searching in dist directory..."
+  # Find index.js files, but prioritize root-level ones
+  # Exclude: node_modules, packages, types, test, __tests__, controllers, services, routes, middleware, utils
+  SERVER_FILE=$(find /app/dist -maxdepth 3 -name "index.js" -type f 2>/dev/null | \
+    grep -v node_modules | \
+    grep -v packages | \
+    grep -v "/types/" | \
+    grep -v "/test/" | \
+    grep -v "/__tests__/" | \
+    grep -v "/controllers/" | \
+    grep -v "/services/" | \
+    grep -v "/routes/" | \
+    grep -v "/middleware/" | \
+    grep -v "/utils/" | \
+    head -1)
 fi
 
+# Final check - if still not found, show all options
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  echo "❌ ERROR: API index.js not found!"
-  echo "📁 Listing /app/dist structure:"
-  ls -laR /app/dist/ 2>/dev/null | head -50 || echo "dist directory does not exist"
-  echo "📁 All index.js files found:"
+  echo "❌ ERROR: API index.js not found in expected locations!"
+  echo "📁 Listing /app/dist root:"
+  ls -la /app/dist/ 2>/dev/null | head -20 || echo "dist directory does not exist"
+  echo "📁 All index.js files found (showing first 10):"
   find /app/dist -name "index.js" -type f 2>/dev/null | head -10
-  exit 1
+  echo "💡 Trying to use /app/dist/index.js anyway..."
+  if [ -f "/app/dist/index.js" ]; then
+    SERVER_FILE="/app/dist/index.js"
+    echo "✅ Using /app/dist/index.js"
+  else
+    exit 1
+  fi
 fi
 
-echo "✅ Found server file: $SERVER_FILE"
+echo "✅ Using server file: $SERVER_FILE"
 
 echo "🌐 Starting server on port ${PORT:-3000}..."
 echo "📝 Server will listen on 0.0.0.0:${PORT:-3000}"
