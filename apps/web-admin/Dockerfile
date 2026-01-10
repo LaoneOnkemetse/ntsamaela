@@ -41,7 +41,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the built application
 COPY --from=builder /app/apps/web-admin/.next/standalone ./
 COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
-COPY --from=builder /app/apps/web-admin/public ./apps/web-admin/public
+# Copy public directory if it exists (Next.js may not have one)
+COPY --from=builder /app/apps/web-admin/public* ./apps/web-admin/ 2>/dev/null || echo "No public directory found, skipping..."
 
 # Railway provides PORT automatically
 ENV PORT=3000
