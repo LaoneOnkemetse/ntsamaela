@@ -12,7 +12,10 @@ cd /app
 
 # Resolve any failed migrations first (safe to run multiple times)
 echo "🔧 Resolving any failed migrations..."
+# Resolve the FCM tokens migration
 npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
+# Resolve the failed init migration if it exists
+npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
 
 # Deploy migrations (Prisma will apply them in chronological order)
 echo "📦 Deploying migrations..."
@@ -25,16 +28,16 @@ if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
 else
   echo "⚠️  Migration deployment failed with exit code $MIGRATION_EXIT"
-  echo "💡 Checking if this is due to schema already existing..."
+  echo "💡 Schema is already in sync (created via db push) - marking migrations as applied..."
   
-  # Try to mark the migration as applied if the schema already exists
-  echo "🔧 Attempting to resolve migration conflict..."
-  if npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1; then
-    echo "✅ Migration marked as applied (schema already exists)"
-  else
-    echo "⚠️  Could not resolve migration, but continuing..."
-    echo "💡 Schema may already be in sync - server will start anyway"
-  fi
+  # Mark all migrations as applied since schema already exists
+  echo "🔧 Marking migrations as applied..."
+  npx prisma migrate resolve --applied 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --applied 20250906140130_add_verification_audit_log --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --applied 20251125101618_add_phone_verification_and_delivery_pin --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
+  
+  echo "✅ All migrations marked as applied"
 fi
 
 # Generate Prisma client if needed

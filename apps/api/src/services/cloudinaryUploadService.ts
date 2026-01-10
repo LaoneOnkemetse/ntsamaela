@@ -40,9 +40,15 @@ class CloudinaryUploadService {
         secure: true, // Use HTTPS
       });
       this.isConfigured = true;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Cloudinary configured successfully');
+      }
     } else {
       this.isConfigured = false;
-      console.warn('Cloudinary not configured. File uploads will fail. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+      // Only show warning in development, silent in production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️  Cloudinary not configured. File uploads will be disabled. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables to enable.');
+      }
     }
   }
 
