@@ -27,7 +27,13 @@ COPY packages/shared ./packages/shared
 
 # Build the application
 WORKDIR /app/apps/web-admin
-RUN npm run build
+RUN npm run build && \
+    echo "📁 Checking standalone output structure:" && \
+    ls -la .next/standalone/ 2>/dev/null | head -20 || echo "Standalone directory not found" && \
+    find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone" && \
+    echo "📁 Checking standalone output:" && \
+    ls -la .next/standalone/ 2>/dev/null | head -20 || echo "Standalone directory not found" && \
+    find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"
 
 # Production image, copy all the files and run the app
 FROM base AS runner
@@ -38,10 +44,8 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Debug: Check what's in the standalone directory BEFORE copying
-RUN echo "📁 Checking standalone structure in builder:" && \
-    ls -la /app/apps/web-admin/.next/standalone/ 2>/dev/null | head -20 || echo "Standalone not found" && \
-    find /app/apps/web-admin/.next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"
+# This RUN command can't access builder stage files - remove it
+# We'll check after copying instead
 
 # Copy the built application (standalone includes node_modules and server.js)
 # Next.js standalone output structure: it copies the entire app structure
