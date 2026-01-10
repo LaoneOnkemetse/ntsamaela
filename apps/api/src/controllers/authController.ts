@@ -679,7 +679,7 @@ export class AuthController {
       }
 
       // Remove token if present
-      const existingTokens = user.fcmTokens || [];
+      const existingTokens: string[] = user.fcmTokens || [];
       const updatedTokens = existingTokens.filter((token: string) => token !== fcmToken);
 
       // Update user

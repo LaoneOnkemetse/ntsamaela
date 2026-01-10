@@ -117,7 +117,7 @@ export class NotificationService {
 
           // Collect all FCM tokens
           const allTokens: string[] = [];
-          users.forEach((user: { fcmTokens?: string[] }) => {
+          users.forEach((user: { fcmTokens?: string[] | null }) => {
             if (user.fcmTokens && user.fcmTokens.length > 0) {
               allTokens.push(...user.fcmTokens);
             }
