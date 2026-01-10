@@ -38,7 +38,7 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy the built application
+# Copy the built application (standalone includes node_modules and server.js)
 COPY --from=builder /app/apps/web-admin/.next/standalone ./
 COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
 # Note: public directory doesn't exist in this project, which is fine for Next.js
@@ -47,7 +47,8 @@ COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/stat
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-USER nextjs
+# Don't switch user - keep root for now to avoid permission issues
+# USER nextjs
 
 EXPOSE 3000
 
@@ -56,7 +57,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Start the application
-CMD ["node", "apps/web-admin/server.js"]
+# Next.js standalone output structure: server.js is at the root of standalone
+WORKDIR /app
+CMD ["node", "server.js"]
 
 
 
