@@ -48,6 +48,7 @@ COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/stat
 RUN echo "📁 Contents of /app:" && ls -la /app/ 2>/dev/null | head -20 || true
 RUN echo "📁 Contents of /app/apps/web-admin:" && ls -la /app/apps/web-admin/ 2>/dev/null | head -20 || true
 RUN echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js found"
+RUN echo "📁 Contents of /app/node_modules/.bin:" && ls -la /app/node_modules/.bin/ 2>/dev/null | grep next | head -5 || echo "No next in .bin"
 
 # Railway provides PORT automatically
 ENV PORT=3000
@@ -63,12 +64,14 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Start the application
-# Next.js standalone output structure: server.js is typically at apps/web-admin/server.js
-# But Railway might be running from /app/apps/web-admin, so we need to handle both
-WORKDIR /app
-# Use ENTRYPOINT to ensure this runs, not npm start
-ENTRYPOINT ["sh", "-c"]
-CMD ["SERVER_FILE=$(find /app -name 'server.js' -type f 2>/dev/null | head -1); if [ -n \"$SERVER_FILE\" ]; then echo \"✅ Starting server from: $SERVER_FILE\"; node \"$SERVER_FILE\"; else echo \"❌ server.js not found!\"; find /app -type f -name '*.js' | head -10; exit 1; fi"]
+# Next.js standalone: server.js should be at /app/apps/web-admin/server.js
+# Remove package.json from apps/web-admin to prevent Railway from running npm start
+RUN rm -f /app/apps/web-admin/package.json 2>/dev/null || true
+RUN rm -f /app/package.json 2>/dev/null || true
+
+WORKDIR /app/apps/web-admin
+# Use the server.js from standalone build
+CMD ["node", "server.js"]
 
 
 
