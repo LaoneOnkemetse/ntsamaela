@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/web-admin/Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
