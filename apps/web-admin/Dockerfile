@@ -43,6 +43,10 @@ COPY --from=builder /app/apps/web-admin/.next/standalone ./
 COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
 # Note: public directory doesn't exist in this project, which is fine for Next.js
 
+# Debug: List what's in the standalone directory
+RUN echo "📁 Contents of /app:" && ls -la /app/ | head -20
+RUN echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5
+
 # Railway provides PORT automatically
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
@@ -57,9 +61,10 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Start the application
-# Next.js standalone output structure: server.js is at the root of standalone
+# Next.js standalone output: server.js location depends on build structure
+# Try common locations
 WORKDIR /app
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "if [ -f 'server.js' ]; then node server.js; elif [ -f 'apps/web-admin/server.js' ]; then node apps/web-admin/server.js; else find . -name 'server.js' -type f | head -1 | xargs node; fi"]
 
 
 
