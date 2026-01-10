@@ -38,17 +38,22 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+# Debug: Check what's in the standalone directory BEFORE copying
+RUN echo "📁 Checking standalone structure in builder:" && \
+    ls -la /app/apps/web-admin/.next/standalone/ 2>/dev/null | head -20 || echo "Standalone not found" && \
+    find /app/apps/web-admin/.next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"
+
 # Copy the built application (standalone includes node_modules and server.js)
 # Next.js standalone output structure: it copies the entire app structure
 COPY --from=builder /app/apps/web-admin/.next/standalone ./
 COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
 # Note: public directory doesn't exist in this project, which is fine for Next.js
 
-# Debug: List what's in the standalone directory to find server.js
-RUN echo "📁 Contents of /app:" && ls -la /app/ 2>/dev/null | head -20 || true
-RUN echo "📁 Contents of /app/apps/web-admin:" && ls -la /app/apps/web-admin/ 2>/dev/null | head -20 || true
-RUN echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js found"
-RUN echo "📁 Contents of /app/node_modules/.bin:" && ls -la /app/node_modules/.bin/ 2>/dev/null | grep next | head -5 || echo "No next in .bin"
+# Debug: List what's in the standalone directory to find server.js AFTER copying
+RUN echo "📁 Contents of /app after copy:" && ls -la /app/ 2>/dev/null | head -20 || true && \
+    echo "📁 Contents of /app/apps/web-admin:" && ls -la /app/apps/web-admin/ 2>/dev/null | head -20 || true && \
+    echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js found" && \
+    echo "📁 All .js files in /app/apps/web-admin:" && find /app/apps/web-admin -name "*.js" -type f 2>/dev/null | head -10 || echo "No .js files found"
 
 # Railway provides PORT automatically
 ENV PORT=3000
