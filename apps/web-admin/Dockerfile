@@ -84,10 +84,31 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 # Start the application
 # Next.js standalone: The server entry point might be in apps/web-admin/server.js
 # Or we might need to use the next binary directly
-# Try multiple approaches
+# Use a wrapper script to ensure Railway can't override our command
 WORKDIR /app
-ENTRYPOINT ["sh", "-c"]
-CMD ["if [ -f '/app/apps/web-admin/server.js' ]; then echo '✅ Found server.js at /app/apps/web-admin/server.js'; cd /app/apps/web-admin && node server.js; elif [ -f '/app/server.js' ]; then echo '✅ Found server.js at /app/server.js'; cd /app && node server.js; elif NEXT_BIN=$(find /app -path '*/node_modules/.bin/next' -type f 2>/dev/null | head -1); then echo \"✅ Found next binary at: $NEXT_BIN\"; cd /app/apps/web-admin && \"$NEXT_BIN\" start -p ${PORT:-3000} -H 0.0.0.0; else echo '❌ Cannot find server.js or next binary!'; echo '📁 Listing /app structure:'; find /app -type f -name '*.js' | grep -v node_modules | head -10; echo '📁 Looking for next:'; find /app -name 'next' -type f 2>/dev/null | head -5; exit 1; fi"]
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'set -e' >> /start.sh && \
+    echo 'echo "🚀 Starting Next.js server..."' >> /start.sh && \
+    echo 'if [ -f "/app/apps/web-admin/server.js" ]; then' >> /start.sh && \
+    echo '  echo "✅ Found server.js at /app/apps/web-admin/server.js"' >> /start.sh && \
+    echo '  cd /app/apps/web-admin && exec node server.js' >> /start.sh && \
+    echo 'elif [ -f "/app/server.js" ]; then' >> /start.sh && \
+    echo '  echo "✅ Found server.js at /app/server.js"' >> /start.sh && \
+    echo '  cd /app && exec node server.js' >> /start.sh && \
+    echo 'elif NEXT_BIN=$(find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -1); then' >> /start.sh && \
+    echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
+    echo '  cd /app/apps/web-admin && exec "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
+    echo 'else' >> /start.sh && \
+    echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \
+    echo '  echo "📁 Listing /app structure:"' >> /start.sh && \
+    echo '  find /app -type f -name "*.js" | grep -v node_modules | head -10' >> /start.sh && \
+    echo '  echo "📁 Looking for next:"' >> /start.sh && \
+    echo '  find /app -name "next" -type f 2>/dev/null | head -5' >> /start.sh && \
+    echo '  exit 1' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    chmod +x /start.sh
+
+CMD ["/start.sh"]
 
 
 
