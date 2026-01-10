@@ -59,6 +59,12 @@ RUN echo "📁 Contents of /app after copy:" && ls -la /app/ 2>/dev/null | head 
     echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js found" && \
     echo "📁 All .js files in /app/apps/web-admin:" && find /app/apps/web-admin -name "*.js" -type f 2>/dev/null | head -10 || echo "No .js files found"
 
+# CRITICAL: Remove ALL package.json files IMMEDIATELY after copy to prevent Railway from auto-running npm start
+# Railway detects package.json and runs npm start automatically, ignoring our CMD
+RUN find /app -name "package.json" -type f -delete 2>/dev/null || true && \
+    echo "✅ Removed all package.json files" && \
+    find /app -name "package.json" -type f 2>/dev/null | wc -l || echo "0"
+
 # Railway provides PORT automatically
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
@@ -73,14 +79,10 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Start the application
-# Next.js standalone: server.js should be at /app/apps/web-admin/server.js
-# Remove package.json from apps/web-admin to prevent Railway from running npm start
-RUN rm -f /app/apps/web-admin/package.json 2>/dev/null || true
-RUN rm -f /app/package.json 2>/dev/null || true
-
-WORKDIR /app/apps/web-admin
-# Use the server.js from standalone build
-CMD ["node", "server.js"]
+# Find server.js dynamically since the location might vary
+WORKDIR /app
+ENTRYPOINT ["sh", "-c"]
+CMD ["SERVER_FILE=$(find /app -path '/app/node_modules' -prune -o -name 'server.js' -type f -print 2>/dev/null | head -1); if [ -n \"$SERVER_FILE\" ]; then echo \"✅ Starting server from: $SERVER_FILE\"; cd \"$(dirname \"$SERVER_FILE\")\" && node \"$(basename \"$SERVER_FILE\")\"; else echo \"❌ server.js not found!\"; echo \"📁 Listing /app structure:\"; find /app -type f -name '*.js' | grep -v node_modules | head -10; exit 1; fi"]
 
 
 
