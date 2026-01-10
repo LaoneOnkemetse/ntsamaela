@@ -10,34 +10,61 @@ echo "🔗 DATABASE_URL: ${DATABASE_URL:+SET}"
 echo "📦 Running database migrations..."
 cd /app
 
-# Resolve any failed migrations first (safe to run multiple times)
-echo "🔧 Resolving any failed migrations..."
-# Resolve the FCM tokens migration
-npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
-# Resolve the failed init migration if it exists
-npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
+# Check if _prisma_migrations table exists and has any failed migrations
+echo "🔍 Checking migration state..."
+MIGRATION_STATE=$(npx prisma migrate status --schema=./packages/database/schema.prisma 2>&1 || echo "ERROR")
+
+# If there are failed migrations, resolve them first
+if echo "$MIGRATION_STATE" | grep -qi "failed\|error\|P3009"; then
+  echo "🔧 Resolving failed migrations..."
+  # Resolve failed init migration
+  npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
+  # Resolve other potentially failed migrations
+  npx prisma migrate resolve --rolled-back 20250906140130_add_verification_audit_log --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --rolled-back 20251125101618_add_phone_verification_and_delivery_pin --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
+fi
 
 # Deploy migrations (Prisma will apply them in chronological order)
 echo "📦 Deploying migrations..."
 set +e  # Don't exit on error
-npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1
+MIGRATION_OUTPUT=$(npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1)
 MIGRATION_EXIT=$?
 set -e  # Re-enable exit on error
 
 if [ $MIGRATION_EXIT -eq 0 ]; then
   echo "✅ Migrations applied successfully"
-else
-  echo "⚠️  Migration deployment failed with exit code $MIGRATION_EXIT"
-  echo "💡 Schema is already in sync (created via db push) - marking migrations as applied..."
+elif echo "$MIGRATION_OUTPUT" | grep -qi "already exists\|42701\|P3008"; then
+  echo "⚠️  Migration failed: Schema changes already exist"
+  echo "🔧 Marking migrations as applied since schema is already in sync..."
   
   # Mark all migrations as applied since schema already exists
-  echo "🔧 Marking migrations as applied..."
   npx prisma migrate resolve --applied 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --applied 20250906140130_add_verification_audit_log --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --applied 20251125101618_add_phone_verification_and_delivery_pin --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
   
   echo "✅ All migrations marked as applied"
+elif echo "$MIGRATION_OUTPUT" | grep -qi "P3009"; then
+  echo "⚠️  Migration system has failed migrations that need resolution"
+  echo "🔧 Attempting to resolve all failed migrations..."
+  
+  # Try to resolve all failed migrations
+  npx prisma migrate resolve --rolled-back 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --applied 20250905171658_init --schema=./packages/database/schema.prisma 2>&1 || true
+  
+  # Retry migration deployment
+  echo "📦 Retrying migration deployment..."
+  if npx prisma migrate deploy --schema=./packages/database/schema.prisma 2>&1; then
+    echo "✅ Migrations applied successfully after resolution"
+  else
+    echo "⚠️  Migrations still failing, but schema appears to be in sync"
+    echo "💡 Server will continue - database operations should work"
+  fi
+else
+  echo "⚠️  Migration deployment failed"
+  echo "Migration error: $MIGRATION_OUTPUT"
+  echo "💡 Server will continue - check database state manually if needed"
 fi
 
 # Generate Prisma client if needed

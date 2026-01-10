@@ -45,9 +45,10 @@ class CloudinaryUploadService {
       }
     } else {
       this.isConfigured = false;
-      // Only show warning in development, silent in production
+      // Cloudinary is optional - only log in development
+      // In production, it will fail gracefully when upload is attempted
       if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️  Cloudinary not configured. File uploads will be disabled. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables to enable.');
+        console.log('ℹ️  Cloudinary not configured. File uploads will return errors. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to enable.');
       }
     }
   }
