@@ -21,6 +21,7 @@ WORKDIR /app
 # Copy all files needed for build
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json* ./
+COPY tsconfig.json tsconfig.base.json ./
 COPY apps/web-admin ./apps/web-admin
 COPY packages/shared ./packages/shared
 
