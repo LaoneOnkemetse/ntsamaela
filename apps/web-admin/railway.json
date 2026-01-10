@@ -5,7 +5,7 @@
     "dockerfilePath": "apps/web-admin/Dockerfile"
   },
   "deploy": {
-    "startCommand": "SERVER_FILE=$(find /app -path '/app/node_modules' -prune -o -name 'server.js' -type f -print 2>/dev/null | head -1); if [ -n \"$SERVER_FILE\" ]; then cd \"$(dirname \"$SERVER_FILE\")\" && node \"$(basename \"$SERVER_FILE\")\"; else exit 1; fi",
+    "startCommand": "if [ -f '/app/apps/web-admin/server.js' ]; then cd /app/apps/web-admin && node server.js; elif [ -f '/app/server.js' ]; then cd /app && node server.js; elif NEXT_BIN=$(find /app -path '*/node_modules/.bin/next' -type f 2>/dev/null | head -1); then cd /app/apps/web-admin && \"$NEXT_BIN\" start -p ${PORT:-3000} -H 0.0.0.0; else exit 1; fi",
     "healthcheckPath": "/",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
