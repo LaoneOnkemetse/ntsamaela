@@ -8,9 +8,10 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  generateBuildId: async () => {
-    return 'replit-build-' + Date.now();
-  },
+  // Remove dynamic build ID to ensure static files are found
+  // generateBuildId: async () => {
+  //   return 'replit-build-' + Date.now();
+  // },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY || 'default-key',
     NEXT_PUBLIC_DEPLOYMENT_ID: 'replit-deployment',
