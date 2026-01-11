@@ -4,6 +4,7 @@
   "description": "Ntsamaela Backend API",
   "main": "dist/index.js",
   "scripts": {
+    "seed:admin": "node seed-admin.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc && tsc-alias",
     "start": "npx ts-node -r tsconfig-paths/register src/index.ts",
