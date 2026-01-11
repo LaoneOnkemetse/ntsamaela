@@ -58,6 +58,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the built application
 # Copy the entire .next directory with all required files
 COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
+# Copy static files to the correct location for Next.js to serve them
+COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
 # Copy package.json temporarily (will be removed later)
 COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
 # Copy node_modules for Next.js runtime
@@ -128,6 +130,8 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
     echo '  echo "📁 Verifying .next directory structure..."' >> /start.sh && \
     echo '  ls -la /app/apps/web-admin/.next/ 2>/dev/null | head -10 || true' >> /start.sh && \
+    echo '  echo "📁 Checking for static files..."' >> /start.sh && \
+    echo '  ls -la /app/apps/web-admin/.next/static 2>/dev/null | head -5 || echo "Static directory not found"' >> /start.sh && \
     echo '  echo "📁 Checking for required files..."' >> /start.sh && \
     echo '  ls -la /app/apps/web-admin/.next/*.json 2>/dev/null || echo "Missing JSON files"' >> /start.sh && \
     echo '  cd /app/apps/web-admin && exec node "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
