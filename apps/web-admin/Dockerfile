@@ -112,13 +112,18 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'if [ -f "/app/apps/web-admin/.next/server.js" ]; then' >> /start.sh && \
     echo '  echo "✅ Found server.js at /app/apps/web-admin/.next/server.js"' >> /start.sh && \
     echo '  cd /app/apps/web-admin && exec node .next/server.js' >> /start.sh && \
-    echo 'elif NEXT_BIN=$(find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -1); then' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    echo 'echo "📁 Looking for next binary..."' >> /start.sh && \
+    echo 'NEXT_BIN=$(find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -1)' >> /start.sh && \
+    echo 'if [ -n "$NEXT_BIN" ] && [ -f "$NEXT_BIN" ]; then' >> /start.sh && \
     echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
     echo '  cd /app/apps/web-admin && exec "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
     echo 'else' >> /start.sh && \
     echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \
     echo '  echo "📁 Listing /app structure:"' >> /start.sh && \
-    echo '  find /app/apps/web-admin/.next -type f -name "*.js" 2>/dev/null | head -10' >> /start.sh && \
+    echo '  find /app/apps/web-admin/.next -type f -name "*.js" 2>/dev/null | head -10 || true' >> /start.sh && \
+    echo '  echo "📁 Looking for next:"' >> /start.sh && \
+    echo '  find /app -name "next" -type f 2>/dev/null | head -5 || true' >> /start.sh && \
     echo '  exit 1' >> /start.sh && \
     echo 'fi' >> /start.sh && \
     chmod +x /start.sh
