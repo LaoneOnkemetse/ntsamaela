@@ -97,24 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (credentials: LoginRequest): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const data = await response.json();
+      const response = await authService.login(credentials);
       
-      if (data.success && data.data) {
-        const { user: userData, token: userToken } = data.data;
+      if (response.success && response.data) {
+        const { user: userData, token: userToken } = response.data;
         setUser(userData);
         setToken(userToken);
-        localStorage.setItem('token', userToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', userToken);
+        }
         return true;
       } else {
-        console.error('Login failed:', data.error);
+        console.error('Login failed:', response.error);
         return false;
       }
     } catch (error) {

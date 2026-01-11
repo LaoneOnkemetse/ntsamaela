@@ -52,9 +52,16 @@ export default function Login() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      await login({ email: data.email, password: data.password });
-      toast.success('Welcome back!');
-      router.push('/dashboard');
+      const success = await login({ email: data.email, password: data.password });
+      if (success) {
+        toast.success('Welcome back!');
+        // Use setTimeout to ensure state is updated before redirect
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
+      } else {
+        toast.error('Login failed. Please check your credentials.');
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Login failed');
     } finally {

@@ -211,8 +211,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [user, loading, router]);
   
+  // Don't render Layout (sidebar/navigation) on login page - let login page render its own layout
+  if (router.pathname === '/login' || router.pathname === '/') {
+    return <>{children}</>;
+  }
+  
   // Don't block rendering during SSR - let the page handle its own redirect
-  if (typeof window !== 'undefined' && !loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+  if (typeof window !== 'undefined' && !loading && !user) {
     return null; // Don't render anything while redirecting
   }
 
