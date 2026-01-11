@@ -56,9 +56,13 @@ RUN addgroup --system --gid 1001 nodejs && \
 # We'll check after copying instead
 
 # Copy the built application
-# Always copy the .next directory - the start script will handle finding the right entry point
+# Copy the entire .next directory with all required files
 COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
+# Copy public directory if it exists
+COPY --from=builder /app/apps/web-admin/public ./apps/web-admin/public 2>/dev/null || true
+# Copy package.json temporarily (will be removed later)
 COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
+# Copy node_modules for Next.js runtime
 COPY --from=builder /app/node_modules ./node_modules
 
 # Debug: List what's in the standalone directory to find server.js AFTER copying
@@ -120,6 +124,10 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'fi' >> /start.sh && \
     echo 'if [ -n "$NEXT_BIN" ] && [ -f "$NEXT_BIN" ]; then' >> /start.sh && \
     echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
+    echo '  echo "📁 Verifying .next directory structure..."' >> /start.sh && \
+    echo '  ls -la /app/apps/web-admin/.next/ 2>/dev/null | head -10 || true' >> /start.sh && \
+    echo '  echo "📁 Checking for required files..."' >> /start.sh && \
+    echo '  ls -la /app/apps/web-admin/.next/*.json 2>/dev/null || echo "Missing JSON files"' >> /start.sh && \
     echo '  cd /app/apps/web-admin && exec node "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
     echo 'else' >> /start.sh && \
     echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \

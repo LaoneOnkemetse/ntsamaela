@@ -36,7 +36,7 @@ export default function Home() {
             fontFamily: '"Inter", sans-serif'
           }}>
             <span style={{
-              fontSize: '3.5rem',
+              fontSize: '4.5rem',
               fontWeight: '900',
               color: '#75AADB'
             }}>N</span>
