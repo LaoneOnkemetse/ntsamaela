@@ -54,16 +54,23 @@ export default function Verifications() {
   const { data: verificationsData, isLoading, error, refetch } = useQuery({
     queryKey: ['verifications', searchQuery, statusFilter],
     queryFn: async () => {
-      const params: any = {
-        limit: 100,
-        sortBy: 'submittedAt',
-        sortOrder: 'desc',
-      };
-      if (searchQuery) params.search = searchQuery;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      const data = await getVerifications(params);
-      return Array.isArray(data) ? data : (data?.verifications || data?.data || []);
+      try {
+        const params: any = {
+          limit: 100,
+          sortBy: 'submittedAt',
+          sortOrder: 'desc',
+        };
+        if (searchQuery) params.search = searchQuery;
+        if (statusFilter !== 'all') params.status = statusFilter;
+        const data = await getVerifications(params);
+        return Array.isArray(data) ? data : (data?.verifications || data?.data || []);
+      } catch (err: any) {
+        console.error('Error fetching verifications:', err);
+        return [];
+      }
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Approve verification mutation

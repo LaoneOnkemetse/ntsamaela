@@ -158,7 +158,13 @@ export default function Users() {
         <Typography variant="h4" component="h1">
           User Management
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />}
+          onClick={() => {
+            toast('Add user functionality coming soon');
+          }}
+        >
           Add User
         </Button>
       </Box>

@@ -15,6 +15,41 @@ export default function Home() {
         background: 'linear-gradient(135deg, #75AADB 0%, #5A8FBF 100%)',
         color: 'white'
       }}>
+        {/* Logo and Name */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          marginBottom: '2rem'
+        }}>
+          <div style={{
+            width: '120px',
+            height: '120px',
+            borderRadius: '50%',
+            backgroundColor: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1.5rem',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)'
+          }}>
+            <span style={{
+              fontSize: '4rem',
+              fontWeight: '700',
+              color: '#75AADB'
+            }}>N</span>
+          </div>
+          <h2 style={{
+            fontSize: '2.5rem',
+            fontWeight: '700',
+            letterSpacing: '0.2em',
+            margin: 0,
+            textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+          }}>
+            NTSAMAELA
+          </h2>
+        </div>
+        
         <h1 style={{
           fontSize: '3rem',
           fontWeight: '700',

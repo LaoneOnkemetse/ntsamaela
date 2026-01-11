@@ -55,16 +55,23 @@ export default function Deliveries() {
   const { data: packagesData, isLoading, error, refetch } = useQuery({
     queryKey: ['packages', searchQuery, statusFilter],
     queryFn: async () => {
-      const params: any = {
-        limit: 100,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      };
-      if (searchQuery) params.search = searchQuery;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      const data = await getPackages(params);
-      return Array.isArray(data) ? data : (data?.packages || data?.data || []);
+      try {
+        const params: any = {
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        };
+        if (searchQuery) params.search = searchQuery;
+        if (statusFilter !== 'all') params.status = statusFilter;
+        const data = await getPackages(params);
+        return Array.isArray(data) ? data : (data?.packages || data?.data || []);
+      } catch (err: any) {
+        console.error('Error fetching packages:', err);
+        return [];
+      }
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const packages = packagesData || [];

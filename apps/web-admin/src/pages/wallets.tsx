@@ -40,15 +40,22 @@ export default function Wallets() {
   const { data: transactionsData, isLoading, error } = useQuery({
     queryKey: ['transactions', searchQuery],
     queryFn: async () => {
-      const params: any = {
-        limit: 100,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      };
-      if (searchQuery) params.search = searchQuery;
-      const data = await getTransactions(params);
-      return Array.isArray(data) ? data : (data?.transactions || data?.data || []);
+      try {
+        const params: any = {
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        };
+        if (searchQuery) params.search = searchQuery;
+        const data = await getTransactions(params);
+        return Array.isArray(data) ? data : (data?.transactions || data?.data || []);
+      } catch (err: any) {
+        console.error('Error fetching transactions:', err);
+        return [];
+      }
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Fetch analytics

@@ -50,47 +50,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check for stored token on app start
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      // Mock user data for development
-      const mockUser: AuthUser = {
-        id: 'mock-user-id',
-        email: 'admin@ntsamaela.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        phone: '+1234567890',
-        userType: 'CUSTOMER',
-        identityVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setUser(mockUser);
-    }
-    setLoading(false);
+    const checkAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        setToken(storedToken);
+        try {
+          // Try to fetch current user from API
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${storedToken}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              setUser(data.data);
+            } else {
+              // Token invalid, clear it
+              localStorage.removeItem('token');
+              setToken(null);
+            }
+          } else {
+            // Token invalid, clear it
+            localStorage.removeItem('token');
+            setToken(null);
+          }
+        } catch (error) {
+          console.error('Error checking auth:', error);
+          // On error, clear token to force login
+          localStorage.removeItem('token');
+          setToken(null);
+        }
+      }
+      setLoading(false);
+    };
+    
+    checkAuth();
   }, []);
 
   const login = async (credentials: LoginRequest): Promise<boolean> => {
     try {
-      // Mock login for development
-      const mockUser: AuthUser = {
-        id: 'mock-user-id',
-        email: credentials.email,
-        firstName: 'Admin',
-        lastName: 'User',
-        phone: '+1234567890',
-        userType: 'CUSTOMER',
-        identityVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      const data = await response.json();
       
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      setUser(mockUser);
-      setToken(mockToken);
-      localStorage.setItem('token', mockToken);
-      return true;
+      if (data.success && data.data) {
+        const { user: userData, token: userToken } = data.data;
+        setUser(userData);
+        setToken(userToken);
+        localStorage.setItem('token', userToken);
+        return true;
+      } else {
+        console.error('Login failed:', data.error);
+        return false;
+      }
     } catch (error) {
       console.error('Login error:', error);
       return false;

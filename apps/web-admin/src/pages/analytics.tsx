@@ -33,10 +33,17 @@ export default function Analytics() {
   const { data: analyticsData, isLoading, error } = useQuery({
     queryKey: ['analytics', period],
     queryFn: async () => {
-      const params: any = { period };
-      const data = await getAnalytics(params);
-      return data;
+      try {
+        const params: any = { period };
+        const data = await getAnalytics(params);
+        return data;
+      } catch (err: any) {
+        console.error('Error fetching analytics:', err);
+        return {};
+      }
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Fetch real-time metrics
