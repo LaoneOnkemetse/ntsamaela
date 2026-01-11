@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   AppBar,
@@ -103,6 +103,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
+  // Redirect to login if not authenticated (except on login page)
+  useEffect(() => {
+    if (!loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', color: '#6366F1' },
     { text: 'Users', icon: <People />, path: '/users', color: '#10B981' },
@@ -196,8 +203,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     </Box>
   );
 
-  if (!user) {
-    return <>{children}</>;
+  // Redirect to login if not authenticated (except on login page)
+  useEffect(() => {
+    if (!loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+  
+  if (!user && router.pathname !== '/login' && router.pathname !== '/') {
+    return null; // Don't render anything while redirecting
   }
 
   return (
