@@ -77,7 +77,11 @@ function Error({ statusCode, err }: ErrorProps) {
 }
 
 Error.getInitialProps = ({ res, err }: NextPageContext) => {
-  const statusCode = res ? res.statusCode : err ? (err as any).statusCode : 404;
+  const statusCode = res ? res.statusCode : err ? (err as any).statusCode : 500;
+  // Log error for debugging
+  if (err) {
+    console.error('Error in _error.tsx:', err);
+  }
   return { statusCode, err: err || undefined };
 };
 
