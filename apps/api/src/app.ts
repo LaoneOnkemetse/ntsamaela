@@ -215,6 +215,34 @@ app.use("/api/performance", performanceRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
+// API root endpoint - provide helpful information
+app.get("/api", (req, res) => {
+  res.json({
+    success: true,
+    message: "Ntsamaela API",
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/auth",
+      users: "/api/user",
+      packages: "/api/packages",
+      trips: "/api/trips",
+      bids: "/api/bids",
+      wallet: "/api/wallet",
+      verification: "/api/verification",
+      deliveries: "/api/deliveries",
+      chat: "/api/chat",
+      tracking: "/api/tracking",
+      notifications: "/api/notifications",
+      admin: "/api/admin",
+      analytics: "/api/analytics",
+      performance: "/api/performance",
+      realtime: "/api/realtime",
+      webhooks: "/api/webhooks",
+    },
+    health: "/health",
+  });
+});
+
 // Cloud services:
 // - Google Cloud Vision API (for OCR and face detection)
 // - Cloudinary (for file storage and image optimization)
