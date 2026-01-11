@@ -35,10 +35,14 @@ RUN npm run build || (echo "❌ Build failed!" && exit 1) && \
     if [ -d ".next/standalone" ]; then \
       echo "✅ Standalone directory exists" && \
       ls -la .next/standalone/ | head -20 && \
-      find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"; \
+      find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone" && \
+      echo "📁 Checking standalone static files:" && \
+      find .next/standalone -path "*/static/*" -type f 2>/dev/null | head -10 || echo "No static files in standalone"; \
     else \
       echo "⚠️ Standalone directory not found, checking .next structure:" && \
       find .next -type f -name "*.js" | grep -v node_modules | head -10 && \
+      echo "📁 Checking static files:" && \
+      find .next/static -type f 2>/dev/null | head -10 || echo "No static files found" && \
       echo "📁 Full .next structure:" && \
       find .next -type d | head -20; \
     fi
