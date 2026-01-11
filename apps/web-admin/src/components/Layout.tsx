@@ -36,6 +36,8 @@ import {
   TrendingUp,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { getNotifications } from '../services/api';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -45,10 +47,28 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Fetch notifications
+  const { data: notificationsData } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      try {
+        const data = await getNotifications({ unreadOnly: true, limit: 10 });
+        return Array.isArray(data) ? data : (data?.notifications || data?.data || []);
+      } catch (error) {
+        return [];
+      }
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: !!user,
+  });
+
+  const unreadCount = notificationsData?.filter((n: any) => !n.read).length || 0;
 
   const handleMenu = () => {
     setDrawerOpen(!drawerOpen);
@@ -60,6 +80,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleUserMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNotificationMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationMenuClose = () => {
+    setNotificationAnchorEl(null);
   };
 
   const handleLogout = () => {
@@ -207,8 +235,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Box sx={{ flexGrow: 1 }} />
           
           <Tooltip title="Notifications">
-            <IconButton color="inherit" sx={{ mr: 1 }}>
-              <Badge badgeContent={3} color="error">
+            <IconButton 
+              color="inherit" 
+              sx={{ mr: 1 }}
+              onClick={handleNotificationMenuOpen}
+            >
+              <Badge badgeContent={unreadCount} color="error">
                 <Notifications />
               </Badge>
             </IconButton>
@@ -230,6 +262,93 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Tooltip>
         </Toolbar>
       </AppBar>
+
+      {/* Notifications Menu */}
+      <Menu
+        anchorEl={notificationAnchorEl}
+        open={Boolean(notificationAnchorEl)}
+        onClose={handleNotificationMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          sx: {
+            mt: 1.5,
+            minWidth: 320,
+            maxWidth: 400,
+            maxHeight: 400,
+            borderRadius: 2,
+            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.12)',
+          },
+        }}
+      >
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Notifications
+          </Typography>
+        </Box>
+        <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+          {notificationsData && notificationsData.length > 0 ? (
+            notificationsData.slice(0, 10).map((notification: any) => (
+              <MenuItem 
+                key={notification.id}
+                onClick={() => {
+                  handleNotificationMenuClose();
+                  // Navigate to relevant page based on notification type
+                  if (notification.type?.includes('verification')) {
+                    router.push('/verifications');
+                  } else if (notification.type?.includes('package')) {
+                    router.push('/deliveries');
+                  }
+                }}
+                sx={{ 
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  ...(!notification.read && {
+                    backgroundColor: 'rgba(117, 170, 219, 0.05)',
+                  }),
+                }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: notification.read ? 400 : 600 }}>
+                    {notification.title || 'Notification'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {notification.message || notification.body || ''}
+                  </Typography>
+                  {notification.createdAt && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </Typography>
+                  )}
+                </Box>
+              </MenuItem>
+            ))
+          ) : (
+            <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                No notifications
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        {notificationsData && notificationsData.length > 0 && (
+          <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+            <MenuItem 
+              onClick={() => {
+                handleNotificationMenuClose();
+                router.push('/notifications');
+              }}
+              sx={{ justifyContent: 'center', py: 1 }}
+            >
+              <Typography variant="caption" color="primary">
+                View All Notifications
+              </Typography>
+            </MenuItem>
+          </Box>
+        )}
+      </Menu>
 
       <Menu
         anchorEl={anchorEl}

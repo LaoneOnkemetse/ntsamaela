@@ -629,10 +629,30 @@ export default function Dashboard() {
                   </Typography>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {[
-                      { label: 'Review Verifications', count: 12, color: '#FFB800', action: 'verifications' },
-                      { label: 'Pending Approvals', count: 8, color: '#FF6D00', action: 'approvals' },
-                      { label: 'Support Tickets', count: 5, color: '#75AADB', action: 'support' },
-                      { label: 'New Users', count: 24, color: '#00C853', action: 'users' },
+                      { 
+                        label: 'Review Verifications', 
+                        count: dashboardData?.pendingVerifications || verificationsData?.length || 0, 
+                        color: '#FFB800', 
+                        action: 'verifications' 
+                      },
+                      { 
+                        label: 'Pending Approvals', 
+                        count: packagesData?.filter((p: any) => p.status === 'PENDING').length || 0, 
+                        color: '#FF6D00', 
+                        action: 'approvals' 
+                      },
+                      { 
+                        label: 'Active Packages', 
+                        count: dashboardData?.activePackages || packagesData?.filter((p: any) => p.status === 'IN_TRANSIT').length || 0, 
+                        color: '#75AADB', 
+                        action: 'support' 
+                      },
+                      { 
+                        label: 'New Users', 
+                        count: dashboardData?.totalUsers || 0, 
+                        color: '#00C853', 
+                        action: 'users' 
+                      },
                     ].map((item, index) => (
                       <Button
                         key={index}

@@ -395,5 +395,16 @@ export const performBulkAction = async (action: string, targetIds: string[], met
   }
 };
 
+// Notifications API methods
+export const getNotifications = async (params?: any) => {
+  try {
+    const response = await apiClient.get('/notifications', { params });
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
 // Export default for use in components
 export default apiClient;

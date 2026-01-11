@@ -228,17 +228,17 @@ export default function Settings() {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     <strong>Database Status:</strong>{' '}
                     <span style={{ 
-                      color: systemHealth?.database?.status === 'connected' ? '#10B981' : '#EF4444' 
+                      color: (systemHealth?.database?.status === 'connected' || systemHealth?.database?.connected) ? '#10B981' : '#EF4444' 
                     }}>
-                      {systemHealth?.database?.status === 'connected' ? 'Connected' : 'Disconnected'}
+                      {(systemHealth?.database?.status === 'connected' || systemHealth?.database?.connected) ? 'Connected' : 'Disconnected'}
                     </span>
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     <strong>Server Status:</strong>{' '}
                     <span style={{ 
-                      color: systemHealth?.status === 'healthy' ? '#10B981' : '#EF4444' 
+                      color: (systemHealth?.status === 'healthy' || systemHealth?.status === 'ok' || systemHealth?.healthy) ? '#10B981' : '#EF4444' 
                     }}>
-                      {systemHealth?.status === 'healthy' ? 'Running' : 'Unhealthy'}
+                      {(systemHealth?.status === 'healthy' || systemHealth?.status === 'ok' || systemHealth?.healthy) ? 'Running' : 'Unhealthy'}
                     </span>
                   </Typography>
                   {systemMetrics && (

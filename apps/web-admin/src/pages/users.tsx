@@ -56,16 +56,24 @@ export default function Users() {
   const { data: usersData, isLoading, error } = useQuery({
     queryKey: ['users', searchQuery, statusFilter],
     queryFn: async () => {
-      const params: any = {
-        limit: 100,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      };
-      if (searchQuery) params.search = searchQuery;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      const data = await getUsers(params);
-      return Array.isArray(data) ? data : (data?.users || data?.data || []);
+      try {
+        const params: any = {
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        };
+        if (searchQuery) params.search = searchQuery;
+        if (statusFilter !== 'all') params.status = statusFilter;
+        const data = await getUsers(params);
+        return Array.isArray(data) ? data : (data?.users || data?.data || []);
+      } catch (err: any) {
+        console.error('Error fetching users:', err);
+        // Return empty array instead of throwing to prevent UI crash
+        return [];
+      }
     },
+    retry: 2,
+    retryDelay: 1000,
   });
 
   // Update user mutation
