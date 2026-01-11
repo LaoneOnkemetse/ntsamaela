@@ -20,33 +20,32 @@ export default function Home() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          marginBottom: '0.5rem'
+          marginBottom: '0.25rem'
         }}>
           <div style={{
             width: '100px',
             height: '100px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #75AADB 0%, #FFB800 100%)',
+            borderRadius: '50px',
+            backgroundColor: '#75AADB',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '1rem',
-            boxShadow: '0 10px 25px rgba(117, 170, 219, 0.3)'
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)'
           }}>
             <span style={{
               fontSize: '3.5rem',
               fontWeight: '900',
               color: '#FFFFFF',
-              letterSpacing: '-0.02em',
-              fontFamily: '"Inter", sans-serif'
+              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)'
             }}>N</span>
           </div>
           <h2 style={{
             fontSize: '2.5rem',
-            fontWeight: '700',
-            letterSpacing: '0.2em',
+            fontWeight: '800',
+            letterSpacing: '0.1em',
             margin: 0,
-            marginBottom: '0.5rem',
+            marginBottom: '0.25rem',
             textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
           }}>
             NTSAMAELA
@@ -54,11 +53,11 @@ export default function Home() {
         </div>
         
         <h1 style={{
-          fontSize: '1.75rem',
-          fontWeight: '600',
+          fontSize: '1.5rem',
+          fontWeight: '400',
           marginBottom: '1rem',
           lineHeight: '1.3',
-          opacity: 0.95
+          opacity: 0.9
         }}>
           Peer-to-Peer<br />
           Package Delivery
