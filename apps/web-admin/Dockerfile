@@ -131,10 +131,14 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo '  echo "📁 Verifying .next directory structure..."' >> /start.sh && \
     echo '  ls -la /app/apps/web-admin/.next/ 2>/dev/null | head -10 || true' >> /start.sh && \
     echo '  echo "📁 Checking for static files..."' >> /start.sh && \
-    echo '  ls -la /app/apps/web-admin/.next/static 2>/dev/null | head -5 || echo "Static directory not found"' >> /start.sh && \
+    echo '  find /app/apps/web-admin/.next/static -type f 2>/dev/null | head -10 || echo "Static files not found"' >> /start.sh && \
     echo '  echo "📁 Checking for required files..."' >> /start.sh && \
     echo '  ls -la /app/apps/web-admin/.next/*.json 2>/dev/null || echo "Missing JSON files"' >> /start.sh && \
-    echo '  cd /app/apps/web-admin && exec node "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
+    echo '  echo "📁 Setting working directory and starting Next.js..."' >> /start.sh && \
+    echo '  cd /app/apps/web-admin' >> /start.sh && \
+    echo '  echo "Current directory: $(pwd)"' >> /start.sh && \
+    echo '  echo "Static files location: $(ls -la .next/static 2>/dev/null | head -5 || echo \"Not found\")"' >> /start.sh && \
+    echo '  exec node "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
     echo 'else' >> /start.sh && \
     echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \
     echo '  echo "📁 Listing /app structure:"' >> /start.sh && \
