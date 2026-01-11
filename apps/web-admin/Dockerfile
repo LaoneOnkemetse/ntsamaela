@@ -115,9 +115,12 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'fi' >> /start.sh && \
     echo 'echo "📁 Looking for next binary..."' >> /start.sh && \
     echo 'NEXT_BIN=$(find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -1)' >> /start.sh && \
+    echo 'if [ -z "$NEXT_BIN" ] || [ ! -f "$NEXT_BIN" ]; then' >> /start.sh && \
+    echo '  NEXT_BIN=$(find /app -path "*/next/dist/bin/next" -type f 2>/dev/null | head -1)' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
     echo 'if [ -n "$NEXT_BIN" ] && [ -f "$NEXT_BIN" ]; then' >> /start.sh && \
     echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
-    echo '  cd /app/apps/web-admin && exec "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
+    echo '  cd /app/apps/web-admin && exec node "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
     echo 'else' >> /start.sh && \
     echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \
     echo '  echo "📁 Listing /app structure:"' >> /start.sh && \
