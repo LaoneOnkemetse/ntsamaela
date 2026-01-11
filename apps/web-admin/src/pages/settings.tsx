@@ -1,7 +1,10 @@
-import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, TextField, Switch, FormControlLabel, Divider, Alert } from '@mui/material';
+import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, TextField, Switch, FormControlLabel, Divider, Alert, CircularProgress } from '@mui/material';
 import { Settings as SettingsIcon, Save, Refresh, Lock } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getSystemHealth, getSystemMetrics } from '../services/api';
+import apiClient from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Settings() {
@@ -45,6 +48,50 @@ export default function Settings() {
     toast.success('Settings reset to default');
   };
 
+  // Fetch system health and metrics
+  const { data: systemHealth, isLoading: healthLoading } = useQuery({
+    queryKey: ['systemHealth'],
+    queryFn: async () => {
+      try {
+        const health = await getSystemHealth();
+        return health;
+      } catch (error) {
+        return null;
+      }
+    },
+  });
+
+  const { data: systemMetrics } = useQuery({
+    queryKey: ['systemMetrics'],
+    queryFn: async () => {
+      try {
+        const metrics = await getSystemMetrics();
+        return metrics;
+      } catch (error) {
+        return null;
+      }
+    },
+  });
+
+  // Password change mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const response = await apiClient.post('/auth/change-password', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Password changed successfully!');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to change password');
+    },
+  });
+
   const handleChangePassword = () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast.error('Please fill in all password fields');
@@ -61,12 +108,9 @@ export default function Settings() {
       return;
     }
 
-    // Mock password change
-    toast.success('Password changed successfully!');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
+    changePasswordMutation.mutate({
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
     });
   };
 
@@ -167,18 +211,48 @@ export default function Settings() {
           <Card>
             <CardHeader title="System Information" />
             <CardContent>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                <strong>Version:</strong> 1.0.0
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                <strong>Last Updated:</strong> 2024-01-15
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                <strong>Database Status:</strong> Connected
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                <strong>Server Status:</strong> Running
-              </Typography>
+              {healthLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : (
+                <>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <strong>Version:</strong> {systemHealth?.version || '1.0.0'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <strong>Last Updated:</strong> {systemHealth?.timestamp 
+                      ? new Date(systemHealth.timestamp).toLocaleDateString()
+                      : new Date().toLocaleDateString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <strong>Database Status:</strong>{' '}
+                    <span style={{ 
+                      color: systemHealth?.database?.status === 'connected' ? '#10B981' : '#EF4444' 
+                    }}>
+                      {systemHealth?.database?.status === 'connected' ? 'Connected' : 'Disconnected'}
+                    </span>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <strong>Server Status:</strong>{' '}
+                    <span style={{ 
+                      color: systemHealth?.status === 'healthy' ? '#10B981' : '#EF4444' 
+                    }}>
+                      {systemHealth?.status === 'healthy' ? 'Running' : 'Unhealthy'}
+                    </span>
+                  </Typography>
+                  {systemMetrics && (
+                    <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        <strong>Uptime:</strong> {systemMetrics.uptime || 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        <strong>Memory Usage:</strong> {systemMetrics.memory?.usage || 'N/A'}
+                      </Typography>
+                    </>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -219,6 +293,7 @@ export default function Settings() {
                 variant="contained" 
                 startIcon={<Lock />}
                 onClick={handleChangePassword}
+                disabled={changePasswordMutation.isPending}
                 sx={{
                   backgroundColor: '#75AADB',
                   '&:hover': {
@@ -226,7 +301,14 @@ export default function Settings() {
                   },
                 }}
               >
-                Update Password
+                {changePasswordMutation.isPending ? (
+                  <>
+                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Password'
+                )}
               </Button>
             </CardContent>
           </Card>

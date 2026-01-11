@@ -395,4 +395,5 @@ export const performBulkAction = async (action: string, targetIds: string[], met
   }
 };
 
+// Export default for use in components
 export default apiClient;

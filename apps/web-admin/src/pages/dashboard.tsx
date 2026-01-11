@@ -203,12 +203,41 @@ export default function Dashboard() {
 
   const handleExport = async () => {
     try {
-      toast.loading('Exporting dashboard data...');
-      // In production: call export API
-      setTimeout(() => {
-        toast.dismiss();
+      const loadingToast = toast.loading('Exporting dashboard data...');
+      try {
+        const { exportAnalytics } = await import('../services/api');
+        const blob = await exportAnalytics({ format: 'csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dashboard-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.dismiss(loadingToast);
         toast.success('Export completed!');
-      }, 2000);
+      } catch (error: any) {
+        toast.dismiss(loadingToast);
+        // Fallback: create a simple CSV from current data
+        const csvContent = [
+          ['Metric', 'Value'],
+          ['Total Users', dashboardData?.totalUsers || 0],
+          ['Active Packages', dashboardData?.activePackages || 0],
+          ['Pending Verifications', dashboardData?.pendingVerifications || 0],
+          ['Total Revenue', dashboardData?.totalRevenue || 0],
+        ].map(row => row.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dashboard-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Export completed!');
+      }
     } catch (error) {
       toast.error('Failed to export data');
     }

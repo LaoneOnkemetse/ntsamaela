@@ -23,6 +23,10 @@ import {
   Select,
   MenuItem,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { 
   LocalShipping, 
@@ -30,16 +34,22 @@ import {
   Edit,
   Search,
   Refresh,
+  Close,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { getPackages, updatePackageStatus } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getPackages, getPackageById, updatePackageStatus } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Deliveries() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState<string>('');
 
   // Fetch packages
   const { data: packagesData, isLoading, error, refetch } = useQuery({
@@ -58,6 +68,52 @@ export default function Deliveries() {
   });
 
   const packages = packagesData || [];
+
+  // Fetch selected package details
+  const { data: packageDetails, isLoading: detailsLoading } = useQuery({
+    queryKey: ['packageDetails', selectedPackageId],
+    queryFn: async () => {
+      if (!selectedPackageId) return null;
+      const data = await getPackageById(selectedPackageId);
+      return data;
+    },
+    enabled: !!selectedPackageId && detailsOpen,
+  });
+
+  // Update package status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return await updatePackageStatus(id, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
+      toast.success('Package status updated successfully!');
+      setEditOpen(false);
+      setSelectedPackageId(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to update package status');
+    },
+  });
+
+  const handleViewDetails = (id: string) => {
+    setSelectedPackageId(id);
+    setDetailsOpen(true);
+  };
+
+  const handleEdit = (pkg: any) => {
+    setSelectedPackageId(pkg.id);
+    setNewStatus(pkg.status || 'PENDING');
+    setEditOpen(true);
+  };
+
+  const handleStatusUpdate = () => {
+    if (!selectedPackageId || !newStatus) {
+      toast.error('Please select a status');
+      return;
+    }
+    updateStatusMutation.mutate({ id: selectedPackageId, status: newStatus });
+  };
 
   const getStatusColor = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -189,19 +245,15 @@ export default function Deliveries() {
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <IconButton
                           size="small"
-                          onClick={() => {
-                            // Navigate to package details
-                            toast('Package details view coming soon');
-                          }}
+                          onClick={() => handleViewDetails(pkg.id || pkg.packageId)}
+                          color="primary"
                         >
                           <Visibility fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => {
-                            // Edit package
-                            toast('Package edit coming soon');
-                          }}
+                          onClick={() => handleEdit(pkg)}
+                          color="secondary"
                         >
                           <Edit fontSize="small" />
                         </IconButton>
@@ -214,6 +266,129 @@ export default function Deliveries() {
           </Table>
         </TableContainer>
       )}
+
+      {/* Package Details Dialog */}
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Package Details</Typography>
+            <IconButton onClick={() => setDetailsOpen(false)} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {detailsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : packageDetails ? (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Package ID</Typography>
+                <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
+                  {packageDetails.id || packageDetails.packageId}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Status</Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Chip
+                    label={packageDetails.status?.replace('_', ' ') || 'PENDING'}
+                    color={getStatusColor(packageDetails.status) as any}
+                    size="small"
+                  />
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Customer</Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {packageDetails.customer?.firstName && packageDetails.customer?.lastName
+                    ? `${packageDetails.customer.firstName} ${packageDetails.customer.lastName}`
+                    : packageDetails.customerName || 'Unknown'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Driver</Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {packageDetails.driver?.firstName && packageDetails.driver?.lastName
+                    ? `${packageDetails.driver.firstName} ${packageDetails.driver.lastName}`
+                    : packageDetails.driverName || 'Unassigned'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">Pickup Address</Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {packageDetails.pickupAddress || 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">Delivery Address</Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {packageDetails.deliveryAddress || 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Price Offered</Typography>
+                <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
+                  P {packageDetails.priceOffered || 0}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">Created Date</Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {packageDetails.createdAt 
+                    ? new Date(packageDetails.createdAt).toLocaleString()
+                    : 'N/A'}
+                </Typography>
+              </Grid>
+              {packageDetails.description && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">Description</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {packageDetails.description}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          ) : (
+            <Alert severity="error">Failed to load package details</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Package Status Dialog */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Package Status</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={newStatus}
+              label="Status"
+              onChange={(e) => setNewStatus(e.target.value)}
+            >
+              <MenuItem value="PENDING">Pending</MenuItem>
+              <MenuItem value="IN_TRANSIT">In Transit</MenuItem>
+              <MenuItem value="DELIVERED">Delivered</MenuItem>
+              <MenuItem value="CANCELLED">Cancelled</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleStatusUpdate} 
+            variant="contained"
+            disabled={updateStatusMutation.isPending}
+          >
+            {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
