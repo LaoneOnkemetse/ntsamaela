@@ -63,12 +63,16 @@ COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.js
 # Copy node_modules for Next.js runtime
 COPY --from=builder /app/node_modules ./node_modules
 
-# Debug: List what's in the standalone directory to find server.js AFTER copying
-RUN echo "📁 Contents of /app after copy:" && ls -la /app/ 2>/dev/null | head -20 || true && \
-    echo "📁 Contents of /app/apps/web-admin:" && ls -la /app/apps/web-admin/ 2>/dev/null | head -20 || true && \
-    echo "📁 Looking for server.js:" && find /app -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js found" && \
-    echo "📁 All .js files in /app/apps/web-admin:" && find /app/apps/web-admin -name "*.js" -type f 2>/dev/null | head -10 || echo "No .js files found" && \
-    echo "📁 Checking for next binary:" && find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -3 || echo "No next binary found"
+# Create missing prerender-manifest.json if it doesn't exist (required by next start)
+RUN if [ ! -f "/app/apps/web-admin/.next/prerender-manifest.json" ]; then \
+      echo "⚠️ prerender-manifest.json missing, creating empty one..." && \
+      echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development","previewModeSigningKey":"development","previewModeEncryptionKey":"development"}}' > /app/apps/web-admin/.next/prerender-manifest.json && \
+      echo "✅ Created prerender-manifest.json"; \
+    else \
+      echo "✅ prerender-manifest.json exists"; \
+    fi && \
+    echo "📁 Verifying required files:" && \
+    ls -la /app/apps/web-admin/.next/*.json 2>/dev/null | head -10 || true
 
 # CRITICAL: Remove ALL package.json files IMMEDIATELY after copy to prevent Railway from auto-running npm start
 # Railway detects package.json and runs npm start automatically, ignoring our CMD
