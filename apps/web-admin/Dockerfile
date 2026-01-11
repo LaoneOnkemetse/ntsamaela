@@ -60,17 +60,24 @@ RUN addgroup --system --gid 1001 nodejs && \
 # We'll check after copying instead
 
 # Copy the built application
-# Copy the entire .next directory with all required files (this includes static files)
+# Always copy the .next directory (includes static files)
 COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
 # Copy package.json temporarily (will be removed later)
 COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
 # Copy node_modules for Next.js runtime
 COPY --from=builder /app/node_modules ./node_modules
 
-# Verify static files are present
-RUN echo "📁 Verifying static files after copy:" && \
-    ls -la /app/apps/web-admin/.next/static 2>/dev/null | head -10 || echo "⚠️ Static directory not found" && \
-    find /app/apps/web-admin/.next/static -type f 2>/dev/null | head -10 || echo "⚠️ No static files found"
+# Verify static files are present and show structure
+RUN echo "📁 Verifying .next directory structure:" && \
+    ls -la /app/apps/web-admin/.next/ 2>/dev/null | head -15 || echo "⚠️ .next directory not found" && \
+    echo "📁 Checking for static files:" && \
+    if [ -d "/app/apps/web-admin/.next/static" ]; then \
+      echo "✅ Static directory found" && \
+      find /app/apps/web-admin/.next/static -type d 2>/dev/null | head -10 && \
+      find /app/apps/web-admin/.next/static -type f 2>/dev/null | head -10; \
+    else \
+      echo "⚠️ Static directory not found!"; \
+    fi
 
 # Create missing prerender-manifest.json if it doesn't exist (required by next start)
 RUN if [ ! -f "/app/apps/web-admin/.next/prerender-manifest.json" ]; then \
