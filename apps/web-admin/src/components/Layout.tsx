@@ -205,12 +205,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Redirect to login if not authenticated (except on login page)
   useEffect(() => {
-    if (!loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+    // Only redirect in browser, not during SSR
+    if (typeof window !== 'undefined' && !loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
       router.push('/login');
     }
   }, [user, loading, router]);
   
-  if (!user && router.pathname !== '/login' && router.pathname !== '/') {
+  // Don't block rendering during SSR - let the page handle its own redirect
+  if (typeof window !== 'undefined' && !loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
     return null; // Don't render anything while redirecting
   }
 

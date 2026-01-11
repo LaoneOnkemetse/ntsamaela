@@ -49,8 +49,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored token on app start
+    // Check for stored token on app start (only in browser, not SSR)
     const checkAuth = async () => {
+      // Check if we're in the browser (not SSR)
+      if (typeof window === 'undefined') {
+        setLoading(false);
+        return;
+      }
+
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         setToken(storedToken);
