@@ -27,13 +27,21 @@ COPY packages/shared ./packages/shared
 
 # Build the application
 WORKDIR /app/apps/web-admin
-RUN npm run build && \
-    echo "📁 Checking standalone output structure:" && \
-    ls -la .next/standalone/ 2>/dev/null | head -20 || echo "Standalone directory not found" && \
-    find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone" && \
-    echo "📁 Checking standalone output:" && \
-    ls -la .next/standalone/ 2>/dev/null | head -20 || echo "Standalone directory not found" && \
-    find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"
+RUN npm run build || (echo "❌ Build failed!" && exit 1) && \
+    echo "✅ Build completed" && \
+    echo "📁 Checking .next directory:" && \
+    ls -la .next/ 2>/dev/null | head -20 || echo ".next directory not found" && \
+    echo "📁 Checking for standalone:" && \
+    if [ -d ".next/standalone" ]; then \
+      echo "✅ Standalone directory exists" && \
+      ls -la .next/standalone/ | head -20 && \
+      find .next/standalone -name "server.js" -type f 2>/dev/null | head -5 || echo "No server.js in standalone"; \
+    else \
+      echo "⚠️ Standalone directory not found, checking .next structure:" && \
+      find .next -type f -name "*.js" | grep -v node_modules | head -10 && \
+      echo "📁 Full .next structure:" && \
+      find .next -type d | head -20; \
+    fi
 
 # Production image, copy all the files and run the app
 FROM base AS runner
@@ -47,11 +55,11 @@ RUN addgroup --system --gid 1001 nodejs && \
 # This RUN command can't access builder stage files - remove it
 # We'll check after copying instead
 
-# Copy the built application (standalone includes node_modules and server.js)
-# Next.js standalone output structure: it copies the entire app structure
-COPY --from=builder /app/apps/web-admin/.next/standalone ./
-COPY --from=builder /app/apps/web-admin/.next/static ./apps/web-admin/.next/static
-# Note: public directory doesn't exist in this project, which is fine for Next.js
+# Copy the built application
+# Always copy the .next directory - the start script will handle finding the right entry point
+COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
+COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
+COPY --from=builder /app/node_modules ./node_modules
 
 # Debug: List what's in the standalone directory to find server.js AFTER copying
 RUN echo "📁 Contents of /app after copy:" && ls -la /app/ 2>/dev/null | head -20 || true && \
@@ -89,21 +97,28 @@ WORKDIR /app
 RUN echo '#!/bin/sh' > /start.sh && \
     echo 'set -e' >> /start.sh && \
     echo 'echo "🚀 Starting Next.js server..."' >> /start.sh && \
-    echo 'if [ -f "/app/apps/web-admin/server.js" ]; then' >> /start.sh && \
-    echo '  echo "✅ Found server.js at /app/apps/web-admin/server.js"' >> /start.sh && \
-    echo '  cd /app/apps/web-admin && exec node server.js' >> /start.sh && \
-    echo 'elif [ -f "/app/server.js" ]; then' >> /start.sh && \
-    echo '  echo "✅ Found server.js at /app/server.js"' >> /start.sh && \
-    echo '  cd /app && exec node server.js' >> /start.sh && \
+    echo 'echo "📁 Checking for standalone output..."' >> /start.sh && \
+    echo 'if [ -d "/app/apps/web-admin/.next/standalone" ]; then' >> /start.sh && \
+    echo '  echo "✅ Standalone output found"' >> /start.sh && \
+    echo '  if [ -f "/app/apps/web-admin/.next/standalone/apps/web-admin/server.js" ]; then' >> /start.sh && \
+    echo '    echo "✅ Found server.js in standalone"' >> /start.sh && \
+    echo '    cd /app/apps/web-admin/.next/standalone/apps/web-admin && exec node server.js' >> /start.sh && \
+    echo '  elif [ -f "/app/apps/web-admin/.next/standalone/server.js" ]; then' >> /start.sh && \
+    echo '    echo "✅ Found server.js at standalone root"' >> /start.sh && \
+    echo '    cd /app/apps/web-admin/.next/standalone && exec node server.js' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    echo 'echo "📁 Checking for server.js in .next..."' >> /start.sh && \
+    echo 'if [ -f "/app/apps/web-admin/.next/server.js" ]; then' >> /start.sh && \
+    echo '  echo "✅ Found server.js at /app/apps/web-admin/.next/server.js"' >> /start.sh && \
+    echo '  cd /app/apps/web-admin && exec node .next/server.js' >> /start.sh && \
     echo 'elif NEXT_BIN=$(find /app -path "*/node_modules/.bin/next" -type f 2>/dev/null | head -1); then' >> /start.sh && \
     echo '  echo "✅ Found next binary at: $NEXT_BIN"' >> /start.sh && \
     echo '  cd /app/apps/web-admin && exec "$NEXT_BIN" start -p ${PORT:-3000} -H 0.0.0.0' >> /start.sh && \
     echo 'else' >> /start.sh && \
     echo '  echo "❌ Cannot find server.js or next binary!"' >> /start.sh && \
     echo '  echo "📁 Listing /app structure:"' >> /start.sh && \
-    echo '  find /app -type f -name "*.js" | grep -v node_modules | head -10' >> /start.sh && \
-    echo '  echo "📁 Looking for next:"' >> /start.sh && \
-    echo '  find /app -name "next" -type f 2>/dev/null | head -5' >> /start.sh && \
+    echo '  find /app/apps/web-admin/.next -type f -name "*.js" 2>/dev/null | head -10' >> /start.sh && \
     echo '  exit 1' >> /start.sh && \
     echo 'fi' >> /start.sh && \
     chmod +x /start.sh

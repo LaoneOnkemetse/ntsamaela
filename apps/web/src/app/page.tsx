@@ -25,19 +25,20 @@ export default function Home() {
           <div style={{
             width: '100px',
             height: '100px',
-            borderRadius: '50px',
-            backgroundColor: '#75AADB',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #75AADB 0%, #FFB800 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '1rem',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)'
+            boxShadow: '0 10px 25px rgba(117, 170, 219, 0.3)',
+            letterSpacing: '-0.02em',
+            fontFamily: '"Inter", sans-serif'
           }}>
             <span style={{
               fontSize: '3.5rem',
               fontWeight: '900',
-              color: '#FFFFFF',
-              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)'
+              color: '#FFFFFF'
             }}>N</span>
           </div>
           <h2 style={{
