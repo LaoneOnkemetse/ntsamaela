@@ -58,8 +58,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the built application
 # Copy the entire .next directory with all required files
 COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
-# Copy public directory if it exists
-COPY --from=builder /app/apps/web-admin/public ./apps/web-admin/public 2>/dev/null || true
 # Copy package.json temporarily (will be removed later)
 COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
 # Copy node_modules for Next.js runtime
