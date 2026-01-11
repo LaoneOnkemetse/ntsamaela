@@ -26,7 +26,7 @@ export default function Home() {
             width: '100px',
             height: '100px',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, #75AADB 0%, #FFB800 100%)',
+            backgroundColor: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -38,7 +38,7 @@ export default function Home() {
             <span style={{
               fontSize: '3.5rem',
               fontWeight: '900',
-              color: '#FFFFFF'
+              color: '#75AADB'
             }}>N</span>
           </div>
           <h2 style={{
@@ -55,7 +55,7 @@ export default function Home() {
         
         <h1 style={{
           fontSize: '1.5rem',
-          fontWeight: '400',
+          fontWeight: '700',
           marginBottom: '1rem',
           lineHeight: '1.3',
           opacity: 0.9
