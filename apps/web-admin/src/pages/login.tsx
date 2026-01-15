@@ -19,6 +19,7 @@ import * as yup from 'yup';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/authService';
 import { GetServerSideProps } from 'next';
 
 const schema = yup.object({
@@ -61,6 +62,7 @@ export default function Login() {
       const response = await authService.login({ email: data.email, password: data.password });
       
       if (response.success && response.data) {
+        // Update auth context with the successful login
         const success = await login({ email: data.email, password: data.password });
         if (success) {
           toast.success('Welcome back!');
@@ -68,7 +70,8 @@ export default function Login() {
             router.push('/dashboard');
           }, 100);
         } else {
-          toast.error('Login failed. Please check your credentials.');
+          // This shouldn't happen if authService.login succeeded, but handle it
+          toast.error('Login succeeded but failed to update session.');
         }
       } else {
         // Handle specific error cases
