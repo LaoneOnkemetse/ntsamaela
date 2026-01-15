@@ -206,6 +206,16 @@ export default function Login() {
               <Typography variant="body2" color="text.secondary">
                 Sign in to access your admin panel
               </Typography>
+              {process.env.NEXT_PUBLIC_API_URL && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontSize: '0.7rem' }}>
+                  API: {process.env.NEXT_PUBLIC_API_URL}
+                </Typography>
+              )}
+              {!process.env.NEXT_PUBLIC_API_URL && (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1, fontSize: '0.7rem' }}>
+                  ⚠️ API URL not configured (using localhost)
+                </Typography>
+              )}
             </Box>
 
             <form onSubmit={handleSubmit(onSubmit)}>

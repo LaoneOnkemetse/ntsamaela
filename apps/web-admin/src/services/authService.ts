@@ -1,7 +1,15 @@
 import { ApiResponse, AuthUser, LoginRequest, RegisterRequest } from '@shared/types';
 
 class AuthService {
-  private baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  private baseUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : 'http://localhost:3001/api');
+  
+  constructor() {
+    // Log the API URL being used (only in browser)
+    if (typeof window !== 'undefined') {
+      console.log('🔗 AuthService API URL:', this.baseUrl);
+      console.log('🔗 NEXT_PUBLIC_API_URL env:', process.env.NEXT_PUBLIC_API_URL || 'NOT SET');
+    }
+  }
 
   async register(userData: RegisterRequest): Promise<ApiResponse<{ user: AuthUser; token: string }>> {
     try {
