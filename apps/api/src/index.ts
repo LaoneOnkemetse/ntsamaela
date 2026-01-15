@@ -28,32 +28,43 @@ async function ensureAdminUser() {
     const ADMIN_PHONE = '+26771234567';
 
     console.log('🔐 Ensuring permanent admin user exists...');
-    const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
     
-    await prisma.user.upsert({
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
       where: { email: ADMIN_EMAIL },
-      update: {
-        passwordHash: passwordHash,
-        firstName: ADMIN_FIRST_NAME,
-        lastName: ADMIN_LAST_NAME,
-        phone: ADMIN_PHONE,
-        userType: 'ADMIN',
-        identityVerified: true,
-        emailVerified: true,
-      },
-      create: {
-        email: ADMIN_EMAIL,
-        passwordHash: passwordHash,
-        firstName: ADMIN_FIRST_NAME,
-        lastName: ADMIN_LAST_NAME,
-        phone: ADMIN_PHONE,
-        userType: 'ADMIN',
-        identityVerified: true,
-        emailVerified: true,
-      },
     });
 
-    console.log('✅ Admin user ensured:', ADMIN_EMAIL);
+    if (existingUser) {
+      // User exists - only update non-password fields, don't change password hash
+      await prisma.user.update({
+        where: { email: ADMIN_EMAIL },
+        data: {
+          firstName: ADMIN_FIRST_NAME,
+          lastName: ADMIN_LAST_NAME,
+          phone: ADMIN_PHONE,
+          userType: 'ADMIN',
+          identityVerified: true,
+          emailVerified: true,
+        },
+      });
+      console.log('✅ Admin user updated (password preserved):', ADMIN_EMAIL);
+    } else {
+      // User doesn't exist - create with hashed password
+      const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+      await prisma.user.create({
+        data: {
+          email: ADMIN_EMAIL,
+          passwordHash: passwordHash,
+          firstName: ADMIN_FIRST_NAME,
+          lastName: ADMIN_LAST_NAME,
+          phone: ADMIN_PHONE,
+          userType: 'ADMIN',
+          identityVerified: true,
+          emailVerified: true,
+        },
+      });
+      console.log('✅ Admin user created:', ADMIN_EMAIL);
+    }
   } catch (error) {
     console.error('⚠️  Failed to ensure admin user:', error);
     // Don't exit - server should still start
