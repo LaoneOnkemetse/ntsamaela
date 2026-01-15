@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import { app, server, PORT } from './app';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
 import bcrypt from 'bcryptjs';
 
 // Load environment variables (Railway provides these automatically)
