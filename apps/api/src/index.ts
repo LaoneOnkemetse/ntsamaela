@@ -1,7 +1,6 @@
 import { config } from 'dotenv';
 import { app, server, PORT } from './app';
-import { PrismaClient } from '@prisma/client';
-import path from 'path';
+import { getPrismaClient } from '@database/index';
 import bcrypt from 'bcryptjs';
 
 // Load environment variables (Railway provides these automatically)
@@ -16,7 +15,12 @@ if (process.env.NODE_ENV !== 'production') {
 // Ensure admin user exists on startup
 async function ensureAdminUser() {
   try {
-    const prisma = new PrismaClient();
+    const prisma = getPrismaClient();
+    if (!prisma) {
+      console.log('⚠️  Prisma client not available, skipping admin user creation');
+      return;
+    }
+
     const ADMIN_EMAIL = 'Plutonium94@ntsamaela.com';
     const ADMIN_PASSWORD = 'pLuto@.*123hash';
     const ADMIN_FIRST_NAME = 'Plutonium';
@@ -50,7 +54,6 @@ async function ensureAdminUser() {
     });
 
     console.log('✅ Admin user ensured:', ADMIN_EMAIL);
-    await prisma.$disconnect();
   } catch (error) {
     console.error('⚠️  Failed to ensure admin user:', error);
     // Don't exit - server should still start
