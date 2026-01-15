@@ -1,13 +1,60 @@
 import { ApiResponse, AuthUser, LoginRequest, RegisterRequest } from '@shared/types';
 
 class AuthService {
-  private baseUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : 'http://localhost:3001/api');
+  private getBaseUrl(): string {
+    // First, check if environment variable is set
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
+    }
+    
+    // If in browser, try to auto-detect from current URL
+    if (typeof window !== 'undefined') {
+      const currentUrl = window.location.origin;
+      // Try different patterns to find API URL
+      // Pattern 1: Replace web-admin with api
+      let apiUrl = currentUrl.replace('web-admin', 'api');
+      // Pattern 2: If that didn't change, try replacing the service name
+      if (apiUrl === currentUrl) {
+        apiUrl = currentUrl.replace('ntsamaelaweb-admin', 'ntsamaelaapi');
+      }
+      // Pattern 3: If still no change, try common Railway patterns
+      if (apiUrl === currentUrl) {
+        // Try to construct from known pattern
+        const match = currentUrl.match(/(https?:\/\/[^/]+)/);
+        if (match) {
+          // For Railway, services often follow pattern: servicename-production.up.railway.app
+          apiUrl = match[1].replace(/web-admin|webadmin/i, 'api');
+        }
+      }
+      
+      // If we found a different URL, use it with /api path
+      if (apiUrl !== currentUrl) {
+        return apiUrl + '/api';
+      }
+      
+      // Fallback: try common Railway API service names
+      const commonPatterns = [
+        currentUrl.replace('web-admin-production', 'api-production'),
+        currentUrl.replace('web-admin', 'api'),
+        'https://ntsamaelaapi-production.up.railway.app/api',
+      ];
+      
+      return commonPatterns.find(url => url !== currentUrl) || 'http://localhost:3001/api';
+    }
+    
+    // Server-side fallback
+    return 'http://localhost:3001/api';
+  }
+  
+  private baseUrl: string;
   
   constructor() {
+    this.baseUrl = this.getBaseUrl();
     // Log the API URL being used (only in browser)
     if (typeof window !== 'undefined') {
       console.log('🔗 AuthService API URL:', this.baseUrl);
       console.log('🔗 NEXT_PUBLIC_API_URL env:', process.env.NEXT_PUBLIC_API_URL || 'NOT SET');
+      console.log('🔗 Current window location:', window.location.origin);
     }
   }
 
