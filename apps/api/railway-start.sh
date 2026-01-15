@@ -77,20 +77,25 @@ fi
 
 # Ensure permanent admin user exists
 echo "🔐 Ensuring permanent admin user exists..."
-if [ -f "/app/apps/api/seed-admin.js" ]; then
-  if node /app/apps/api/seed-admin.js 2>&1; then
-    echo "✅ Admin user ensured"
-  else
-    echo "⚠️  Admin user seeding failed - continuing..."
+ADMIN_SEEDED=false
+for seed_path in "/app/apps/api/seed-admin.js" "/app/seed-admin.js" "./apps/api/seed-admin.js" "./seed-admin.js"; do
+  if [ -f "$seed_path" ]; then
+    echo "✅ Found seed script at: $seed_path"
+    if node "$seed_path" 2>&1; then
+      echo "✅ Admin user ensured"
+      ADMIN_SEEDED=true
+      break
+    else
+      echo "⚠️  Admin user seeding failed at $seed_path - trying next location..."
+    fi
   fi
-elif [ -f "/app/dist/apps/api/seed-admin.js" ]; then
-  if node /app/dist/apps/api/seed-admin.js 2>&1; then
-    echo "✅ Admin user ensured"
-  else
-    echo "⚠️  Admin user seeding failed - continuing..."
-  fi
-else
-  echo "⚠️  seed-admin.js not found - skipping admin user creation"
+done
+
+if [ "$ADMIN_SEEDED" = "false" ]; then
+  echo "⚠️  seed-admin.js not found in any expected location"
+  echo "📁 Searching for seed-admin.js..."
+  find /app -name "seed-admin.js" -type f 2>/dev/null | head -5 || echo "No seed-admin.js found"
+  echo "⚠️  Skipping admin user creation - you may need to run it manually"
 fi
 
 echo "✅ Setup complete"

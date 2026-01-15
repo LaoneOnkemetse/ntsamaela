@@ -61,6 +61,7 @@ RUN echo "📁 Verifying copied dist structure:" && \
     find /app/dist -name "index.js" -type f 2>/dev/null | head -5 || echo "No index.js found"
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/railway-start.sh ./railway-start.sh
+COPY --from=builder /app/apps/api/seed-admin.js ./apps/api/seed-admin.js
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 
