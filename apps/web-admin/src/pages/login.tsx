@@ -49,21 +49,59 @@ export default function Login() {
     resolver: yupResolver(schema),
   });
 
+  const [emailError, setEmailError] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
+
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
+    setEmailError('');
+    setPasswordError('');
+    
     try {
-      const success = await login({ email: data.email, password: data.password });
-      if (success) {
-        toast.success('Welcome back!');
-        // Use setTimeout to ensure state is updated before redirect
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 100);
+      const response = await authService.login({ email: data.email, password: data.password });
+      
+      if (response.success && response.data) {
+        const success = await login({ email: data.email, password: data.password });
+        if (success) {
+          toast.success('Welcome back!');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 100);
+        } else {
+          toast.error('Login failed. Please check your credentials.');
+        }
       } else {
-        toast.error('Login failed. Please check your credentials.');
+        // Handle specific error cases
+        const errorCode = response.error?.code;
+        const errorMessage = response.error?.message || 'Login failed';
+        
+        if (errorCode === 'INVALID_CREDENTIALS' || errorMessage.toLowerCase().includes('invalid')) {
+          // Try to determine which field is wrong
+          // Check if email format is valid
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(data.email)) {
+            setEmailError('Invalid email format');
+          } else {
+            // Email format is valid, so password is likely wrong
+            setPasswordError('Incorrect password');
+          }
+        } else if (errorCode === 'NETWORK_ERROR' || errorMessage.toLowerCase().includes('network')) {
+          toast.error('Network error: Unable to connect to server. Please check your connection.');
+        } else if (errorMessage.toLowerCase().includes('email') || errorMessage.toLowerCase().includes('user not found')) {
+          setEmailError('Email not found');
+        } else if (errorMessage.toLowerCase().includes('password')) {
+          setPasswordError('Incorrect password');
+        } else {
+          toast.error(errorMessage);
+        }
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Login failed');
+      console.error('Login error:', error);
+      if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        toast.error('Network error: Unable to connect to server. Please check if the API is running.');
+      } else {
+        toast.error(error.message || 'An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -173,8 +211,8 @@ export default function Login() {
                 fullWidth
                 placeholder="admin@ntsamaela.com"
                 margin="normal"
-                error={!!errors.email}
-                helperText={errors.email?.message}
+                error={!!errors.email || !!emailError}
+                helperText={errors.email?.message || emailError}
                 disabled={isLoading}
                 InputProps={{
                   startAdornment: (
@@ -196,8 +234,8 @@ export default function Login() {
                 placeholder="Enter your password"
                 type={showPassword ? 'text' : 'password'}
                 margin="normal"
-                error={!!errors.password}
-                helperText={errors.password?.message}
+                error={!!errors.password || !!passwordError}
+                helperText={errors.password?.message || passwordError}
                 disabled={isLoading}
                 InputProps={{
                   startAdornment: (
