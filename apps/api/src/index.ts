@@ -51,6 +51,23 @@ async function ensureAdminUser() {
     } else {
       // User doesn't exist - create with hashed password
       const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+      const newUser = await prisma.user.create({
+        data: {
+          email: ADMIN_EMAIL,
+          passwordHash: passwordHash,
+          firstName: ADMIN_FIRST_NAME,
+          lastName: ADMIN_LAST_NAME,
+          phone: ADMIN_PHONE,
+          userType: 'ADMIN',
+          identityVerified: true,
+          emailVerified: true,
+        },
+      });
+      console.log('✅ Admin user created with ID:', newUser.id);
+    }
+    } else {
+      // User doesn't exist - create with hashed password
+      const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
       await prisma.user.create({
         data: {
           email: ADMIN_EMAIL,
