@@ -3,5 +3,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "apps/web-admin/Dockerfile"
 
 [deploy]
+startCommand = "/start.sh"
 healthcheckPath = "/"
 healthcheckTimeout = 300
