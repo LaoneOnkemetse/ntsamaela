@@ -75,6 +75,24 @@ else
   echo "⚠️  Prisma client generation failed - continuing..."
 fi
 
+# Ensure permanent admin user exists
+echo "🔐 Ensuring permanent admin user exists..."
+if [ -f "/app/apps/api/seed-admin.js" ]; then
+  if node /app/apps/api/seed-admin.js 2>&1; then
+    echo "✅ Admin user ensured"
+  else
+    echo "⚠️  Admin user seeding failed - continuing..."
+  fi
+elif [ -f "/app/dist/apps/api/seed-admin.js" ]; then
+  if node /app/dist/apps/api/seed-admin.js 2>&1; then
+    echo "✅ Admin user ensured"
+  else
+    echo "⚠️  Admin user seeding failed - continuing..."
+  fi
+else
+  echo "⚠️  seed-admin.js not found - skipping admin user creation"
+fi
+
 echo "✅ Setup complete"
 
 # Verify dist/index.js exists (search for it, prioritize API entry point)
