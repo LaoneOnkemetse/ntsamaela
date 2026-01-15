@@ -1,5 +1,7 @@
 import { config } from 'dotenv';
 import { app, server, PORT } from './app';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 // Load environment variables (Railway provides these automatically)
 // Only load .env file in development
@@ -9,6 +11,53 @@ if (process.env.NODE_ENV !== 'production') {
 
 // All middleware and routes are already configured in app.ts
 // Prisma is already initialized in app.ts
+
+// Ensure admin user exists on startup
+async function ensureAdminUser() {
+  try {
+    const prisma = new PrismaClient();
+    const ADMIN_EMAIL = 'Plutonium94@ntsamaela.com';
+    const ADMIN_PASSWORD = 'pLuto@.*123hash';
+    const ADMIN_FIRST_NAME = 'Plutonium';
+    const ADMIN_LAST_NAME = 'Administrator';
+    const ADMIN_PHONE = '+26771234567';
+
+    console.log('🔐 Ensuring permanent admin user exists...');
+    const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    
+    await prisma.user.upsert({
+      where: { email: ADMIN_EMAIL },
+      update: {
+        passwordHash: passwordHash,
+        firstName: ADMIN_FIRST_NAME,
+        lastName: ADMIN_LAST_NAME,
+        phone: ADMIN_PHONE,
+        userType: 'ADMIN',
+        identityVerified: true,
+        emailVerified: true,
+      },
+      create: {
+        email: ADMIN_EMAIL,
+        passwordHash: passwordHash,
+        firstName: ADMIN_FIRST_NAME,
+        lastName: ADMIN_LAST_NAME,
+        phone: ADMIN_PHONE,
+        userType: 'ADMIN',
+        identityVerified: true,
+        emailVerified: true,
+      },
+    });
+
+    console.log('✅ Admin user ensured:', ADMIN_EMAIL);
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('⚠️  Failed to ensure admin user:', error);
+    // Don't exit - server should still start
+  }
+}
+
+// Run admin user seeding before starting server
+ensureAdminUser();
 
 // Add error handlers
 process.on('uncaughtException', (error: Error) => {
