@@ -11,9 +11,9 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 // Permanent admin credentials
-const ADMIN_EMAIL = 'admin@ntsamaela.com';
-const ADMIN_PASSWORD = 'admin123'; // Change this in production if needed
-const ADMIN_FIRST_NAME = 'Ntsamaela';
+const ADMIN_EMAIL = 'Plutonium94@ntsamaela.com';
+const ADMIN_PASSWORD = 'pLuto@.*123hash';
+const ADMIN_FIRST_NAME = 'Plutonium';
 const ADMIN_LAST_NAME = 'Administrator';
 const ADMIN_PHONE = '+26771234567'; // Botswana phone number format
 

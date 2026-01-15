@@ -6,9 +6,9 @@ The admin user is automatically created/ensured on every deployment via the `app
 
 ### Login Information
 
-- **Email:** `admin@ntsamaela.com`
-- **Password:** `admin123`
-- **Name:** Ntsamaela Administrator
+- **Email:** `Plutonium94@ntsamaela.com`
+- **Password:** `pLuto@.*123hash`
+- **Name:** Plutonium Administrator
 - **Phone:** +26771234567
 - **User Type:** ADMIN
 
