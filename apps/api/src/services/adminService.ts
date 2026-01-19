@@ -733,9 +733,9 @@ export class AdminService {
       const activeUsers = totalUsers; // User model doesn't have status field - count all as active
       const totalTransactions = await prisma.transaction.count();
       const totalDeliveries = await prisma.package.count(); // Use Package instead of Delivery
-      const totalRevenue = await this.getPrisma().transaction.aggregate({
+      const totalRevenue = await prisma.transaction.aggregate({
         _sum: { amount: true }
-      }).then((result: any) => result._sum.amount || 0);
+      }).then((result: any) => result._sum.amount || 0).catch(() => 0);
 
       return {
         period,
@@ -765,9 +765,13 @@ export class AdminService {
 
   async getRealTimeMetrics() {
     try {
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
       return {
-        activeUsers: await this.getPrisma().user.count({ where: { status: 'ACTIVE' } }),
-        activeDeliveries: await this.getPrisma().delivery.count({ where: { status: 'IN_PROGRESS' } }),
+        activeUsers: await prisma.user.count(), // User model doesn't have status field
+        activeDeliveries: await prisma.package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }),
         pendingVerifications: await this.getPrisma().verification.count({ where: { status: 'PENDING' } }),
         systemLoad: 45.2,
         errorRate: 0.1
