@@ -45,13 +45,22 @@ class AuthService {
         'https://ntsamaelaapi-production.up.railway.app/api',
       ];
       
-      const fallbackUrl = commonPatterns.find(url => url !== currentUrl) || 'http://localhost:3001/api';
-      console.log('⚠️ Using fallback API URL:', fallbackUrl);
-      return fallbackUrl;
+      const fallbackUrl = commonPatterns.find(url => url !== currentUrl);
+      if (fallbackUrl) {
+        console.log('⚠️ Using fallback API URL:', fallbackUrl);
+        return fallbackUrl;
+      }
+      
+      // No fallback found - throw error
+      console.error('❌ Could not determine API URL. Please set NEXT_PUBLIC_API_URL environment variable.');
+      throw new Error('API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
     }
     
-    // Server-side fallback
-    return 'http://localhost:3001/api';
+    // Server-side: require environment variable
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      throw new Error('API URL not configured. NEXT_PUBLIC_API_URL environment variable is required.');
+    }
+    return process.env.NEXT_PUBLIC_API_URL;
   }
   
   private baseUrl: string;

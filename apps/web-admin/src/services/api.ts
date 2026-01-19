@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+// Require API URL to be set - no localhost fallback
+if (!process.env.NEXT_PUBLIC_API_URL && typeof window !== 'undefined') {
+  console.error('❌ NEXT_PUBLIC_API_URL environment variable is not set. API calls will fail.');
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
 
 // Create axios instance with default config
 const apiClient = axios.create({

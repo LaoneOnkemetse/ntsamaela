@@ -3,11 +3,10 @@ import { Settings as SettingsIcon, Save, Refresh, Lock } from '@mui/icons-materi
 import { useAuth } from '../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { getSystemHealth, getSystemMetrics } from '../services/api';
 import apiClient from '../services/api';
 import toast from 'react-hot-toast';
-
-const SETTINGS_STORAGE_KEY = 'ntsamaela_admin_settings';
 
 const defaultSettings = {
   emailNotifications: true,
@@ -20,20 +19,28 @@ const defaultSettings = {
 
 export default function Settings() {
   const { user } = useAuth();
-  const [settings, setSettings] = useState(() => {
-    // Load from localStorage on mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (saved) {
-        try {
-          return { ...defaultSettings, ...JSON.parse(saved) };
-        } catch {
-          return defaultSettings;
-        }
+  const queryClient = useQueryClient();
+  const [settings, setSettings] = useState(defaultSettings);
+  
+  // Load settings from server on mount
+  const { data: serverSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['adminSettings'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/admin/settings');
+        return response.data.data || response.data || defaultSettings;
+      } catch (error) {
+        console.error('Error loading settings from server:', error);
+        return defaultSettings;
       }
-    }
-    return defaultSettings;
+    },
   });
+
+  useEffect(() => {
+    if (serverSettings) {
+      setSettings({ ...defaultSettings, ...serverSettings });
+    }
+  }, [serverSettings]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -48,34 +55,35 @@ export default function Settings() {
     }));
   };
 
-  const handleSave = async () => {
-    try {
-      // Save to localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-      }
-      
-      // Try to save to API (if endpoint exists)
-      try {
-        await apiClient.post('/admin/settings', settings);
-      } catch (apiError) {
-        // API endpoint might not exist yet, that's okay
-        console.log('Settings API endpoint not available, saved to localStorage only');
-      }
-      
-      toast.success('Settings saved successfully!');
-    } catch (error) {
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (settingsData: typeof settings) => {
+      const response = await apiClient.post('/admin/settings', settingsData);
+      return response.data.data || response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
+      toast.success('Settings saved successfully to server!');
+    },
+    onError: (error: any) => {
       console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
-    }
+      toast.error(error.response?.data?.error?.message || 'Failed to save settings to server');
+    },
+  });
+
+  const handleSave = async () => {
+    saveSettingsMutation.mutate(settings);
   };
 
-  const handleReset = () => {
-    setSettings(defaultSettings);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+  const handleReset = async () => {
+    try {
+      await apiClient.post('/admin/settings', defaultSettings);
+      setSettings(defaultSettings);
+      queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
+      toast.success('Settings reset to default on server');
+    } catch (error: any) {
+      console.error('Error resetting settings:', error);
+      toast.error('Failed to reset settings on server');
     }
-    toast.success('Settings reset to default');
   };
 
   // Fetch system health and metrics

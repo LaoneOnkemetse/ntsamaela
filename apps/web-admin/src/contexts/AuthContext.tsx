@@ -64,7 +64,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setToken(storedToken);
         try {
           // Try to fetch current user from API
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/auth/me`, {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
+      if (!apiUrl) {
+        console.error('API URL not configured');
+        setLoading(false);
+        return;
+      }
+      const response = await fetch(`${apiUrl}/auth/me`, {
             headers: {
               'Authorization': `Bearer ${storedToken}`,
             },
