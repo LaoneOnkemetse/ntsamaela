@@ -69,6 +69,16 @@ export const getUsers = async (params?: any) => {
   }
 };
 
+export const createUser = async (userData: any) => {
+  try {
+    const response = await apiClient.post('/admin/users', userData);
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+};
+
 export const getUserById = async (id: string) => {
   try {
     const response = await apiClient.get(`/admin/users/${id}`);
@@ -320,11 +330,21 @@ export const exportAnalytics = async (params?: any) => {
 // System health API methods
 export const getSystemHealth = async () => {
   try {
-    const response = await apiClient.get('/admin/system/health');
-    return response.data.data || response.data;
+    // Use the public health endpoint (no /api prefix needed, it's at root)
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    const response = await axios.get(`${baseUrl}/health/all`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching system health:', error);
-    throw error;
+    // Fallback to basic health check
+    try {
+      const baseUrl = API_BASE_URL.replace('/api', '');
+      const response = await axios.get(`${baseUrl}/health`);
+      return response.data;
+    } catch (fallbackError) {
+      console.error('Error fetching basic health:', fallbackError);
+      return null;
+    }
   }
 };
 
@@ -334,7 +354,16 @@ export const getSystemMetrics = async () => {
     return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching system metrics:', error);
-    throw error;
+    // Return basic metrics from health check
+    try {
+      const health = await getSystemHealth();
+      return {
+        uptime: health?.uptime || 0,
+        memory: { usage: 'N/A' },
+      };
+    } catch {
+      return null;
+    }
   }
 };
 

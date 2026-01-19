@@ -21,6 +21,9 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -39,7 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, updateUser, deleteUser, suspendUser, unsuspendUser } from '../services/api';
+import { getUsers, createUser, updateUser, deleteUser, suspendUser, unsuspendUser } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Users() {
@@ -51,6 +54,15 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    userType: 'CUSTOMER' as 'CUSTOMER' | 'DRIVER',
+  });
 
   // Fetch users
   const { data: usersData, isLoading, error } = useQuery({
@@ -119,6 +131,27 @@ export default function Users() {
     },
   });
 
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: (userData: any) => createUser(userData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('User created successfully');
+      setAddUserDialogOpen(false);
+      setNewUserData({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        userType: 'CUSTOMER',
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to create user');
+    },
+  });
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: any) => {
     setAnchorEl(event.currentTarget);
     setSelectedUser(user);
@@ -161,9 +194,7 @@ export default function Users() {
         <Button 
           variant="contained" 
           startIcon={<AddIcon />}
-          onClick={() => {
-            toast('Add user functionality coming soon');
-          }}
+          onClick={() => setAddUserDialogOpen(true)}
         >
           Add User
         </Button>
@@ -322,6 +353,79 @@ export default function Users() {
             disabled={deleteUserMutation.isPending}
           >
             {deleteUserMutation.isPending ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add User Dialog */}
+      <Dialog open={addUserDialogOpen} onClose={() => setAddUserDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New User</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={newUserData.email}
+              onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
+              required
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={newUserData.password}
+              onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+              required
+            />
+            <TextField
+              fullWidth
+              label="First Name"
+              value={newUserData.firstName}
+              onChange={(e) => setNewUserData({ ...newUserData, firstName: e.target.value })}
+              required
+            />
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={newUserData.lastName}
+              onChange={(e) => setNewUserData({ ...newUserData, lastName: e.target.value })}
+              required
+            />
+            <TextField
+              fullWidth
+              label="Phone"
+              value={newUserData.phone}
+              onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+              required
+            />
+            <FormControl fullWidth>
+              <InputLabel>User Type</InputLabel>
+              <Select
+                value={newUserData.userType}
+                label="User Type"
+                onChange={(e) => setNewUserData({ ...newUserData, userType: e.target.value as 'CUSTOMER' | 'DRIVER' })}
+              >
+                <MenuItem value="CUSTOMER">Customer</MenuItem>
+                <MenuItem value="DRIVER">Driver</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddUserDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={() => {
+              if (!newUserData.email || !newUserData.password || !newUserData.firstName || !newUserData.lastName || !newUserData.phone) {
+                toast.error('Please fill in all required fields');
+                return;
+              }
+              createUserMutation.mutate(newUserData);
+            }}
+            variant="contained"
+            disabled={createUserMutation.isPending}
+          >
+            {createUserMutation.isPending ? <CircularProgress size={20} /> : 'Create User'}
           </Button>
         </DialogActions>
       </Dialog>

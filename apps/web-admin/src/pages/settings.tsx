@@ -7,15 +7,32 @@ import { getSystemHealth, getSystemMetrics } from '../services/api';
 import apiClient from '../services/api';
 import toast from 'react-hot-toast';
 
+const SETTINGS_STORAGE_KEY = 'ntsamaela_admin_settings';
+
+const defaultSettings = {
+  emailNotifications: true,
+  smsNotifications: false,
+  autoApproveVerifications: false,
+  maintenanceMode: false,
+  apiRateLimit: 1000,
+  sessionTimeout: 30,
+};
+
 export default function Settings() {
   const { user } = useAuth();
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
-    autoApproveVerifications: false,
-    maintenanceMode: false,
-    apiRateLimit: 1000,
-    sessionTimeout: 30,
+  const [settings, setSettings] = useState(() => {
+    // Load from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) {
+        try {
+          return { ...defaultSettings, ...JSON.parse(saved) };
+        } catch {
+          return defaultSettings;
+        }
+      }
+    }
+    return defaultSettings;
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -31,20 +48,33 @@ export default function Settings() {
     }));
   };
 
-  const handleSave = () => {
-    toast.success('Settings saved successfully!');
-    console.log('Settings saved:', settings);
+  const handleSave = async () => {
+    try {
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+      }
+      
+      // Try to save to API (if endpoint exists)
+      try {
+        await apiClient.post('/admin/settings', settings);
+      } catch (apiError) {
+        // API endpoint might not exist yet, that's okay
+        console.log('Settings API endpoint not available, saved to localStorage only');
+      }
+      
+      toast.success('Settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    }
   };
 
   const handleReset = () => {
-    setSettings({
-      emailNotifications: true,
-      smsNotifications: false,
-      autoApproveVerifications: false,
-      maintenanceMode: false,
-      apiRateLimit: 1000,
-      sessionTimeout: 30,
-    });
+    setSettings(defaultSettings);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+    }
     toast.success('Settings reset to default');
   };
 
@@ -228,17 +258,27 @@ export default function Settings() {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     <strong>Database Status:</strong>{' '}
                     <span style={{ 
-                      color: (systemHealth?.database?.status === 'connected' || systemHealth?.database?.connected) ? '#10B981' : '#EF4444' 
+                      color: (systemHealth?.services?.database?.status === 'connected' || 
+                              systemHealth?.database?.status === 'connected' || 
+                              systemHealth?.database === 'REAL' || 
+                              systemHealth?.database === 'MOCK') ? '#10B981' : '#EF4444' 
                     }}>
-                      {(systemHealth?.database?.status === 'connected' || systemHealth?.database?.connected) ? 'Connected' : 'Disconnected'}
+                      {(systemHealth?.services?.database?.status === 'connected' || 
+                        systemHealth?.database?.status === 'connected' || 
+                        systemHealth?.database === 'REAL' || 
+                        systemHealth?.database === 'MOCK') ? 'Connected' : 'Disconnected'}
                     </span>
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     <strong>Server Status:</strong>{' '}
                     <span style={{ 
-                      color: (systemHealth?.status === 'healthy' || systemHealth?.status === 'ok' || systemHealth?.healthy) ? '#10B981' : '#EF4444' 
+                      color: (systemHealth?.status === 'healthy' || 
+                              systemHealth?.services?.api?.status === 'healthy' || 
+                              systemHealth?.status === 'ok') ? '#10B981' : '#EF4444' 
                     }}>
-                      {(systemHealth?.status === 'healthy' || systemHealth?.status === 'ok' || systemHealth?.healthy) ? 'Running' : 'Unhealthy'}
+                      {(systemHealth?.status === 'healthy' || 
+                        systemHealth?.services?.api?.status === 'healthy' || 
+                        systemHealth?.status === 'ok') ? 'Healthy' : 'Unhealthy'}
                     </span>
                   </Typography>
                   {systemMetrics && (

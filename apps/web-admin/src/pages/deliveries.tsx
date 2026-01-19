@@ -48,6 +48,8 @@ export default function Deliveries() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [trackDialogOpen, setTrackDialogOpen] = useState(false);
+  const [trackingId, setTrackingId] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>('');
 
@@ -145,7 +147,11 @@ export default function Deliveries() {
           >
             Refresh
           </Button>
-          <Button variant="contained" startIcon={<LocalShipping />}>
+          <Button 
+            variant="contained" 
+            startIcon={<LocalShipping />}
+            onClick={() => setTrackDialogOpen(true)}
+          >
             Track New Delivery
           </Button>
         </Box>
@@ -393,6 +399,48 @@ export default function Deliveries() {
             disabled={updateStatusMutation.isPending}
           >
             {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Track New Delivery Dialog */}
+      <Dialog open={trackDialogOpen} onClose={() => setTrackDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Track New Delivery</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Package ID or Tracking Number"
+              value={trackingId}
+              onChange={(e) => setTrackingId(e.target.value)}
+              placeholder="Enter package ID or tracking number"
+              sx={{ mb: 2 }}
+            />
+            <Alert severity="info">
+              Enter a package ID or tracking number to view delivery details and status.
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setTrackDialogOpen(false);
+            setTrackingId('');
+          }}>Cancel</Button>
+          <Button 
+            variant="contained"
+            onClick={() => {
+              if (!trackingId.trim()) {
+                toast.error('Please enter a package ID or tracking number');
+                return;
+              }
+              // Try to find the package
+              setSelectedPackageId(trackingId.trim());
+              setDetailsOpen(true);
+              setTrackDialogOpen(false);
+              setTrackingId('');
+            }}
+          >
+            Track
           </Button>
         </DialogActions>
       </Dialog>

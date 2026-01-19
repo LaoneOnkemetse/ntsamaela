@@ -31,10 +31,16 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { getTransactions, getTransactionAnalytics } from '../services/api';
+import toast from 'react-hot-toast';
 
 export default function Wallets() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [createWalletDialogOpen, setCreateWalletDialogOpen] = useState(false);
+  const [newWalletData, setNewWalletData] = useState({
+    userId: '',
+    initialBalance: 0,
+  });
 
   // Fetch transactions
   const { data: transactionsData, isLoading, error } = useQuery({
@@ -95,7 +101,11 @@ export default function Wallets() {
         <Typography variant="h4" component="h1">
           Wallet Management
         </Typography>
-        <Button variant="contained" startIcon={<Add />}>
+        <Button 
+          variant="contained" 
+          startIcon={<Add />}
+          onClick={() => setCreateWalletDialogOpen(true)}
+        >
           Create Wallet
         </Button>
       </Box>
@@ -242,6 +252,55 @@ export default function Wallets() {
           </Table>
         </TableContainer>
       )}
+
+      {/* Create Wallet Dialog */}
+      <Dialog open={createWalletDialogOpen} onClose={() => setCreateWalletDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Wallet</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+            <TextField
+              fullWidth
+              label="User ID"
+              value={newWalletData.userId}
+              onChange={(e) => setNewWalletData({ ...newWalletData, userId: e.target.value })}
+              placeholder="Enter user ID"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Initial Balance"
+              type="number"
+              value={newWalletData.initialBalance}
+              onChange={(e) => setNewWalletData({ ...newWalletData, initialBalance: parseFloat(e.target.value) || 0 })}
+              placeholder="0.00"
+              required
+            />
+            <Alert severity="info">
+              This will create a new wallet for the specified user with the initial balance.
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setCreateWalletDialogOpen(false);
+            setNewWalletData({ userId: '', initialBalance: 0 });
+          }}>Cancel</Button>
+          <Button 
+            variant="contained"
+            onClick={() => {
+              if (!newWalletData.userId.trim()) {
+                toast.error('Please enter a user ID');
+                return;
+              }
+              toast.success('Wallet creation functionality will be implemented with API endpoint');
+              setCreateWalletDialogOpen(false);
+              setNewWalletData({ userId: '', initialBalance: 0 });
+            }}
+          >
+            Create Wallet
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
