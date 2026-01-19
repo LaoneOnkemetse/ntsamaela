@@ -127,15 +127,24 @@ export class AdminService {
           select: {
             id: true,
             email: true,
-            name: true,
-            role: true,
-            status: true,
-            isVerified: true,
+            firstName: true,
+            lastName: true,
+            userType: true,
+            identityVerified: true,
+            emailVerified: true,
             createdAt: true,
-            lastActiveAt: true,
-            totalDeliveries: true,
-            rating: true,
-            verificationStatus: true
+            updatedAt: true,
+            driverProfile: {
+              select: {
+                totalDeliveries: true,
+                rating: true
+              }
+            },
+            verification: {
+              select: {
+                status: true
+              }
+            }
           }
         }),
         this.getPrisma().transaction.findMany({
@@ -144,20 +153,23 @@ export class AdminService {
           select: {
             id: true,
             userId: true,
-            user: { select: { email: true } },
+            wallet: {
+              select: {
+                user: {
+                  select: {
+                    email: true
+                  }
+                }
+              }
+            },
             type: true,
             amount: true,
-            currency: true,
             status: true,
             description: true,
             createdAt: true
           }
         }),
-        this.getPrisma().systemAlert.findMany({
-          take: 5,
-          where: { resolved: false },
-          orderBy: { timestamp: 'desc' }
-        })
+        [] // systemAlerts - table doesn't exist, return empty array
       ]);
 
       return {
@@ -174,33 +186,32 @@ export class AdminService {
           ...newUsers.map((user: any) => ({
             id: user.id,
             email: user.email,
-            name: user.name,
-            role: user.role as any,
-            status: user.status as any,
-            isVerified: user.isVerified,
+            name: `${user.firstName} ${user.lastName}`,
+            role: user.userType,
+            status: user.identityVerified ? 'VERIFIED' : 'UNVERIFIED',
+            isVerified: user.identityVerified,
             joinedAt: user.createdAt,
-            lastActiveAt: user.lastActiveAt,
-            totalDeliveries: user.totalDeliveries,
-            rating: user.rating,
-            verificationStatus: user.verificationStatus as any
+            lastActiveAt: user.updatedAt,
+            totalDeliveries: user.driverProfile?.totalDeliveries || 0,
+            rating: user.driverProfile?.rating || 0,
+            verificationStatus: user.verification?.status || 'NONE'
           })),
           ...recentTransactions.map((tx: any) => ({
             id: tx.id,
             userId: tx.userId,
-            userEmail: tx.user.email,
-            type: tx.type as any,
+            userEmail: tx.wallet?.user?.email || 'Unknown',
+            type: tx.type,
             amount: tx.amount,
-            currency: tx.currency,
-            status: tx.status as any,
+            currency: tx.wallet?.currency || 'USD',
+            status: tx.status,
             description: tx.description,
             createdAt: tx.createdAt
-          })),
-          ...systemAlerts
+          }))
         ],
         quickActions: [
           pendingVerifications,
           await this.getPrisma().transaction.count({ where: { status: 'FAILED' } }),
-          systemAlerts.length,
+          0, // systemAlerts - table doesn't exist
           0 // supportTickets - This would come from a support system
         ]
       };
@@ -542,7 +553,21 @@ export class AdminService {
           where,
           orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-          take: filters.limit || 20
+          take: filters.limit || 20,
+          include: {
+            wallet: {
+              select: {
+                currency: true,
+                user: {
+                  select: {
+                    email: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
+            }
+          }
         }),
         this.getPrisma().transaction.count({ where })
       ]);
@@ -552,11 +577,15 @@ export class AdminService {
           id: tx.id,
           userId: tx.userId,
           amount: tx.amount,
-          currency: tx.currency,
+          currency: tx.wallet?.currency || 'USD',
           status: tx.status,
+          type: tx.type,
           description: tx.description,
+          reference: tx.reference,
           createdAt: tx.createdAt,
-          updatedAt: tx.updatedAt
+          updatedAt: tx.updatedAt,
+          userEmail: tx.wallet?.user?.email,
+          userName: tx.wallet?.user ? `${tx.wallet.user.firstName} ${tx.wallet.user.lastName}` : null
         })),
         total
       };
