@@ -650,7 +650,7 @@ export class AdminService {
               }
             }
           }
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Error in transaction.findMany:', err);
           return [];
         }),
@@ -696,7 +696,7 @@ export class AdminService {
             }
           }
         }
-      }).catch((err) => {
+      }).catch((err: any) => {
         console.error('Error in transaction.findUnique:', err);
         return null;
       });
