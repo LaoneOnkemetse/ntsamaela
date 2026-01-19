@@ -832,6 +832,97 @@ export class AdminService {
   }
 
   // Audit Log
+  // --- Admin Notifications ---
+  async getAdminNotifications(options: { unreadOnly?: boolean; limit?: number; type?: string }) {
+    try {
+      const prisma = this.getPrisma();
+      const notifications: any[] = [];
+
+      // Get pending verifications as notifications
+      const pendingVerifications = await prisma.verificationRequest.findMany({
+        where: { status: 'PENDING' },
+        take: options.limit || 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      pendingVerifications.forEach((verification) => {
+        notifications.push({
+          id: `verification-${verification.id}`,
+          type: 'VERIFICATION_PENDING',
+          title: 'Pending Verification',
+          message: `${verification.user?.firstName || 'User'} ${verification.user?.lastName || ''} submitted a verification request`,
+          read: false,
+          createdAt: verification.createdAt,
+          data: {
+            verificationId: verification.id,
+            userId: verification.userId,
+            documentType: verification.documentType,
+          },
+        });
+      });
+
+      // Get pending packages that need approval
+      const pendingPackages = await prisma.delivery.findMany({
+        where: { status: 'PENDING' },
+        take: Math.max(1, Math.floor((options.limit || 10) / 2)),
+        orderBy: { createdAt: 'desc' },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      pendingPackages.forEach((pkg) => {
+        notifications.push({
+          id: `package-${pkg.id}`,
+          type: 'PACKAGE_PENDING_APPROVAL',
+          title: 'Package Pending Approval',
+          message: `Package from ${pkg.customer?.firstName || 'Customer'} ${pkg.customer?.lastName || ''} needs approval`,
+          read: false,
+          createdAt: pkg.createdAt,
+          data: {
+            packageId: pkg.id,
+            customerId: pkg.customerId,
+          },
+        });
+      });
+
+      // Sort by creation date (newest first) and limit
+      const sortedNotifications = notifications
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, options.limit || 10);
+
+      // Filter unread only if requested
+      const filteredNotifications = options.unreadOnly
+        ? sortedNotifications.filter((n) => !n.read)
+        : sortedNotifications;
+
+      return {
+        success: true,
+        data: filteredNotifications,
+        total: filteredNotifications.length,
+      };
+    } catch (error: any) {
+      console.error('Error fetching admin notifications:', error);
+      throw new Error(error.message || 'Failed to fetch admin notifications');
+    }
+  }
+
   async getAuditLog(filters: AdminFilterOptions) {
     try {
       const where: any = {};
