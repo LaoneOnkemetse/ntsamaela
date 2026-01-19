@@ -42,10 +42,49 @@ if (server) {
 
 // Security middleware
 app.use(helmet());
+
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+  process.env.CORS_ORIGIN,
+  process.env.FRONTEND_URL,
+  process.env.WEB_ADMIN_URL,
+  "http://localhost:3000",
+  "http://localhost:3001",
+  // Allow Railway web-admin domains
+  /^https:\/\/.*web-admin.*\.up\.railway\.app$/,
+  /^https:\/\/.*webadmin.*\.up\.railway\.app$/,
+  // Allow Railway web domains
+  /^https:\/\/.*ntsamaela.*\.up\.railway\.app$/,
+].filter(Boolean) as (string | RegExp)[];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Check if origin matches any allowed pattern
+      const isAllowed = allowedOrigins.some(allowed => {
+        if (typeof allowed === 'string') {
+          return origin === allowed;
+        } else if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return false;
+      });
+      
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        console.warn(`⚠️ CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 );
 
