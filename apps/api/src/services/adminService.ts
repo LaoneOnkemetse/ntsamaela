@@ -868,7 +868,7 @@ export class AdminService {
       const notifications: any[] = [];
 
       // Get pending verifications as notifications
-      const pendingVerifications = await prisma.verificationRequest.findMany({
+      const pendingVerifications = await prisma.verification.findMany({
         where: { status: 'PENDING' },
         take: options.limit || 10,
         orderBy: { createdAt: 'desc' },
@@ -901,7 +901,7 @@ export class AdminService {
       });
 
       // Get pending packages that need approval
-      const pendingPackages = await prisma.delivery.findMany({
+      const pendingPackages = await prisma.package.findMany({
         where: { status: 'PENDING' },
         take: Math.max(1, Math.floor((options.limit || 10) / 2)),
         orderBy: { createdAt: 'desc' },
