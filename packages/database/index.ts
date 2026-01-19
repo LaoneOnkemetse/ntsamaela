@@ -31,24 +31,7 @@ function createPrismaClient() {
       return null;
     }
 
-    // Try to import from the generated client location
-    // In monorepo, @prisma/client might be hoisted, so try multiple paths
-    let PrismaClient;
-    try {
-      PrismaClient = require('@prisma/client').PrismaClient;
-    } catch (e) {
-      // If @prisma/client is not found, try the local node_modules
-      try {
-        PrismaClient = require('../../node_modules/@prisma/client').PrismaClient;
-      } catch (e2) {
-        // Try the packages/database node_modules
-        try {
-          PrismaClient = require('./node_modules/@prisma/client').PrismaClient;
-        } catch (e3) {
-          throw new Error('Could not find @prisma/client. Make sure prisma generate has been run.');
-        }
-      }
-    }
+    const { PrismaClient } = require('@prisma/client');
     if (process.env.NODE_ENV !== 'test') {
       console.log('PrismaClient imported successfully');
     }
