@@ -709,7 +709,7 @@ export class AdminService {
         id: transaction.id,
         userId: transaction.userId,
         amount: transaction.amount,
-        currency: transaction.wallet?.currency || transaction.currency || 'USD',
+        currency: transaction.wallet?.currency || 'USD', // Transaction doesn't have currency field, get from wallet
         status: transaction.status,
         description: transaction.description,
         reference: transaction.reference,
@@ -724,14 +724,19 @@ export class AdminService {
 
   async getTransactionAnalytics(period: string) {
     try {
-      const totalVolume = await this.getPrisma().transaction.aggregate({
-        _sum: { amount: true }
-      });
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
 
-      const totalCount = await this.getPrisma().transaction.count();
-      const completedCount = await this.getPrisma().transaction.count({
+      const totalVolume = await prisma.transaction.aggregate({
+        _sum: { amount: true }
+      }).catch(() => ({ _sum: { amount: 0 } }));
+
+      const totalCount = await prisma.transaction.count().catch(() => 0);
+      const completedCount = await prisma.transaction.count({
         where: { status: 'COMPLETED' }
-      });
+      }).catch(() => 0);
 
       return {
         totalVolume: totalVolume._sum.amount || 0,
