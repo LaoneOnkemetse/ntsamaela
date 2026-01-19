@@ -154,8 +154,15 @@ export default function Dashboard() {
     const hasToken = localStorage.getItem('token');
     
     // If no user and no token, redirect to login
+    // But give it a moment - user might be loading from API
     if (!user && !hasToken) {
-      router.push('/login');
+      // Small delay to prevent race conditions
+      const timer = setTimeout(() => {
+        if (!user && !localStorage.getItem('token')) {
+          router.push('/login');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [user, loading, router]);
 

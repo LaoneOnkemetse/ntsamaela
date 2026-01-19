@@ -173,8 +173,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('token', userToken);
       console.log('Token saved to localStorage');
     }
-    // Ensure loading is false after setting auth data
+    // Ensure loading is false and mark auth as checked after setting auth data
     setLoading(false);
+    setAuthChecked(true);
   };
 
   const updateUser = (updatedUser: AuthUser) => {
