@@ -9,14 +9,18 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window === 'undefined') return; // SSR check
+    
     if (!loading) {
-      if (user) {
+      // Check for token instead of user (user might not be loaded yet)
+      const hasToken = localStorage.getItem('token');
+      if (hasToken) {
         router.push('/dashboard');
       } else {
         router.push('/login');
       }
     }
-  }, [user, loading, router]);
+  }, [loading, router]);
 
   return (
     <Box

@@ -157,8 +157,15 @@ export default function Dashboard() {
     // Only redirect if there's NO token at all
     // If token exists, trust it (even if user isn't loaded yet)
     // API calls will verify the token and handle 401s
+    // Add a small delay to prevent race conditions with login redirect
     if (!hasToken) {
-      router.push('/login');
+      const timer = setTimeout(() => {
+        // Double-check token still doesn't exist (might have been set during delay)
+        if (!localStorage.getItem('token')) {
+          router.push('/login');
+        }
+      }, 200);
+      return () => clearTimeout(timer);
     }
   }, [loading, router]);
 

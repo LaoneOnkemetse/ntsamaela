@@ -36,11 +36,20 @@ export default function Login() {
   const { setAuthData, user } = useAuth();
   const router = useRouter();
 
+  // Don't auto-redirect on login page - let the form submission handle it
+  // This prevents redirect loops
   useEffect(() => {
-    if (user) {
-      router.push('/dashboard');
+    // Only redirect if we're already logged in AND not in the middle of a login attempt
+    if (user && !isLoading && router.pathname === '/login') {
+      // Small delay to prevent race conditions
+      const timer = setTimeout(() => {
+        if (user) {
+          router.push('/dashboard');
+        }
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   const {
     register,
@@ -74,23 +83,33 @@ export default function Login() {
         const errorCode = response.error?.code;
         const errorMessage = response.error?.message || 'Login failed';
         
-        if (errorCode === 'INVALID_CREDENTIALS' || errorMessage.toLowerCase().includes('invalid')) {
-          // Try to determine which field is wrong
-          // Check if email format is valid
+        // Clear previous errors
+        setEmailError('');
+        setPasswordError('');
+        
+        // Check for specific error messages first
+        const errorLower = errorMessage.toLowerCase();
+        
+        if (errorCode === 'NETWORK_ERROR' || errorLower.includes('network')) {
+          toast.error('Network error: Unable to connect to server. Please check your connection.');
+        } else if (errorLower.includes('email') || errorLower.includes('user not found') || errorLower.includes('user does not exist')) {
+          // Email-related errors
+          setEmailError('Email not found');
+        } else if (errorLower.includes('password') || errorLower.includes('incorrect password') || errorLower.includes('wrong password')) {
+          // Password-related errors
+          setPasswordError('Incorrect password');
+        } else if (errorCode === 'INVALID_CREDENTIALS' || errorLower.includes('invalid')) {
+          // Generic invalid credentials - try to determine which field
+          // Check if email format is valid first
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(data.email)) {
             setEmailError('Invalid email format');
           } else {
-            // Email format is valid, so password is likely wrong
+            // Email format is valid, so it's likely the password
             setPasswordError('Incorrect password');
           }
-        } else if (errorCode === 'NETWORK_ERROR' || errorMessage.toLowerCase().includes('network')) {
-          toast.error('Network error: Unable to connect to server. Please check your connection.');
-        } else if (errorMessage.toLowerCase().includes('email') || errorMessage.toLowerCase().includes('user not found')) {
-          setEmailError('Email not found');
-        } else if (errorMessage.toLowerCase().includes('password')) {
-          setPasswordError('Incorrect password');
         } else {
+          // Unknown error - show generic message
           toast.error(errorMessage);
         }
       }
