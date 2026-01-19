@@ -298,42 +298,42 @@ export default function Dashboard() {
     }
   };
 
-  // Format stats from API data
-  const stats = dashboardData ? [
+  // Format stats from API data - handle null/undefined safely
+  const stats = dashboardData && typeof dashboardData === 'object' ? [
     {
       title: 'Total Users',
-      value: dashboardData.totalUsers?.toLocaleString() || '0',
+      value: (dashboardData.totalUsers ?? 0).toLocaleString(),
       icon: <People />,
       gradient: '#75AADB',
-      change: dashboardData.userGrowth?.toFixed(1) || 0,
-      progress: dashboardData.userGrowth || 0,
+      change: Number(dashboardData.userGrowth ?? 0).toFixed(1),
+      progress: Number(dashboardData.userGrowth ?? 0),
       onClick: () => handleStatClick('users'),
     },
     {
       title: 'Active Packages',
-      value: dashboardData.activePackages?.toLocaleString() || '0',
+      value: (dashboardData.activePackages ?? 0).toLocaleString(),
       icon: <LocalShipping />,
       gradient: '#00C853',
-      change: dashboardData.packageGrowth?.toFixed(1) || 0,
-      progress: dashboardData.packageGrowth || 0,
+      change: Number(dashboardData.packageGrowth ?? 0).toFixed(1),
+      progress: Number(dashboardData.packageGrowth ?? 0),
       onClick: () => handleStatClick('packages'),
     },
     {
       title: 'Pending Verifications',
-      value: dashboardData.pendingVerifications?.toLocaleString() || '0',
+      value: (dashboardData.pendingVerifications ?? 0).toLocaleString(),
       icon: <VerifiedUser />,
       gradient: '#FFB800',
-      change: dashboardData.verificationChange?.toFixed(1) || 0,
-      progress: dashboardData.verificationProgress || 0,
+      change: Number(dashboardData.verificationChange ?? 0).toFixed(1),
+      progress: Number(dashboardData.verificationProgress ?? 0),
       onClick: () => handleStatClick('verifications'),
     },
     {
       title: 'Revenue',
-      value: `P ${dashboardData.totalRevenue?.toLocaleString() || '0'}`,
+      value: `P ${(dashboardData.totalRevenue ?? 0).toLocaleString()}`,
       icon: <AttachMoney />,
       gradient: '#FF6D00',
-      change: dashboardData.revenueGrowth?.toFixed(1) || 0,
-      progress: dashboardData.revenueProgress || 0,
+      change: Number(dashboardData.revenueGrowth ?? 0).toFixed(1),
+      progress: Number(dashboardData.revenueProgress ?? 0),
       onClick: () => handleStatClick('revenue'),
     },
   ] : [
