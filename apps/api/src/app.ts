@@ -36,7 +36,9 @@ const server = createServer(app);
 const PORT: number = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Trust proxy for rate limiting behind Railway/proxy
-app.set('trust proxy', true);
+// Set to 1 to trust only Railway's proxy (not all proxies)
+// This prevents rate limiting bypass while still working behind Railway's proxy
+app.set('trust proxy', 1);
 
 // Initialize Real-time Service (only if server is provided)
 if (server) {
