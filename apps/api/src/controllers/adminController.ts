@@ -60,13 +60,21 @@ export class AdminController {
       });
     } catch (_error: any) {
       console.error('Dashboard error:', _error);
+      console.error('Dashboard error name:', _error?.name);
+      console.error('Dashboard error message:', _error?.message);
       console.error('Dashboard error stack:', _error?.stack);
+      console.error('Dashboard error code:', _error?.code);
       res
         .status(500)
         .json({ 
           success: false,
           message: _error.message || "Failed to fetch dashboard data",
-          error: process.env.NODE_ENV === 'development' ? _error.toString() : undefined
+          error: process.env.NODE_ENV === 'development' ? {
+            message: _error.message,
+            name: _error.name,
+            code: _error.code,
+            stack: _error.stack
+          } : undefined
         });
     }
   }

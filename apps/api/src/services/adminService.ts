@@ -158,26 +158,23 @@ export class AdminService {
         prisma.transaction.findMany({
           take: 5,
           orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            userId: true,
+          include: {
             wallet: {
-              select: {
-                currency: true,
+              include: {
                 user: {
                   select: {
-                    email: true
+                    email: true,
+                    firstName: true,
+                    lastName: true
                   }
                 }
               }
-            },
-            type: true,
-            amount: true,
-            status: true,
-            description: true,
-            createdAt: true
+            }
           }
-        }).catch(() => []),
+        }).catch((err: any) => {
+          console.error('Error fetching recent transactions:', err);
+          return [];
+        }),
         [] // systemAlerts - table doesn't exist, return empty array
       ]);
 
@@ -230,8 +227,13 @@ export class AdminService {
         message: _error?.message,
         code: _error?.code,
         name: _error?.name,
-        stack: _error?.stack
+        stack: _error?.stack,
+        cause: _error?.cause
       });
+      // If it's a Prisma error, provide more context
+      if (_error?.code === 'P2002' || _error?.code?.startsWith('P')) {
+        console.error('Prisma error detected:', _error.code);
+      }
       throw _error; // Re-throw the original error with full details
     }
   }
