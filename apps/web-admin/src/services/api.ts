@@ -434,14 +434,22 @@ export const performBulkAction = async (action: string, targetIds: string[], met
   }
 };
 
-// Notifications API methods
+// Admin Notifications API methods (admin-specific notifications like verifications, complaints, etc.)
 export const getNotifications = async (params?: any) => {
   try {
-    const response = await apiClient.get('/notifications', { params });
+    // Use admin notifications endpoint for admin-specific notifications
+    const response = await apiClient.get('/admin/notifications', { params });
     return response.data.data || response.data;
   } catch (error) {
-    console.error('Error fetching notifications:', error);
-    throw error;
+    console.error('Error fetching admin notifications:', error);
+    // Fallback to regular notifications if admin endpoint doesn't exist
+    try {
+      const fallbackResponse = await apiClient.get('/notifications', { params });
+      return fallbackResponse.data.data || fallbackResponse.data;
+    } catch (fallbackError) {
+      console.error('Error fetching fallback notifications:', fallbackError);
+      throw error;
+    }
   }
 };
 

@@ -54,14 +54,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Fetch notifications
+  // Fetch admin-specific notifications (verifications, complaints, approvals, etc.)
   const { data: notificationsData } = useQuery({
-    queryKey: ['notifications'],
+    queryKey: ['adminNotifications'],
     queryFn: async () => {
       try {
-        const data = await getNotifications({ unreadOnly: true, limit: 10 });
+        // Fetch admin-specific notifications - verifications, complaints, user reports, etc.
+        const data = await getNotifications({ 
+          unreadOnly: true, 
+          limit: 10,
+          type: 'admin', // Request admin-specific notifications
+        });
         return Array.isArray(data) ? data : (data?.notifications || data?.data || []);
       } catch (error) {
+        console.error('Error fetching admin notifications:', error);
         return [];
       }
     },
