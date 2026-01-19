@@ -10,36 +10,44 @@ class AuthService {
     // If in browser, try to auto-detect from current URL
     if (typeof window !== 'undefined') {
       const currentUrl = window.location.origin;
+      console.log('🔍 Auto-detecting API URL from:', currentUrl);
+      
       // Try different patterns to find API URL
-      // Pattern 1: Replace web-admin with api
-      let apiUrl = currentUrl.replace('web-admin', 'api');
-      // Pattern 2: If that didn't change, try replacing the service name
+      // Pattern 1: Replace web-admin with api (handles: web-admin -> api)
+      let apiUrl = currentUrl.replace(/web-admin/gi, 'api');
+      
+      // Pattern 2: Replace ntsamaelaweb-admin with ntsamaelaapi
       if (apiUrl === currentUrl) {
-        apiUrl = currentUrl.replace('ntsamaelaweb-admin', 'ntsamaelaapi');
+        apiUrl = currentUrl.replace(/ntsamaelaweb-admin/gi, 'ntsamaelaapi');
       }
-      // Pattern 3: If still no change, try common Railway patterns
+      
+      // Pattern 3: Replace web-admin-production with api-production (Railway pattern)
       if (apiUrl === currentUrl) {
-        // Try to construct from known pattern
-        const match = currentUrl.match(/(https?:\/\/[^/]+)/);
-        if (match) {
-          // For Railway, services often follow pattern: servicename-production.up.railway.app
-          apiUrl = match[1].replace(/web-admin|webadmin/i, 'api');
-        }
+        apiUrl = currentUrl.replace(/web-admin-production/gi, 'api-production');
+      }
+      
+      // Pattern 4: Try Railway-specific pattern: ntsamaelaweb-admin-production -> ntsamaelaapi-production
+      if (apiUrl === currentUrl) {
+        apiUrl = currentUrl.replace(/ntsamaelaweb-admin-production/gi, 'ntsamaelaapi-production');
       }
       
       // If we found a different URL, use it with /api path
       if (apiUrl !== currentUrl) {
-        return apiUrl + '/api';
+        const finalUrl = apiUrl + '/api';
+        console.log('✅ Auto-detected API URL:', finalUrl);
+        return finalUrl;
       }
       
       // Fallback: try common Railway API service names
       const commonPatterns = [
-        currentUrl.replace('web-admin-production', 'api-production'),
-        currentUrl.replace('web-admin', 'api'),
+        currentUrl.replace(/web-admin-production/gi, 'api-production'),
+        currentUrl.replace(/web-admin/gi, 'api'),
         'https://ntsamaelaapi-production.up.railway.app/api',
       ];
       
-      return commonPatterns.find(url => url !== currentUrl) || 'http://localhost:3001/api';
+      const fallbackUrl = commonPatterns.find(url => url !== currentUrl) || 'http://localhost:3001/api';
+      console.log('⚠️ Using fallback API URL:', fallbackUrl);
+      return fallbackUrl;
     }
     
     // Server-side fallback
@@ -56,6 +64,16 @@ class AuthService {
       console.log('🔗 NEXT_PUBLIC_API_URL env:', process.env.NEXT_PUBLIC_API_URL || 'NOT SET');
       console.log('🔗 Current window location:', window.location.origin);
     }
+  }
+
+  // Public method to get the API URL (for display purposes)
+  getApiUrl(): string {
+    return this.baseUrl;
+  }
+  
+  // Check if using auto-detected URL (not from env var)
+  isUsingAutoDetectedUrl(): boolean {
+    return !process.env.NEXT_PUBLIC_API_URL;
   }
 
   async register(userData: RegisterRequest): Promise<ApiResponse<{ user: AuthUser; token: string }>> {

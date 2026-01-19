@@ -52,6 +52,16 @@ export default function Login() {
 
   const [emailError, setEmailError] = useState<string>('');
   const [passwordError, setPasswordError] = useState<string>('');
+  const [apiUrl, setApiUrl] = useState<string>('');
+  const [isAutoDetected, setIsAutoDetected] = useState<boolean>(false);
+
+  // Get the actual API URL being used (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setApiUrl(authService.getApiUrl());
+      setIsAutoDetected(authService.isUsingAutoDetectedUrl());
+    }
+  }, []);
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
@@ -206,14 +216,14 @@ export default function Login() {
               <Typography variant="body2" color="text.secondary">
                 Sign in to access your admin panel
               </Typography>
-              {process.env.NEXT_PUBLIC_API_URL && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontSize: '0.7rem' }}>
-                  API: {process.env.NEXT_PUBLIC_API_URL}
-                </Typography>
-              )}
-              {!process.env.NEXT_PUBLIC_API_URL && (
-                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1, fontSize: '0.7rem' }}>
-                  ⚠️ API URL not configured (using localhost)
+              {apiUrl && (
+                <Typography 
+                  variant="caption" 
+                  color={isAutoDetected ? 'warning.main' : 'text.secondary'} 
+                  sx={{ display: 'block', mt: 1, fontSize: '0.7rem' }}
+                >
+                  {isAutoDetected ? '⚠️ ' : '✅ '}API: {apiUrl}
+                  {isAutoDetected && ' (auto-detected)'}
                 </Typography>
               )}
             </Box>
