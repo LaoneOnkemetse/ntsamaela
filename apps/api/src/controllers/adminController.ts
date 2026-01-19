@@ -265,11 +265,20 @@ export class AdminController {
       };
 
       const result = await this.adminService.getTransactions(filters);
-      res.json(result);
+      res.json({
+        success: true,
+        data: result.transactions || result,
+        total: result.total || (Array.isArray(result) ? result.length : 0)
+      });
     } catch (_error: any) {
+      console.error('Transactions error:', _error);
       res
         .status(500)
-        .json({ message: _error.message || "Failed to fetch transactions" });
+        .json({ 
+          success: false,
+          message: _error.message || "Failed to fetch transactions",
+          error: _error
+        });
     }
   }
 
