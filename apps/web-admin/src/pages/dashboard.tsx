@@ -144,6 +144,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Protect route - redirect to login if not authenticated
+  // But be lenient - if token exists, trust it even if user isn't loaded yet
   useEffect(() => {
     if (typeof window === 'undefined') return; // SSR check
     
@@ -153,18 +154,13 @@ export default function Dashboard() {
     // Check for token
     const hasToken = localStorage.getItem('token');
     
-    // If no user and no token, redirect to login
-    // But give it a moment - user might be loading from API
-    if (!user && !hasToken) {
-      // Small delay to prevent race conditions
-      const timer = setTimeout(() => {
-        if (!user && !localStorage.getItem('token')) {
-          router.push('/login');
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+    // Only redirect if there's NO token at all
+    // If token exists, trust it (even if user isn't loaded yet)
+    // API calls will verify the token and handle 401s
+    if (!hasToken) {
+      router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [loading, router]);
 
   // Fetch dashboard stats
   const { data: dashboardData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
