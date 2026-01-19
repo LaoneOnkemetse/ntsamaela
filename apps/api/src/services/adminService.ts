@@ -96,6 +96,9 @@ export class AdminService {
     if (!this.prisma) {
       this.prisma = getPrismaClient();
     }
+    if (!this.prisma) {
+      throw new Error('Prisma client is not available');
+    }
     return this.prisma;
   }
 
@@ -232,7 +235,8 @@ export class AdminService {
       
       if (filters.search) {
         where.OR = [
-          { user: { name: { contains: filters.search, mode: 'insensitive' } } },
+          { user: { firstName: { contains: filters.search, mode: 'insensitive' } } },
+          { user: { lastName: { contains: filters.search, mode: 'insensitive' } } },
           { user: { email: { contains: filters.search, mode: 'insensitive' } } }
         ];
       }
@@ -244,18 +248,29 @@ export class AdminService {
         };
       }
 
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
       const [requests, total] = await Promise.all([
-        this.getPrisma().verificationRequest.findMany({
+        prisma.verification.findMany({
           where,
           include: {
-            user: { select: { id: true, email: true, name: true } },
-            documents: true
+            user: { 
+              select: { 
+                id: true, 
+                email: true, 
+                firstName: true,
+                lastName: true
+              } 
+            }
           },
           orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
           take: filters.limit || 20
         }),
-        this.getPrisma().verificationRequest.count({ where })
+        prisma.verification.count({ where })
       ]);
 
       return {
@@ -263,7 +278,7 @@ export class AdminService {
           id: req.id,
           userId: req.userId,
           userEmail: req.user.email,
-          userName: req.user.name,
+          userName: `${req.user.firstName} ${req.user.lastName}`,
           type: req.type as any,
           status: req.status as any,
           submittedAt: req.createdAt,
@@ -292,11 +307,22 @@ export class AdminService {
 
   async getVerificationRequest(id: string): Promise<VerificationRequest> {
     try {
-      const request = await this.getPrisma().verificationRequest.findUnique({
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
+      const request = await prisma.verification.findUnique({
         where: { id },
         include: {
-          user: { select: { id: true, email: true, name: true } },
-          documents: true
+          user: { 
+            select: { 
+              id: true, 
+              email: true, 
+              firstName: true,
+              lastName: true
+            } 
+          }
         }
       });
 
@@ -308,15 +334,31 @@ export class AdminService {
         id: request.id,
         userId: request.userId,
         userEmail: request.user.email,
-        type: request.type as any,
+        type: request.documentType as any,
         status: request.status as any,
-        documents: request.documents.map((doc: any) => ({
-          id: doc.id,
-          type: doc.type as any,
-          url: doc.url,
-          uploadedAt: doc.createdAt,
-          metadata: doc.metadata as any
-        })),
+        documents: [
+          {
+            id: request.id + '_front',
+            type: request.documentType,
+            url: request.frontImageUrl,
+            uploadedAt: request.createdAt,
+            metadata: null
+          },
+          request.backImageUrl ? {
+            id: request.id + '_back',
+            type: request.documentType,
+            url: request.backImageUrl,
+            uploadedAt: request.createdAt,
+            metadata: null
+          } : null,
+          {
+            id: request.id + '_selfie',
+            type: 'SELFIE',
+            url: request.selfieImageUrl,
+            uploadedAt: request.createdAt,
+            metadata: null
+          }
+        ].filter(Boolean) as any[],
         createdAt: request.createdAt,
         updatedAt: request.updatedAt
       };
@@ -334,7 +376,12 @@ export class AdminService {
     adminId?: string
   ): Promise<void> {
     try {
-      await this.getPrisma().verificationRequest.update({
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
+      await prisma.verification.update({
         where: { id },
         data: {
           status,
@@ -692,7 +739,7 @@ export class AdminService {
       return {
         activeUsers: await this.getPrisma().user.count({ where: { status: 'ACTIVE' } }),
         activeDeliveries: await this.getPrisma().delivery.count({ where: { status: 'IN_PROGRESS' } }),
-        pendingVerifications: await this.getPrisma().verificationRequest.count({ where: { status: 'PENDING' } }),
+        pendingVerifications: await this.getPrisma().verification.count({ where: { status: 'PENDING' } }),
         systemLoad: 45.2,
         errorRate: 0.1
       };
