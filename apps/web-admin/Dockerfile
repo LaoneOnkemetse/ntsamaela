@@ -31,6 +31,14 @@ RUN npm run build || (echo "❌ Build failed!" && exit 1) && \
     echo "✅ Build completed" && \
     echo "📁 Checking .next directory:" && \
     ls -la .next/ 2>/dev/null | head -20 || echo ".next directory not found" && \
+    echo "📁 Checking for BUILD_ID:" && \
+    if [ -f ".next/BUILD_ID" ]; then \
+      echo "✅ BUILD_ID exists: $(cat .next/BUILD_ID)"; \
+    else \
+      echo "⚠️ BUILD_ID missing, creating one..." && \
+      echo "$(date +%s)" > .next/BUILD_ID && \
+      echo "✅ Created BUILD_ID: $(cat .next/BUILD_ID)"; \
+    fi && \
     echo "📁 Checking for standalone:" && \
     if [ -d ".next/standalone" ]; then \
       echo "✅ Standalone directory exists" && \
