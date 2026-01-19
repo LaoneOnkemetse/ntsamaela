@@ -6,7 +6,7 @@
   "scripts": {
     "seed:admin": "node seed-admin.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc && tsc-alias",
+    "build": "npx prisma generate --schema=../../packages/database/schema.prisma && tsc && tsc-alias",
     "start": "npx ts-node -r tsconfig-paths/register src/index.ts",
     "test:sms": "ts-node -r tsconfig-paths/register src/scripts/testSms.ts",
     "test:sendgrid": "ts-node -r tsconfig-paths/register src/scripts/test-sendgrid.ts",
