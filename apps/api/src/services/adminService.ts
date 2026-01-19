@@ -400,7 +400,7 @@ export class AdminService {
         }
         const verification = await prisma.verification.findUnique({
           where: { id },
-          select: { userId: true, type: true }
+          select: { userId: true, documentType: true }
         });
 
         if (verification) {
