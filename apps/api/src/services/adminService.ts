@@ -112,8 +112,8 @@ export class AdminService {
         systemAlerts
       ] = await Promise.all([
         this.getPrisma().user.count(),
-        this.getPrisma().delivery.count({ where: { status: 'IN_PROGRESS' } }),
-        this.getPrisma().verificationRequest.count({ where: { status: 'PENDING' } }),
+        this.getPrisma().package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }),
+        this.getPrisma().verification.count({ where: { status: 'PENDING' } }),
         this.getPrisma().transaction.aggregate({
           where: { 
             status: 'COMPLETED',
