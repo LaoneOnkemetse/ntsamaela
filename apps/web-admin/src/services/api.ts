@@ -30,17 +30,18 @@ apiClient.interceptors.request.use(
 );
 
 // Response interceptor to handle errors
+// IMPORTANT: Do NOT automatically redirect on 401 here – it caused login/dashboard loops
+// Let individual pages decide how to handle 401s based on context
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect to login on 401 if we're not already on the login page
-    if (error.response?.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-      // Clear token and redirect only if not on login page
-      localStorage.removeItem('token');
-      // Use router if available, otherwise use window.location
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    if (error.response?.status === 401) {
+      console.warn('API 401 Unauthorized:', {
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+      // We intentionally do NOT clear the token or redirect here.
+      // The login page and protected pages will handle auth errors explicitly.
     }
     return Promise.reject(error);
   }

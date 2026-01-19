@@ -99,14 +99,15 @@ export default function Login() {
           // Password-related errors
           setPasswordError('Incorrect password');
         } else if (errorCode === 'INVALID_CREDENTIALS' || errorLower.includes('invalid')) {
-          // Generic invalid credentials - try to determine which field
-          // Check if email format is valid first
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(data.email)) {
-            setEmailError('Invalid email format');
-          } else {
-            // Email format is valid, so it's likely the password
+          // Generic invalid credentials from API (doesn't say which field)
+          // Heuristic:
+          // - If email is the known admin email, assume password is wrong
+          // - Otherwise, assume email is wrong / not found
+          const adminEmail = 'plutonium94@ntsamaela.com';
+          if (data.email.trim().toLowerCase() === adminEmail) {
             setPasswordError('Incorrect password');
+          } else {
+            setEmailError('Email not found or incorrect');
           }
         } else {
           // Unknown error - show generic message
