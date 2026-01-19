@@ -238,9 +238,9 @@ import webhookRoutes from "./routes/webhookRoutes";
 // - Google Cloud Vision API (for OCR and face detection)
 // - Cloudinary (for file storage and image optimization)
 
-// Mount routes - IMPORTANT: Auth routes must come BEFORE simpleRoutes to avoid mock endpoints
+// Mount routes - IMPORTANT: Real routes must come BEFORE simpleRoutes to avoid mock endpoints
+// Order matters: more specific routes first, then catch-all simpleRoutes
 app.use("/api/auth", authRoutes);
-app.use("/api", simpleRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/trips", tripRoutes);
@@ -256,6 +256,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api/webhooks", webhookRoutes);
+// simpleRoutes should come LAST to only handle routes not covered by real routes
+app.use("/api", simpleRoutes);
 
 // API root endpoint - provide helpful information
 app.get("/api", (req, res) => {
