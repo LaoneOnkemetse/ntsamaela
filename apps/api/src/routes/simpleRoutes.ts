@@ -34,32 +34,14 @@ router.post("/packages", (req: Request, res: Response) => {
   });
 });
 
+// REMOVED: Mock packages endpoint - now using real package routes from ./routes/packageRoutes.ts
+// Real packages are handled at: /api/packages (via packageRoutes)
 router.get("/packages", (req: Request, res: Response) => {
-  // Mock packages list
-  const mockPackages = [
-    {
-      id: "pkg_1",
-      description: "Mock package 1",
-      pickupAddress: "123 Main St, Gaborone",
-      deliveryAddress: "456 Airport Rd, Gaborone",
-      priceOffered: 150,
-      status: "PENDING",
-      urgency: "NORMAL",
-    },
-    {
-      id: "pkg_2",
-      description: "Mock package 2",
-      pickupAddress: "789 Broad St, Francistown",
-      deliveryAddress: "321 Mall St, Francistown",
-      priceOffered: 200,
-      status: "ACCEPTED",
-      urgency: "URGENT",
-    },
-  ];
-
+  // Return empty array instead of mock data - real data should come from database
   res.json({
     success: true,
-    data: mockPackages,
+    data: [],
+    message: "Use /api/packages endpoint for real package data",
   });
 });
 
@@ -192,28 +174,15 @@ router.get("/verification/my-status", (req: Request, res: Response) => {
   });
 });
 
-// Mock notification endpoints
+// REMOVED: Mock notification endpoints - now using real notification routes
+// Real notifications are handled at: /api/notifications (via notificationRoutes)
+// Admin notifications are handled at: /api/admin/notifications (via adminRoutes)
 router.get("/notifications", (req: Request, res: Response) => {
-  const mockNotifications = [
-    {
-      id: "notif_1",
-      title: "New Bid Received",
-      message: "You have received a new bid for your package",
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "notif_2",
-      title: "Package Delivered",
-      message: "Your package has been successfully delivered",
-      isRead: true,
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ];
-
+  // Return empty array instead of mock data - real data should come from database
   res.json({
     success: true,
-    data: mockNotifications,
+    data: [],
+    message: "Use /api/notifications endpoint for real notification data",
   });
 });
 
