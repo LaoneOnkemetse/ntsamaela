@@ -49,9 +49,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // Check for stored token on app start (only in browser, not SSR)
+    // Only run once, not on every render
+    if (authChecked) return;
+    
     const checkAuth = async () => {
       // Check if we're in the browser (not SSR)
       if (typeof window === 'undefined') {
@@ -82,16 +86,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (data.success && data.data) {
               setUser(data.data);
             } else {
-              // Token invalid (explicit failure from API)
-              console.warn('Token validation failed - API returned unsuccessful response');
-              localStorage.removeItem('token');
-              setToken(null);
+              // Token invalid (explicit failure from API) - but don't clear immediately
+              // Only clear on explicit 401/403
+              console.warn('Token validation failed - API returned unsuccessful response, but keeping token for now');
+              // Don't clear token here - let the API interceptor handle 401s
             }
           } else if (response.status === 401 || response.status === 403) {
             // Only clear token on actual auth errors (401/403)
             console.warn('Token invalid - received', response.status);
             localStorage.removeItem('token');
             setToken(null);
+            setUser(null);
           } else {
             // Network or server errors - keep token, user might still be valid
             console.warn('Auth check failed with status', response.status, '- keeping token');
