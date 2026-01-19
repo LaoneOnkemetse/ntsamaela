@@ -101,18 +101,18 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
         select: {
           id: true,
           email: true,
-          role: true,
           userType: true,
-          isActive: true
+          identityVerified: true,
+          emailVerified: true,
         }
       });
 
-      if (!user || !user.isActive) {
-        return res.status(401).json({ message: 'Invalid or inactive user' });
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid user' });
       }
 
-      // Check if user has admin role or is admin user type
-      const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.userType === 'ADMIN';
+      // Check if user has admin user type
+      const isAdmin = user.userType === 'ADMIN';
       
       if (!isAdmin) {
         return res.status(403).json({ message: 'Admin privileges required' });
@@ -121,7 +121,7 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
       req.admin = {
         id: user.id,
         email: user.email,
-        role: user.role || 'ADMIN',
+        role: 'ADMIN', // Set role to ADMIN for admin users
         permissions: ['*'] // Grant all permissions for admin users
       };
     }
