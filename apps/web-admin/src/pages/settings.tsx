@@ -3,7 +3,6 @@ import { Settings as SettingsIcon, Save, Refresh, Lock } from '@mui/icons-materi
 import { useAuth } from '../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { getSystemHealth, getSystemMetrics } from '../services/api';
 import apiClient from '../services/api';
 import toast from 'react-hot-toast';
