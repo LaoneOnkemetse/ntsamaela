@@ -50,8 +50,9 @@ apiClient.interceptors.response.use(
 // Dashboard API methods
 export const getDashboardStats = async () => {
   try {
-    const response = await apiClient.get('/admin/dashboard/stats');
-    return response.data.data;
+    const response = await apiClient.get('/admin/dashboard');
+    // Handle both nested and flat response structures
+    return response.data.data || response.data.summary || response.data;
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     throw error;

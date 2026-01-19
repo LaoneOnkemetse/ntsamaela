@@ -40,11 +40,33 @@ export class AdminController {
   async getDashboardData(req: AuthenticatedRequest, res: Response) {
     try {
       const dashboardData = await this.adminService.getDashboardData();
-      res.json(dashboardData);
+      // Return data in format expected by frontend
+      res.json({
+        success: true,
+        data: {
+          totalUsers: dashboardData.summary.totalUsers,
+          activeUsers: dashboardData.summary.activeUsers,
+          activePackages: dashboardData.summary.activeDeliveries,
+          totalDeliveries: dashboardData.summary.totalDeliveries,
+          pendingVerifications: dashboardData.summary.pendingVerifications,
+          totalRevenue: dashboardData.summary.totalRevenue,
+          userGrowth: 0, // Calculate if needed
+          packageGrowth: 0, // Calculate if needed
+          verificationChange: 0, // Calculate if needed
+          revenueGrowth: 0, // Calculate if needed
+          verificationProgress: 0, // Calculate if needed
+          revenueProgress: 0, // Calculate if needed
+        }
+      });
     } catch (_error: any) {
+      console.error('Dashboard error:', _error);
       res
         .status(500)
-        .json({ message: _error.message || "Failed to fetch dashboard data" });
+        .json({ 
+          success: false,
+          message: _error.message || "Failed to fetch dashboard data",
+          error: _error 
+        });
     }
   }
 
