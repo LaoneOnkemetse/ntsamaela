@@ -166,11 +166,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const setAuthData = (userData: AuthUser, userToken: string) => {
+    console.log('Setting auth data:', { user: userData.email, hasToken: !!userToken });
     setUser(userData);
     setToken(userToken);
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', userToken);
+      console.log('Token saved to localStorage');
     }
+    // Ensure loading is false after setting auth data
+    setLoading(false);
   };
 
   const updateUser = (updatedUser: AuthUser) => {

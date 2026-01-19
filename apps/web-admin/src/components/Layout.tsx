@@ -20,6 +20,7 @@ import {
   useMediaQuery,
   Badge,
   Tooltip,
+  CircularProgress,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -218,7 +219,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Redirect to login if not authenticated (except on login page)
   useEffect(() => {
     // Only redirect in browser, not during SSR
-    if (typeof window !== 'undefined' && !loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+    if (typeof window === 'undefined') return;
+    
+    // Don't redirect if still loading
+    if (loading) return;
+    
+    // Don't redirect if already on login or root page
+    if (router.pathname === '/login' || router.pathname === '/') return;
+    
+    // Check for token - if token exists, don't redirect (user might be loading)
+    const hasToken = localStorage.getItem('token');
+    if (hasToken && !user) {
+      // Token exists but user not loaded yet - wait a bit more
+      console.log('Token exists but user not loaded, waiting...');
+      return;
+    }
+    
+    // Only redirect if there's no user AND no token
+    if (!user && !hasToken) {
+      console.log('No user and no token, redirecting to login');
       router.push('/login');
     }
   }, [user, loading, router]);
@@ -228,9 +247,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return <>{children}</>;
   }
   
-  // Don't block rendering during SSR - let the page handle its own redirect
+  // If we have a token but user is not loaded yet, show loading state instead of redirecting
   if (typeof window !== 'undefined' && !loading && !user) {
-    return null; // Don't render anything while redirecting
+    const hasToken = localStorage.getItem('token');
+    if (hasToken) {
+      // Token exists, show loading - don't redirect
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+    // No token, don't render anything while redirecting
+    return null;
   }
 
   return (
