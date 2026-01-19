@@ -614,14 +614,24 @@ export class AdminService {
   // Transaction Management Methods
   async getTransactions(filters: AdminFilterOptions) {
     try {
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
       const where: any = {};
       
       if (filters.status) {
-        where.status = { in: filters.status };
+        // Handle both string and array status filters
+        if (Array.isArray(filters.status)) {
+          where.status = { in: filters.status };
+        } else {
+          where.status = filters.status;
+        }
       }
 
       const [transactions, total] = await Promise.all([
-        this.getPrisma().transaction.findMany({
+        prisma.transaction.findMany({
           where,
           orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
@@ -640,8 +650,11 @@ export class AdminService {
               }
             }
           }
+        }).catch((err) => {
+          console.error('Error in transaction.findMany:', err);
+          return [];
         }),
-        this.getPrisma().transaction.count({ where })
+        prisma.transaction.count({ where }).catch(() => 0)
       ]);
 
       return {
@@ -669,8 +682,23 @@ export class AdminService {
 
   async getTransaction(id: string) {
     try {
-      const transaction = await this.getPrisma().transaction.findUnique({
-        where: { id }
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
+      const transaction = await prisma.transaction.findUnique({
+        where: { id },
+        include: {
+          wallet: {
+            select: {
+              currency: true
+            }
+          }
+        }
+      }).catch((err) => {
+        console.error('Error in transaction.findUnique:', err);
+        return null;
       });
 
       if (!transaction) {
@@ -681,15 +709,16 @@ export class AdminService {
         id: transaction.id,
         userId: transaction.userId,
         amount: transaction.amount,
-        currency: transaction.currency,
+        currency: transaction.wallet?.currency || transaction.currency || 'USD',
         status: transaction.status,
         description: transaction.description,
+        reference: transaction.reference,
         createdAt: transaction.createdAt,
         updatedAt: transaction.updatedAt
       };
-    } catch (_error) {
+    } catch (_error: any) {
       console.error('Error fetching transaction:', _error);
-      throw new Error('Failed to fetch transaction');
+      throw new Error(_error.message || 'Failed to fetch transaction');
     }
   }
 
