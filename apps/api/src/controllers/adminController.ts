@@ -44,12 +44,12 @@ export class AdminController {
       res.json({
         success: true,
         data: {
-          totalUsers: dashboardData.summary.totalUsers,
-          activeUsers: dashboardData.summary.activeUsers,
-          activePackages: dashboardData.summary.activeDeliveries,
-          totalDeliveries: dashboardData.summary.totalDeliveries,
-          pendingVerifications: dashboardData.summary.pendingVerifications,
-          totalRevenue: dashboardData.summary.totalRevenue,
+          totalUsers: dashboardData.summary?.totalUsers || 0,
+          activeUsers: dashboardData.summary?.activeUsers || 0,
+          activePackages: dashboardData.summary?.activeDeliveries || 0,
+          totalDeliveries: dashboardData.summary?.totalDeliveries || 0,
+          pendingVerifications: dashboardData.summary?.pendingVerifications || 0,
+          totalRevenue: dashboardData.summary?.totalRevenue || 0,
           userGrowth: 0, // Calculate if needed
           packageGrowth: 0, // Calculate if needed
           verificationChange: 0, // Calculate if needed
@@ -60,12 +60,13 @@ export class AdminController {
       });
     } catch (_error: any) {
       console.error('Dashboard error:', _error);
+      console.error('Dashboard error stack:', _error?.stack);
       res
         .status(500)
         .json({ 
           success: false,
           message: _error.message || "Failed to fetch dashboard data",
-          error: _error 
+          error: process.env.NODE_ENV === 'development' ? _error.toString() : undefined
         });
     }
   }

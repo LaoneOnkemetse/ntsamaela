@@ -105,6 +105,11 @@ export class AdminService {
   // --- Dashboard ---
   async getDashboardData(): Promise<AdminDashboardData> {
     try {
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error('Prisma client not available');
+      }
+
       const [
         totalUsers,
         activeDeliveries,
@@ -114,17 +119,17 @@ export class AdminService {
         recentTransactions,
         systemAlerts
       ] = await Promise.all([
-        this.getPrisma().user.count(),
-        this.getPrisma().package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }),
-        this.getPrisma().verification.count({ where: { status: 'PENDING' } }),
-        this.getPrisma().transaction.aggregate({
+        prisma.user.count().catch(() => 0),
+        prisma.package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }).catch(() => 0),
+        prisma.verification.count({ where: { status: 'PENDING' } }).catch(() => 0),
+        prisma.transaction.aggregate({
           where: { 
             status: 'COMPLETED',
             createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
           },
           _sum: { amount: true }
-        }),
-        this.getPrisma().user.findMany({
+        }).catch(() => ({ _sum: { amount: 0 } })),
+        prisma.user.findMany({
           take: 5,
           orderBy: { createdAt: 'desc' },
           select: {
@@ -149,8 +154,8 @@ export class AdminService {
               }
             }
           }
-        }),
-        this.getPrisma().transaction.findMany({
+        }).catch(() => []),
+        prisma.transaction.findMany({
           take: 5,
           orderBy: { createdAt: 'desc' },
           select: {
@@ -158,6 +163,7 @@ export class AdminService {
             userId: true,
             wallet: {
               select: {
+                currency: true,
                 user: {
                   select: {
                     email: true
@@ -171,7 +177,7 @@ export class AdminService {
             description: true,
             createdAt: true
           }
-        }),
+        }).catch(() => []),
         [] // systemAlerts - table doesn't exist, return empty array
       ]);
 
@@ -213,7 +219,7 @@ export class AdminService {
         ],
         quickActions: [
           pendingVerifications,
-          await this.getPrisma().transaction.count({ where: { status: 'FAILED' } }),
+          await prisma.transaction.count({ where: { status: 'FAILED' } }).catch(() => 0),
           0, // systemAlerts - table doesn't exist
           0 // supportTickets - This would come from a support system
         ]
