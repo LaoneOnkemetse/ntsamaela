@@ -54,6 +54,9 @@ router.delete('/admin/users/:id', adminController.deleteAdminUser.bind(adminCont
 // --- Bulk Operations ---
 router.post('/bulk-action', adminController.performBulkAction.bind(adminController));
 
+// --- Admin Notifications ---
+router.get('/notifications', adminController.getAdminNotifications.bind(adminController));
+
 // --- Audit Log ---
 router.get('/audit-log', adminController.getAuditLog.bind(adminController));
 

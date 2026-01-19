@@ -507,6 +507,24 @@ export class AdminController {
     }
   }
 
+  // --- Admin Notifications ---
+  async getAdminNotifications(req: AuthenticatedRequest, res: Response) {
+    try {
+      const options = {
+        unreadOnly: req.query.unreadOnly === 'true',
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        type: req.query.type as string,
+      };
+      const result = await this.adminService.getAdminNotifications(options);
+      res.json(result);
+    } catch (_error: any) {
+      res.status(500).json({
+        success: false,
+        message: _error.message || 'Failed to fetch admin notifications',
+      });
+    }
+  }
+
   // --- Audit Log ---
   async getAuditLog(req: AuthenticatedRequest, res: Response) {
     try {
