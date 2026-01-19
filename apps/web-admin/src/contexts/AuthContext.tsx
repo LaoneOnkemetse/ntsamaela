@@ -65,48 +65,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
+        // Trust the token exists - don't verify it immediately
+        // Verification will happen when making API calls
+        // This prevents redirect loops from failed auth checks
         setToken(storedToken);
-        try {
-          // Try to fetch current user from API
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
-          if (!apiUrl) {
-            console.error('API URL not configured');
-            setLoading(false);
-            return;
-          }
-          
-          const response = await fetch(`${apiUrl}/auth/me`, {
+        console.log('Token found in localStorage, trusting it for now');
+        
+        // Try to get user info in background, but don't block or fail if it doesn't work
+        // The user can still use the app and API calls will verify the token
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
+        if (apiUrl) {
+          // Try to get user, but don't block if it fails
+          fetch(`${apiUrl}/auth/me`, {
             headers: {
               'Authorization': `Bearer ${storedToken}`,
             },
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data) {
-              setUser(data.data);
-            } else {
-              // Token invalid (explicit failure from API) - but don't clear immediately
-              // Only clear on explicit 401/403
-              console.warn('Token validation failed - API returned unsuccessful response, but keeping token for now');
-              // Don't clear token here - let the API interceptor handle 401s
-            }
-          } else if (response.status === 401 || response.status === 403) {
-            // Only clear token on actual auth errors (401/403)
-            console.warn('Token invalid - received', response.status);
-            localStorage.removeItem('token');
-            setToken(null);
-            setUser(null);
-          } else {
-            // Network or server errors - keep token, user might still be valid
-            console.warn('Auth check failed with status', response.status, '- keeping token');
-            // Don't clear token on network/server errors - user might still be authenticated
-          }
-        } catch (error) {
-          console.error('Error checking auth:', error);
-          // On network errors, don't clear token - might be temporary network issue
-          // Only clear if it's a clear authentication error
-          // Keep the token and let the user try to use the app
+          })
+            .then(response => {
+              if (response.ok) {
+                return response.json();
+              }
+              return null;
+            })
+            .then(data => {
+              if (data?.success && data?.data) {
+                setUser(data.data);
+              }
+            })
+            .catch(error => {
+              // Silently fail - token might still be valid
+              console.log('Could not verify token, but keeping it:', error.message);
+            });
         }
       } else {
         // No token found - user is definitely not logged in
