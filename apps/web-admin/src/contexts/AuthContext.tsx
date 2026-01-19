@@ -108,12 +108,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Only clear if it's a clear authentication error
           // Keep the token and let the user try to use the app
         }
+      } else {
+        // No token found - user is definitely not logged in
+        setUser(null);
+        setToken(null);
       }
       setLoading(false);
+      setAuthChecked(true);
     };
     
     checkAuth();
-  }, []);
+  }, [authChecked]);
 
   const login = async (credentials: LoginRequest): Promise<boolean> => {
     try {
