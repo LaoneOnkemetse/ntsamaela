@@ -33,7 +33,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { login, user } = useAuth();
+  const { setAuthData, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -72,17 +72,13 @@ export default function Login() {
       const response = await authService.login({ email: data.email, password: data.password });
       
       if (response.success && response.data) {
-        // Update auth context with the successful login
-        const success = await login({ email: data.email, password: data.password });
-        if (success) {
-          toast.success('Welcome back!');
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 100);
-        } else {
-          // This shouldn't happen if authService.login succeeded, but handle it
-          toast.error('Login succeeded but failed to update session.');
-        }
+        // Update auth context directly with the response data (no need to call API again)
+        const { user: userData, token: userToken } = response.data;
+        setAuthData(userData, userToken);
+        toast.success('Welcome back!');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
       } else {
         // Handle specific error cases
         const errorCode = response.error?.code;

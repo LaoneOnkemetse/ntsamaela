@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/authService';
 
 // Simple types for development
 interface AuthUser {
@@ -32,6 +33,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (credentials: LoginRequest) => Promise<boolean>;
+  setAuthData: (user: AuthUser, token: string) => void; // Direct method to set auth data
   register: (userData: RegisterRequest) => Promise<boolean>;
   logout: () => void;
   updateUser: (user: AuthUser) => void;
@@ -150,6 +152,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('token');
   };
 
+  const setAuthData = (userData: AuthUser, userToken: string) => {
+    setUser(userData);
+    setToken(userToken);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', userToken);
+    }
+  };
+
   const updateUser = (updatedUser: AuthUser) => {
     setUser(updatedUser);
   };
@@ -159,6 +169,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     token,
     loading,
     login,
+    setAuthData,
     register,
     logout,
     updateUser,
