@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -138,10 +138,26 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, gradient, chang
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [tabValue, setTabValue] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Protect route - redirect to login if not authenticated
+  useEffect(() => {
+    if (typeof window === 'undefined') return; // SSR check
+    
+    // Wait for auth to finish loading
+    if (loading) return;
+    
+    // Check for token
+    const hasToken = localStorage.getItem('token');
+    
+    // If no user and no token, redirect to login
+    if (!user && !hasToken) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   // Fetch dashboard stats
   const { data: dashboardData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
