@@ -65,12 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           // Try to fetch current user from API
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
-      if (!apiUrl) {
-        console.error('API URL not configured');
-        setLoading(false);
-        return;
-      }
-      const response = await fetch(`${apiUrl}/auth/me`, {
+          if (!apiUrl) {
+            console.error('API URL not configured');
+            setLoading(false);
+            return;
+          }
+          
+          const response = await fetch(`${apiUrl}/auth/me`, {
             headers: {
               'Authorization': `Bearer ${storedToken}`,
             },
@@ -81,20 +82,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (data.success && data.data) {
               setUser(data.data);
             } else {
-              // Token invalid, clear it
+              // Token invalid (explicit failure from API)
+              console.warn('Token validation failed - API returned unsuccessful response');
               localStorage.removeItem('token');
               setToken(null);
             }
-          } else {
-            // Token invalid, clear it
+          } else if (response.status === 401 || response.status === 403) {
+            // Only clear token on actual auth errors (401/403)
+            console.warn('Token invalid - received', response.status);
             localStorage.removeItem('token');
             setToken(null);
+          } else {
+            // Network or server errors - keep token, user might still be valid
+            console.warn('Auth check failed with status', response.status, '- keeping token');
+            // Don't clear token on network/server errors - user might still be authenticated
           }
         } catch (error) {
           console.error('Error checking auth:', error);
-          // On error, clear token to force login
-          localStorage.removeItem('token');
-          setToken(null);
+          // On network errors, don't clear token - might be temporary network issue
+          // Only clear if it's a clear authentication error
+          // Keep the token and let the user try to use the app
         }
       }
       setLoading(false);

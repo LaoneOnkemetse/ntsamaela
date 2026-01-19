@@ -33,10 +33,14 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
+    // Only redirect to login on 401 if we're not already on the login page
+    if (error.response?.status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      // Clear token and redirect only if not on login page
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Use router if available, otherwise use window.location
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

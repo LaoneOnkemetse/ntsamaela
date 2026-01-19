@@ -104,8 +104,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   // Redirect to login if not authenticated (except on login page)
+  // Only redirect if we're sure the user is not authenticated (not just loading)
   useEffect(() => {
-    if (!loading && !user && router.pathname !== '/login' && router.pathname !== '/') {
+    // Only redirect in browser, not during SSR
+    if (typeof window === 'undefined') return;
+    
+    // Don't redirect if still loading auth state
+    if (loading) return;
+    
+    // Don't redirect if already on login or root page
+    if (router.pathname === '/login' || router.pathname === '/') return;
+    
+    // Only redirect if there's no user AND no token (double check)
+    const hasToken = localStorage.getItem('token');
+    if (!user && !hasToken) {
       router.push('/login');
     }
   }, [user, loading, router]);
