@@ -99,9 +99,18 @@ RUN if [ ! -f "/app/apps/web-admin/.next/prerender-manifest.json" ]; then \
       echo "✅ Created prerender-manifest.json"; \
     else \
       echo "✅ prerender-manifest.json exists"; \
+    fi
+
+# Create BUILD_ID file if it doesn't exist (CRITICAL for production mode)
+RUN if [ ! -f "/app/apps/web-admin/.next/BUILD_ID" ]; then \
+      echo "⚠️ BUILD_ID missing, creating one..." && \
+      echo "$(date +%s)" > /app/apps/web-admin/.next/BUILD_ID && \
+      echo "✅ Created BUILD_ID: $(cat /app/apps/web-admin/.next/BUILD_ID)"; \
+    else \
+      echo "✅ BUILD_ID exists: $(cat /app/apps/web-admin/.next/BUILD_ID)"; \
     fi && \
     echo "📁 Verifying required files:" && \
-    ls -la /app/apps/web-admin/.next/*.json 2>/dev/null | head -10 || true
+    ls -la /app/apps/web-admin/.next/*.json /app/apps/web-admin/.next/BUILD_ID 2>/dev/null | head -10 || true
 
 # CRITICAL: Remove ALL package.json files IMMEDIATELY after copy to prevent Railway from auto-running npm start
 # Railway detects package.json and runs npm start automatically, ignoring our CMD
