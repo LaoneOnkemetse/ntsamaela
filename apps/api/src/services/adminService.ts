@@ -855,7 +855,7 @@ export class AdminService {
         },
       });
 
-      pendingVerifications.forEach((verification) => {
+      pendingVerifications.forEach((verification: any) => {
         notifications.push({
           id: `verification-${verification.id}`,
           type: 'VERIFICATION_PENDING',
@@ -887,7 +887,7 @@ export class AdminService {
         },
       });
 
-      pendingPackages.forEach((pkg) => {
+      pendingPackages.forEach((pkg: any) => {
         notifications.push({
           id: `package-${pkg.id}`,
           type: 'PACKAGE_PENDING_APPROVAL',
