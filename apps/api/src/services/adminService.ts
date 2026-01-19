@@ -394,7 +394,11 @@ export class AdminService {
 
       // Update user verification status if approved
       if (status === 'APPROVED') {
-        const verification = await this.getPrisma().verificationRequest.findUnique({
+        const prisma = this.getPrisma();
+        if (!prisma) {
+          throw new Error('Prisma client not available');
+        }
+        const verification = await prisma.verification.findUnique({
           where: { id },
           select: { userId: true, type: true }
         });
