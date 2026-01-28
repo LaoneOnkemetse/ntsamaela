@@ -60,50 +60,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Check if we're in the browser (not SSR)
       if (typeof window === 'undefined') {
         setLoading(false);
+        setAuthChecked(true);
         return;
       }
 
       const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        // Trust the token exists - don't verify it immediately
-        // Verification will happen when making API calls
-        // This prevents redirect loops from failed auth checks
-        setToken(storedToken);
-        console.log('Token found in localStorage, trusting it for now');
-        
-        // Try to get user info in background, but don't block or fail if it doesn't work
-        // The user can still use the app and API calls will verify the token
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
-        if (apiUrl) {
-          // Try to get user, but don't block if it fails
-          fetch(`${apiUrl}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${storedToken}`,
-            },
-          })
-            .then(response => {
-              if (response.ok) {
-                return response.json();
-              }
-              return null;
-            })
-            .then(data => {
+      
+      // Always set loading to false after a short delay, even if API call is slow
+      // This prevents infinite loading if the API is unreachable
+      const loadingTimeout = setTimeout(() => {
+        setLoading(false);
+        setAuthChecked(true);
+      }, 3000); // Max 3 seconds for initial auth check
+
+      try {
+        if (storedToken) {
+          // Trust the token exists - don't verify it immediately
+          // Verification will happen when making API calls
+          // This prevents redirect loops from failed auth checks
+          setToken(storedToken);
+          console.log('Token found in localStorage, trusting it for now');
+          
+          // Try to get user info in background, but don't block or fail if it doesn't work
+          // The user can still use the app and API calls will verify the token
+          // Use same-origin `/api` and rely on Next.js rewrites to reach the backend.
+          // Add timeout to prevent hanging
+          const fetchController = new AbortController();
+          const fetchTimeout = setTimeout(() => fetchController.abort(), 2000); // 2 second timeout
+          
+          try {
+            const response = await fetch(`/api/auth/me`, {
+              headers: {
+                'Authorization': `Bearer ${storedToken}`,
+              },
+              signal: fetchController.signal,
+            });
+            
+            clearTimeout(fetchTimeout);
+            
+            if (response.ok) {
+              const data = await response.json();
               if (data?.success && data?.data) {
                 setUser(data.data);
               }
-            })
-            .catch(error => {
-              // Silently fail - token might still be valid
-              console.log('Could not verify token, but keeping it:', error.message);
-            });
+            }
+          } catch (fetchError: any) {
+            clearTimeout(fetchTimeout);
+            // Log errors for debugging, but don't block the app
+            if (fetchError.name !== 'AbortError') {
+              console.warn('Auth check: Could not verify token (API may be unreachable):', {
+                error: fetchError.message,
+                name: fetchError.name,
+                url: '/api/auth/me',
+              });
+            }
+          }
+        } else {
+          // No token found - user is definitely not logged in
+          setUser(null);
+          setToken(null);
         }
-      } else {
-        // No token found - user is definitely not logged in
-        setUser(null);
-        setToken(null);
+      } catch (error: any) {
+        console.error('Auth check error:', error);
+      } finally {
+        // Always clear timeout and set loading to false
+        clearTimeout(loadingTimeout);
+        setLoading(false);
+        setAuthChecked(true);
       }
-      setLoading(false);
-      setAuthChecked(true);
     };
     
     checkAuth();

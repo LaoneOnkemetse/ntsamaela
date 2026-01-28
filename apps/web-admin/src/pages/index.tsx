@@ -11,7 +11,18 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === 'undefined') return; // SSR check
     
+    // Safety timeout: if loading takes more than 5 seconds, proceed anyway
+    const safetyTimeout = setTimeout(() => {
+      const hasToken = localStorage.getItem('token');
+      if (hasToken) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
+    }, 5000);
+    
     if (!loading) {
+      clearTimeout(safetyTimeout);
       // Check for token instead of user (user might not be loaded yet)
       const hasToken = localStorage.getItem('token');
       if (hasToken) {
@@ -20,6 +31,8 @@ export default function Home() {
         router.push('/login');
       }
     }
+    
+    return () => clearTimeout(safetyTimeout);
   }, [loading, router]);
 
   return (

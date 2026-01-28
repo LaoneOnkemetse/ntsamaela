@@ -122,12 +122,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Don't redirect if already on login or root page
     if (router.pathname === '/login' || router.pathname === '/') return;
     
-    // Only redirect if there's no user AND no token (double check)
+    // Trust token if it exists - don't require user object to be loaded
+    // This prevents redirect loops when API is slow or user data fetch fails
     const hasToken = localStorage.getItem('token');
-    if (!user && !hasToken) {
+    if (!hasToken) {
+      // Only redirect if there's definitely no token
       router.push('/login');
     }
-  }, [user, loading, router]);
+    // If token exists, trust it and let the page handle auth errors
+  }, [loading, router]);
 
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', color: '#6366F1' },
@@ -226,20 +229,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   if (router.pathname === '/login' || router.pathname === '/') {
     return <>{children}</>;
   }
-  
-  // If we have a token but user is not loaded yet, show loading state
-  // Don't redirect - let the page component handle auth redirects
-  if (typeof window !== 'undefined' && !loading && !user) {
-    const hasToken = localStorage.getItem('token');
-    if (hasToken) {
-      // Token exists, show loading - user might be loading from API
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-  }
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
@@ -297,7 +286,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 fontSize: '0.9rem',
                 color: '#FFFFFF',
               }}>
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                {(user?.firstName?.[0] || 'A')}{(user?.lastName?.[0] || 'D')}
               </Avatar>
             </IconButton>
           </Tooltip>

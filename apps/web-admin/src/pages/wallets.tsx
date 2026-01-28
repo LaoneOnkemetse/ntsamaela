@@ -19,6 +19,10 @@ import {
   TextField,
   InputAdornment,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { 
   AccountBalance, 

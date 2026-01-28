@@ -1,15 +1,12 @@
 import axios from 'axios';
 
-// Require API URL to be set - no localhost fallback
-if (!process.env.NEXT_PUBLIC_API_URL && typeof window !== 'undefined') {
-  console.error('❌ NEXT_PUBLIC_API_URL environment variable is not set. API calls will fail.');
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin.replace('web-admin', 'api') + '/api' : '');
+// Use same-origin `/api` and let Next.js rewrites proxy to the real backend.
+const API_BASE_URL = '/api';
 
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000, // 10 second timeout to prevent hanging requests
   headers: {
     'Content-Type': 'application/json',
   },
@@ -341,16 +338,14 @@ export const exportAnalytics = async (params?: any) => {
 // System health API methods
 export const getSystemHealth = async () => {
   try {
-    // Use the public health endpoint (no /api prefix needed, it's at root)
-    const baseUrl = API_BASE_URL.replace('/api', '');
-    const response = await axios.get(`${baseUrl}/health/all`);
+    // Proxied by Next.js rewrite -> backend `/health/all`
+    const response = await axios.get(`/health/all`);
     return response.data;
   } catch (error) {
     console.error('Error fetching system health:', error);
     // Fallback to basic health check
     try {
-      const baseUrl = API_BASE_URL.replace('/api', '');
-      const response = await axios.get(`${baseUrl}/health`);
+      const response = await axios.get(`/health`);
       return response.data;
     } catch (fallbackError) {
       console.error('Error fetching basic health:', fallbackError);
