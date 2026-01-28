@@ -27,16 +27,24 @@ export default function Settings() {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/admin/settings');
-        return response.data.data || response.data || defaultSettings;
-      } catch (error) {
-        console.error('Error loading settings from server:', error);
+        const loadedSettings = response.data.data || response.data;
+        if (loadedSettings && typeof loadedSettings === 'object') {
+          return loadedSettings;
+        }
         return defaultSettings;
+      } catch (error: any) {
+        console.error('Error loading settings from server:', error);
+        // Don't return defaultSettings here - let it be handled by the query
+        throw error;
       }
     },
+    retry: 2,
+    staleTime: 0, // Always fetch fresh settings
   });
 
   useEffect(() => {
-    if (serverSettings) {
+    if (serverSettings && typeof serverSettings === 'object') {
+      // Only update if we got valid settings from server
       setSettings({ ...defaultSettings, ...serverSettings });
     }
   }, [serverSettings]);
@@ -57,15 +65,22 @@ export default function Settings() {
   const saveSettingsMutation = useMutation({
     mutationFn: async (settingsData: typeof settings) => {
       const response = await apiClient.post('/admin/settings', settingsData);
-      return response.data.data || response.data;
+      const savedSettings = response.data.data || response.data;
+      if (!savedSettings) {
+        throw new Error('No settings returned from server');
+      }
+      return savedSettings;
     },
-    onSuccess: () => {
+    onSuccess: (savedSettings) => {
+      // Update local state with saved settings to ensure consistency
+      setSettings({ ...defaultSettings, ...savedSettings });
       queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
       toast.success('Settings saved successfully to server!');
     },
     onError: (error: any) => {
       console.error('Error saving settings:', error);
-      toast.error(error.response?.data?.error?.message || 'Failed to save settings to server');
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to save settings to server';
+      toast.error(errorMessage);
     },
   });
 
@@ -75,13 +90,14 @@ export default function Settings() {
 
   const handleReset = async () => {
     try {
-      await apiClient.post('/admin/settings', defaultSettings);
-      setSettings(defaultSettings);
+      const response = await apiClient.post('/admin/settings', defaultSettings);
+      const savedSettings = response.data.data || response.data || defaultSettings;
+      setSettings({ ...defaultSettings, ...savedSettings });
       queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
       toast.success('Settings reset to default on server');
     } catch (error: any) {
       console.error('Error resetting settings:', error);
-      toast.error('Failed to reset settings on server');
+      toast.error(error.response?.data?.error?.message || 'Failed to reset settings on server');
     }
   };
 
@@ -266,26 +282,22 @@ export default function Settings() {
                     <strong>Database Status:</strong>{' '}
                     <span style={{ 
                       color: (systemHealth?.services?.database?.status === 'connected' || 
-                              systemHealth?.database?.status === 'connected' || 
                               systemHealth?.database === 'REAL' || 
-                              systemHealth?.database === 'MOCK') ? '#10B981' : '#EF4444' 
+                              systemHealth?.database === 'real') ? '#10B981' : '#EF4444' 
                     }}>
                       {(systemHealth?.services?.database?.status === 'connected' || 
-                        systemHealth?.database?.status === 'connected' || 
                         systemHealth?.database === 'REAL' || 
-                        systemHealth?.database === 'MOCK') ? 'Connected' : 'Disconnected'}
+                        systemHealth?.database === 'real') ? 'Connected' : 'Disconnected'}
                     </span>
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     <strong>Server Status:</strong>{' '}
                     <span style={{ 
                       color: (systemHealth?.status === 'healthy' || 
-                              systemHealth?.services?.api?.status === 'healthy' || 
-                              systemHealth?.status === 'ok') ? '#10B981' : '#EF4444' 
+                              systemHealth?.services?.api?.status === 'healthy') ? '#10B981' : '#EF4444' 
                     }}>
                       {(systemHealth?.status === 'healthy' || 
-                        systemHealth?.services?.api?.status === 'healthy' || 
-                        systemHealth?.status === 'ok') ? 'Healthy' : 'Unhealthy'}
+                        systemHealth?.services?.api?.status === 'healthy') ? 'Healthy' : 'Unhealthy'}
                     </span>
                   </Typography>
                   {systemMetrics && (

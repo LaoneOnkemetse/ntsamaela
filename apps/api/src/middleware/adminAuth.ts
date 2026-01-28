@@ -66,28 +66,29 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
       throw new Error('No JWT secret configured');
     }
 
-    // If it's an admin token, verify admin user exists
+    // Admin tokens and regular user tokens both use the User model
+    // Check if it's an admin token with adminId, or regular token with userId
     if (isAdminToken && decoded.adminId) {
-      const adminUser = await getPrisma().adminUser.findUnique({
-        where: { id: decoded.adminId },
+      // Admin token - treat adminId as userId and verify user
+      const userId = decoded.adminId;
+      const user = await getPrisma().user.findUnique({
+        where: { id: userId },
         select: {
           id: true,
           email: true,
-          role: true,
-          permissions: true,
-          isActive: true
+          userType: true,
         }
       });
 
-      if (!adminUser || !adminUser.isActive) {
-        return res.status(401).json({ message: 'Invalid or inactive admin user' });
+      if (!user || user.userType !== 'ADMIN') {
+        return res.status(401).json({ message: 'Invalid admin user' });
       }
 
       req.admin = {
-        id: adminUser.id,
-        email: adminUser.email,
-        role: adminUser.role,
-        permissions: adminUser.permissions
+        id: user.id,
+        email: user.email,
+        role: 'ADMIN',
+        permissions: ['*']
       };
     } else {
       // It's a regular user token - check if user has admin privileges

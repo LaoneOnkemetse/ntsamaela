@@ -338,18 +338,25 @@ export const exportAnalytics = async (params?: any) => {
 // System health API methods
 export const getSystemHealth = async () => {
   try {
-    // Proxied by Next.js rewrite -> backend `/health/all`
-    const response = await axios.get(`/health/all`);
-    return response.data;
+    // Try admin system health endpoint first
+    const response = await apiClient.get('/admin/system/health');
+    return response.data.data || response.data;
   } catch (error) {
-    console.error('Error fetching system health:', error);
-    // Fallback to basic health check
+    console.error('Error fetching system health from admin endpoint:', error);
+    // Fallback to public health check
     try {
-      const response = await axios.get(`/health`);
+      const response = await axios.get(`/health/all`);
       return response.data;
     } catch (fallbackError) {
-      console.error('Error fetching basic health:', fallbackError);
-      return null;
+      console.error('Error fetching system health from public endpoint:', fallbackError);
+      // Final fallback to basic health check
+      try {
+        const response = await axios.get(`/health`);
+        return response.data;
+      } catch (basicError) {
+        console.error('Error fetching basic health:', basicError);
+        return null;
+      }
     }
   }
 };

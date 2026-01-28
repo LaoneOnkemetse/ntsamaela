@@ -586,4 +586,27 @@ export class AdminController {
         .json({ message: _error.message || "Failed to fetch audit log" });
     }
   }
+
+  // --- Settings Management ---
+  async getSettings(req: AuthenticatedRequest, res: Response) {
+    try {
+      const settings = await this.adminService.getSettings();
+      res.json({ success: true, data: settings });
+    } catch (_error: any) {
+      res
+        .status(500)
+        .json({ success: false, error: { message: _error.message || "Failed to fetch settings" } });
+    }
+  }
+
+  async saveSettings(req: AuthenticatedRequest, res: Response) {
+    try {
+      const settings = await this.adminService.saveSettings(req.body);
+      res.json({ success: true, data: settings });
+    } catch (_error: any) {
+      res
+        .status(500)
+        .json({ success: false, error: { message: _error.message || "Failed to save settings" } });
+    }
+  }
 }

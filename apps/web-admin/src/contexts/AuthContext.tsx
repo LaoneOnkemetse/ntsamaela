@@ -8,7 +8,7 @@ interface AuthUser {
   firstName: string;
   lastName: string;
   phone: string;
-  userType: 'CUSTOMER' | 'DRIVER';
+  userType: 'CUSTOMER' | 'DRIVER' | 'ADMIN';
   identityVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -164,7 +164,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         firstName: userData.firstName,
         lastName: userData.lastName,
         phone: userData.phone,
-        userType: userData.userType,
+        userType: userData.userType as 'CUSTOMER' | 'DRIVER',
         identityVerified: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

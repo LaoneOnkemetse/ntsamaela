@@ -60,4 +60,8 @@ router.get('/notifications', adminController.getAdminNotifications.bind(adminCon
 // --- Audit Log ---
 router.get('/audit-log', adminController.getAuditLog.bind(adminController));
 
+// --- Settings Management ---
+router.get('/settings', adminController.getSettings.bind(adminController));
+router.post('/settings', adminController.saveSettings.bind(adminController));
+
 export default router;

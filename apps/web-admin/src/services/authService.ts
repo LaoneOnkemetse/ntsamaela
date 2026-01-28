@@ -1,78 +1,19 @@
 import { ApiResponse, AuthUser, LoginRequest, RegisterRequest } from '@shared/types';
 
 class AuthService {
+  /**
+   * Use same-origin `/api` and let Next.js rewrites proxy to the real backend.
+   * This avoids fragile "replace web-admin with api" URL guessing and also avoids
+   * crashing during SSR/build when NEXT_PUBLIC_API_URL isn't set.
+   */
   private getBaseUrl(): string {
-    // First, check if environment variable is set
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      return process.env.NEXT_PUBLIC_API_URL;
-    }
-    
-    // If in browser, try to auto-detect from current URL
-    if (typeof window !== 'undefined') {
-      const currentUrl = window.location.origin;
-      console.log('🔍 Auto-detecting API URL from:', currentUrl);
-      
-      // Try different patterns to find API URL
-      // Pattern 1: Replace web-admin with api (handles: web-admin -> api)
-      let apiUrl = currentUrl.replace(/web-admin/gi, 'api');
-      
-      // Pattern 2: Replace ntsamaelaweb-admin with ntsamaelaapi
-      if (apiUrl === currentUrl) {
-        apiUrl = currentUrl.replace(/ntsamaelaweb-admin/gi, 'ntsamaelaapi');
-      }
-      
-      // Pattern 3: Replace web-admin-production with api-production (Railway pattern)
-      if (apiUrl === currentUrl) {
-        apiUrl = currentUrl.replace(/web-admin-production/gi, 'api-production');
-      }
-      
-      // Pattern 4: Try Railway-specific pattern: ntsamaelaweb-admin-production -> ntsamaelaapi-production
-      if (apiUrl === currentUrl) {
-        apiUrl = currentUrl.replace(/ntsamaelaweb-admin-production/gi, 'ntsamaelaapi-production');
-      }
-      
-      // If we found a different URL, use it with /api path
-      if (apiUrl !== currentUrl) {
-        const finalUrl = apiUrl + '/api';
-        console.log('✅ Auto-detected API URL:', finalUrl);
-        return finalUrl;
-      }
-      
-      // Fallback: try common Railway API service names
-      const commonPatterns = [
-        currentUrl.replace(/web-admin-production/gi, 'api-production'),
-        currentUrl.replace(/web-admin/gi, 'api'),
-        'https://ntsamaelaapi-production.up.railway.app/api',
-      ];
-      
-      const fallbackUrl = commonPatterns.find(url => url !== currentUrl);
-      if (fallbackUrl) {
-        console.log('⚠️ Using fallback API URL:', fallbackUrl);
-        return fallbackUrl;
-      }
-      
-      // No fallback found - throw error
-      console.error('❌ Could not determine API URL. Please set NEXT_PUBLIC_API_URL environment variable.');
-      throw new Error('API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
-    }
-    
-    // Server-side: require environment variable
-    if (!process.env.NEXT_PUBLIC_API_URL) {
-      throw new Error('API URL not configured. NEXT_PUBLIC_API_URL environment variable is required.');
-    }
-    return process.env.NEXT_PUBLIC_API_URL;
+    return '/api';
   }
   
   private baseUrl: string;
   
   constructor() {
     this.baseUrl = this.getBaseUrl();
-    // Log the API URL being used (only in browser)
-    if (typeof window !== 'undefined') {
-      console.log('🔗 AuthService API URL:', this.baseUrl);
-      console.log('🔗 NEXT_PUBLIC_API_URL env:', process.env.NEXT_PUBLIC_API_URL || 'NOT SET');
-      console.log('🔗 Current window location:', window.location.origin);
-    }
   }
 
   // Public method to get the API URL (for display purposes)

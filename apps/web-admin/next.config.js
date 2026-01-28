@@ -20,10 +20,32 @@ const nextConfig = {
     domains: ['localhost'],
   },
   async rewrites() {
+    const backendApi = process.env.API_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || '';
+    const normalizedBackendApi = backendApi.replace(/\/$/, '');
+    const backendOrigin = normalizedBackendApi.replace(/\/api$/, '');
+
+    // If env is missing, keep a dev fallback to avoid breaking local dev.
+    // In production, you should set API_BACKEND_URL (preferred) or NEXT_PUBLIC_API_URL.
+    const devFallbackOrigin = 'http://localhost:3003';
+    const apiDestination = normalizedBackendApi
+      ? (normalizedBackendApi.endsWith('/api') ? `${normalizedBackendApi}/:path*` : `${normalizedBackendApi}/api/:path*`)
+      : `${devFallbackOrigin}/api/:path*`;
+
+    const healthDestinationBase = backendOrigin || devFallbackOrigin;
+
     return [
       {
         source: '/api/:path*',
-        destination: process.env.API_BACKEND_URL || 'http://localhost:3003/api/:path*',
+        destination: apiDestination,
+      },
+      // Proxy health endpoints too (backend exposes these at root, not under /api)
+      {
+        source: '/health',
+        destination: `${healthDestinationBase}/health`,
+      },
+      {
+        source: '/health/:path*',
+        destination: `${healthDestinationBase}/health/:path*`,
       },
     ];
   },

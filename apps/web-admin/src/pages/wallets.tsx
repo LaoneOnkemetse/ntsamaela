@@ -171,7 +171,7 @@ export default function Wallets() {
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error instanceof Error ? error.message : 'Failed to load transactions. Please try again.'}
+          {error instanceof Error ? error.message : String(error) || 'Failed to load transactions. Please try again.'}
         </Alert>
       )}
 

@@ -241,10 +241,21 @@ export class AdminService {
   // --- Verification Management ---
   async getVerificationRequests(filters: AdminFilterOptions) {
     try {
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        console.error('Prisma client not available in getVerificationRequests');
+        return {
+          requests: [],
+          total: 0,
+          page: filters.page || 1,
+          limit: filters.limit || 20,
+        };
+      }
+
       const where: any = {};
       
       if (filters.status) {
-        where.status = { in: filters.status };
+        where.status = { in: Array.isArray(filters.status) ? filters.status : [filters.status] };
       }
       
       if (filters.search) {
@@ -260,11 +271,6 @@ export class AdminService {
           gte: filters.dateRange.start,
           lte: filters.dateRange.end
         };
-      }
-
-      const prisma = this.getPrisma();
-      if (!prisma) {
-        throw new Error('Prisma client not available');
       }
 
       const [requests, total] = await Promise.all([
@@ -283,8 +289,14 @@ export class AdminService {
           orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
           take: filters.limit || 20
+        }).catch((err: any) => {
+          console.error('Error fetching verifications:', err);
+          return [];
         }),
-        prisma.verification.count({ where })
+        prisma.verification.count({ where }).catch((err: any) => {
+          console.error('Error counting verifications:', err);
+          return 0;
+        })
       ]);
 
       return {
@@ -833,29 +845,58 @@ export class AdminService {
   // System Health Methods
   async getSystemHealth() {
     try {
+      const prisma = this.getPrisma();
+      let dbStatus = 'disconnected';
+      let dbType = 'MOCK';
+      
+      if (prisma) {
+        try {
+          // Try a simple query to check database connection
+          await prisma.$queryRaw`SELECT 1`;
+          dbStatus = 'connected';
+          dbType = 'REAL';
+        } catch (dbError) {
+          console.error('Database health check failed:', dbError);
+          dbStatus = 'disconnected';
+        }
+      } else {
+        dbStatus = 'disconnected';
+        dbType = 'MOCK';
+      }
+
       return {
-        status: 'OPERATIONAL',
-        lastChecked: new Date(),
-        components: {
-          database: 'HEALTHY',
-          api: 'HEALTHY',
-          storage: 'HEALTHY'
-        },
+        status: dbStatus === 'connected' ? 'healthy' : 'unhealthy',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        database: dbType,
         services: {
-          authentication: 'HEALTHY',
-          payment: 'HEALTHY',
-          notification: 'HEALTHY'
+          database: {
+            status: dbStatus,
+            type: dbType.toLowerCase(),
+          },
+          api: {
+            status: 'healthy',
+            uptime: process.uptime(),
+          },
         },
-        metrics: {
-          uptime: 99.9,
-          responseTime: 120,
-          throughput: 1500
-        },
-        alerts: []
       };
     } catch (_error) {
       console.error('Error fetching system health:', _error);
-      throw new Error('Failed to fetch system health');
+      return {
+        status: 'unhealthy',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        database: 'UNKNOWN',
+        services: {
+          database: {
+            status: 'error',
+            type: 'unknown',
+          },
+          api: {
+            status: 'error',
+          },
+        },
+      };
     }
   }
 
@@ -1187,6 +1228,39 @@ export class AdminService {
     } catch (_error) {
       console.error('Error deleting admin user:', _error);
       throw new Error('Failed to delete admin user');
+    }
+  }
+
+  // Settings management - store in memory for now (can be moved to database later)
+  private static settingsStore: any = {
+    emailNotifications: true,
+    smsNotifications: false,
+    autoApproveVerifications: false,
+    maintenanceMode: false,
+    apiRateLimit: 1000,
+    sessionTimeout: 30,
+  };
+
+  async getSettings() {
+    try {
+      return AdminService.settingsStore;
+    } catch (_error) {
+      console.error('Error fetching settings:', _error);
+      throw new Error('Failed to fetch settings');
+    }
+  }
+
+  async saveSettings(settings: any) {
+    try {
+      // Merge with existing settings
+      AdminService.settingsStore = {
+        ...AdminService.settingsStore,
+        ...settings,
+      };
+      return AdminService.settingsStore;
+    } catch (_error) {
+      console.error('Error saving settings:', _error);
+      throw new Error('Failed to save settings');
     }
   }
 }

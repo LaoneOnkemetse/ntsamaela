@@ -305,7 +305,7 @@ export default function Dashboard() {
       value: (dashboardData.totalUsers ?? 0).toLocaleString(),
       icon: <People />,
       gradient: '#75AADB',
-      change: Number(dashboardData.userGrowth ?? 0).toFixed(1),
+      change: Number(dashboardData.userGrowth ?? 0),
       progress: Number(dashboardData.userGrowth ?? 0),
       onClick: () => handleStatClick('users'),
     },
@@ -314,7 +314,7 @@ export default function Dashboard() {
       value: (dashboardData.activePackages ?? 0).toLocaleString(),
       icon: <LocalShipping />,
       gradient: '#00C853',
-      change: Number(dashboardData.packageGrowth ?? 0).toFixed(1),
+      change: Number(dashboardData.packageGrowth ?? 0),
       progress: Number(dashboardData.packageGrowth ?? 0),
       onClick: () => handleStatClick('packages'),
     },
@@ -323,7 +323,7 @@ export default function Dashboard() {
       value: (dashboardData.pendingVerifications ?? 0).toLocaleString(),
       icon: <VerifiedUser />,
       gradient: '#FFB800',
-      change: Number(dashboardData.verificationChange ?? 0).toFixed(1),
+      change: Number(dashboardData.verificationChange ?? 0),
       progress: Number(dashboardData.verificationProgress ?? 0),
       onClick: () => handleStatClick('verifications'),
     },
@@ -332,7 +332,7 @@ export default function Dashboard() {
       value: `P ${(dashboardData.totalRevenue ?? 0).toLocaleString()}`,
       icon: <AttachMoney />,
       gradient: '#FF6D00',
-      change: Number(dashboardData.revenueGrowth ?? 0).toFixed(1),
+      change: Number(dashboardData.revenueGrowth ?? 0),
       progress: Number(dashboardData.revenueProgress ?? 0),
       onClick: () => handleStatClick('revenue'),
     },
@@ -397,6 +397,9 @@ export default function Dashboard() {
     id: string;
     userId: string;
     userName: string;
+    name: string;
+    type: string;
+    date: string;
     documentType: string;
     status: string;
     submittedAt: string;
@@ -404,10 +407,14 @@ export default function Dashboard() {
 
   const pendingVerifications = (verificationsData || []).map((ver: any): VerificationItem => ({
     id: ver.id || ver.verificationId,
+    userId: ver.userId || '',
+    userName: ver.user?.firstName ? `${ver.user.firstName} ${ver.user.lastName}` : ver.userName || 'Unknown',
     name: ver.user?.firstName ? `${ver.user.firstName} ${ver.user.lastName}` : ver.userName || 'Unknown',
     type: ver.documentType || 'Unknown',
     date: ver.submittedAt ? new Date(ver.submittedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    documentType: ver.documentType || 'Unknown',
     status: ver.status?.toLowerCase() || 'pending',
+    submittedAt: ver.submittedAt || new Date().toISOString(),
   }));
 
   const getStatusColor = (status: string) => {
@@ -567,7 +574,7 @@ export default function Dashboard() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      recentPackages.map((pkg) => {
+                      recentPackages.map((pkg: PackageItem) => {
                         const statusColor = getStatusColor(pkg.status);
                         return (
                           <TableRow 
@@ -756,7 +763,7 @@ export default function Dashboard() {
                         No pending verifications
                       </Typography>
                     ) : (
-                      pendingVerifications.map((ver) => (
+                      pendingVerifications.map((ver: VerificationItem) => (
                         <Paper
                           key={ver.id}
                           elevation={0}
