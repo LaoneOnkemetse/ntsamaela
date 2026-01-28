@@ -1,11 +1,31 @@
-import { Box, Typography, Card, CardContent, CardHeader, Grid, Button, TextField, Switch, FormControlLabel, Divider, Alert, CircularProgress } from '@mui/material';
-import { Settings as SettingsIcon, Save, Refresh, Lock } from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSystemHealth, getSystemMetrics } from '../services/api';
-import apiClient from '../services/api';
-import toast from 'react-hot-toast';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-useless-catch */
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  CardHeader,
+  Grid,
+  Button,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Divider,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
+import {
+  Settings as SettingsIcon,
+  Save,
+  Refresh,
+  Lock,
+} from "@mui/icons-material";
+import { useAuth } from "../hooks/useAuth";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getSystemHealth, getSystemMetrics } from "../services/api";
+import apiClient from "../services/api";
+import toast from "react-hot-toast";
 
 const defaultSettings = {
   emailNotifications: true,
@@ -20,20 +40,24 @@ export default function Settings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState(defaultSettings);
-  
+
   // Load settings from server on mount
-  const { data: serverSettings, isLoading: settingsLoading } = useQuery({
-    queryKey: ['adminSettings'],
+  const {
+    data: serverSettings,
+    isLoading: settingsLoading,
+    error: settingsError,
+  } = useQuery({
+    queryKey: ["adminSettings"],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/admin/settings');
+        const response = await apiClient.get("/admin/settings");
         const loadedSettings = response.data.data || response.data;
-        if (loadedSettings && typeof loadedSettings === 'object') {
+        if (loadedSettings && typeof loadedSettings === "object") {
           return loadedSettings;
         }
         return defaultSettings;
       } catch (error: any) {
-        console.error('Error loading settings from server:', error);
+        console.error("Error loading settings from server:", error);
         // Don't return defaultSettings here - let it be handled by the query
         throw error;
       }
@@ -43,43 +67,46 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    if (serverSettings && typeof serverSettings === 'object') {
+    if (serverSettings && typeof serverSettings === "object") {
       // Only update if we got valid settings from server
       setSettings({ ...defaultSettings, ...serverSettings });
     }
   }, [serverSettings]);
 
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   const handleSettingChange = (key: string, value: any) => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settingsData: typeof settings) => {
-      const response = await apiClient.post('/admin/settings', settingsData);
+      const response = await apiClient.post("/admin/settings", settingsData);
       const savedSettings = response.data.data || response.data;
       if (!savedSettings) {
-        throw new Error('No settings returned from server');
+        throw new Error("No settings returned from server");
       }
       return savedSettings;
     },
     onSuccess: (savedSettings) => {
       // Update local state with saved settings to ensure consistency
       setSettings({ ...defaultSettings, ...savedSettings });
-      queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
-      toast.success('Settings saved successfully to server!');
+      queryClient.invalidateQueries({ queryKey: ["adminSettings"] });
+      toast.success("Settings saved successfully to server!");
     },
     onError: (error: any) => {
-      console.error('Error saving settings:', error);
-      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to save settings to server';
+      console.error("Error saving settings:", error);
+      const errorMessage =
+        error.response?.data?.error?.message ||
+        error.message ||
+        "Failed to save settings to server";
       toast.error(errorMessage);
     },
   });
@@ -90,74 +117,93 @@ export default function Settings() {
 
   const handleReset = async () => {
     try {
-      const response = await apiClient.post('/admin/settings', defaultSettings);
-      const savedSettings = response.data.data || response.data || defaultSettings;
+      const response = await apiClient.post("/admin/settings", defaultSettings);
+      const savedSettings =
+        response.data.data || response.data || defaultSettings;
       setSettings({ ...defaultSettings, ...savedSettings });
-      queryClient.invalidateQueries({ queryKey: ['adminSettings'] });
-      toast.success('Settings reset to default on server');
+      queryClient.invalidateQueries({ queryKey: ["adminSettings"] });
+      toast.success("Settings reset to default on server");
     } catch (error: any) {
-      console.error('Error resetting settings:', error);
-      toast.error(error.response?.data?.error?.message || 'Failed to reset settings on server');
+      console.error("Error resetting settings:", error);
+      toast.error(
+        error.response?.data?.error?.message ||
+          "Failed to reset settings on server",
+      );
     }
   };
 
   // Fetch system health and metrics
-  const { data: systemHealth, isLoading: healthLoading } = useQuery({
-    queryKey: ['systemHealth'],
+  const {
+    data: systemHealth,
+    isLoading: healthLoading,
+    error: healthError,
+  } = useQuery({
+    queryKey: ["systemHealth"],
     queryFn: async () => {
       try {
         const health = await getSystemHealth();
         return health;
       } catch (error) {
-        return null;
+        throw error;
       }
     },
+    retry: 1,
   });
 
   const { data: systemMetrics } = useQuery({
-    queryKey: ['systemMetrics'],
+    queryKey: ["systemMetrics"],
     queryFn: async () => {
       try {
         const metrics = await getSystemMetrics();
         return metrics;
       } catch (error) {
-        return null;
+        throw error;
       }
     },
+    retry: 1,
   });
 
   // Password change mutation
   const changePasswordMutation = useMutation({
-    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      const response = await apiClient.post('/auth/change-password', data);
+    mutationFn: async (data: {
+      currentPassword: string;
+      newPassword: string;
+    }) => {
+      const response = await apiClient.post("/auth/change-password", data);
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Password changed successfully!');
+      toast.success("Password changed successfully!");
       setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error?.message || 'Failed to change password');
+      toast.error(
+        error.response?.data?.error?.message || "Failed to change password",
+      );
     },
   });
 
   const handleChangePassword = () => {
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      toast.error('Please fill in all password fields');
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      toast.error("Please fill in all password fields");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error("New passwords do not match");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+      toast.error("Password must be at least 6 characters");
       return;
     }
 
@@ -169,12 +215,23 @@ export default function Settings() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <Typography variant="h4" component="h1">
           System Settings
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" startIcon={<Refresh />} onClick={handleReset}>
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={handleReset}
+          >
             Reset
           </Button>
           <Button variant="contained" startIcon={<Save />} onClick={handleSave}>
@@ -182,6 +239,14 @@ export default function Settings() {
           </Button>
         </Box>
       </Box>
+
+      {Boolean(settingsError || healthError) && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {settingsError
+            ? `Failed to load settings from server: ${settingsError instanceof Error ? settingsError.message : String(settingsError)}`
+            : `Failed to load system health from server: ${healthError instanceof Error ? healthError.message : String(healthError)}`}
+        </Alert>
+      )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
@@ -192,7 +257,12 @@ export default function Settings() {
                 control={
                   <Switch
                     checked={settings.emailNotifications}
-                    onChange={(e) => handleSettingChange('emailNotifications', e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "emailNotifications",
+                        e.target.checked,
+                      )
+                    }
                   />
                 }
                 label="Email Notifications"
@@ -201,7 +271,9 @@ export default function Settings() {
                 control={
                   <Switch
                     checked={settings.smsNotifications}
-                    onChange={(e) => handleSettingChange('smsNotifications', e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange("smsNotifications", e.target.checked)
+                    }
                   />
                 }
                 label="SMS Notifications"
@@ -218,7 +290,12 @@ export default function Settings() {
                 control={
                   <Switch
                     checked={settings.autoApproveVerifications}
-                    onChange={(e) => handleSettingChange('autoApproveVerifications', e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "autoApproveVerifications",
+                        e.target.checked,
+                      )
+                    }
                   />
                 }
                 label="Auto-approve Verifications"
@@ -235,7 +312,9 @@ export default function Settings() {
                 control={
                   <Switch
                     checked={settings.maintenanceMode}
-                    onChange={(e) => handleSettingChange('maintenanceMode', e.target.checked)}
+                    onChange={(e) =>
+                      handleSettingChange("maintenanceMode", e.target.checked)
+                    }
                   />
                 }
                 label="Maintenance Mode"
@@ -246,7 +325,9 @@ export default function Settings() {
                 label="API Rate Limit (requests/hour)"
                 type="number"
                 value={settings.apiRateLimit}
-                onChange={(e) => handleSettingChange('apiRateLimit', parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleSettingChange("apiRateLimit", parseInt(e.target.value))
+                }
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -254,7 +335,12 @@ export default function Settings() {
                 label="Session Timeout (minutes)"
                 type="number"
                 value={settings.sessionTimeout}
-                onChange={(e) => handleSettingChange('sessionTimeout', parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleSettingChange(
+                    "sessionTimeout",
+                    parseInt(e.target.value),
+                  )
+                }
               />
             </CardContent>
           </Card>
@@ -265,48 +351,90 @@ export default function Settings() {
             <CardHeader title="System Information" />
             <CardContent>
               {healthLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
                   <CircularProgress size={24} />
                 </Box>
               ) : (
                 <>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    <strong>Version:</strong> {systemHealth?.version || '1.0.0'}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    <strong>Version:</strong> {systemHealth?.version || "1.0.0"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    <strong>Last Updated:</strong> {systemHealth?.timestamp 
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    <strong>Last Updated:</strong>{" "}
+                    {systemHealth?.timestamp
                       ? new Date(systemHealth.timestamp).toLocaleDateString()
                       : new Date().toLocaleDateString()}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    <strong>Database Status:</strong>{' '}
-                    <span style={{ 
-                      color: (systemHealth?.services?.database?.status === 'connected' || 
-                              systemHealth?.database === 'REAL' || 
-                              systemHealth?.database === 'real') ? '#10B981' : '#EF4444' 
-                    }}>
-                      {(systemHealth?.services?.database?.status === 'connected' || 
-                        systemHealth?.database === 'REAL' || 
-                        systemHealth?.database === 'real') ? 'Connected' : 'Disconnected'}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    <strong>Database Status:</strong>{" "}
+                    <span
+                      style={{
+                        color:
+                          systemHealth?.services?.database?.status ===
+                            "connected" ||
+                          systemHealth?.database === "REAL" ||
+                          systemHealth?.database === "real"
+                            ? "#10B981"
+                            : "#EF4444",
+                      }}
+                    >
+                      {systemHealth?.services?.database?.status ===
+                        "connected" ||
+                      systemHealth?.database === "REAL" ||
+                      systemHealth?.database === "real"
+                        ? "Connected"
+                        : "Disconnected"}
                     </span>
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    <strong>Server Status:</strong>{' '}
-                    <span style={{ 
-                      color: (systemHealth?.status === 'healthy' || 
-                              systemHealth?.services?.api?.status === 'healthy') ? '#10B981' : '#EF4444' 
-                    }}>
-                      {(systemHealth?.status === 'healthy' || 
-                        systemHealth?.services?.api?.status === 'healthy') ? 'Healthy' : 'Unhealthy'}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    <strong>Server Status:</strong>{" "}
+                    <span
+                      style={{
+                        color:
+                          systemHealth?.status === "healthy" ||
+                          systemHealth?.services?.api?.status === "healthy"
+                            ? "#10B981"
+                            : "#EF4444",
+                      }}
+                    >
+                      {systemHealth?.status === "healthy" ||
+                      systemHealth?.services?.api?.status === "healthy"
+                        ? "Healthy"
+                        : "Unhealthy"}
                     </span>
                   </Typography>
                   {systemMetrics && (
                     <>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        <strong>Uptime:</strong> {systemMetrics.uptime || 'N/A'}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        <strong>Uptime:</strong> {systemMetrics.uptime || "N/A"}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        <strong>Memory Usage:</strong> {systemMetrics.memory?.usage || 'N/A'}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        <strong>Memory Usage:</strong>{" "}
+                        {systemMetrics.memory?.usage || "N/A"}
                       </Typography>
                     </>
                   )}
@@ -318,17 +446,19 @@ export default function Settings() {
 
         <Grid item xs={12} md={6}>
           <Card>
-            <CardHeader 
-              title="Change Password" 
-              avatar={<Lock />}
-            />
+            <CardHeader title="Change Password" avatar={<Lock />} />
             <CardContent>
               <TextField
                 fullWidth
                 type="password"
                 label="Current Password"
                 value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    currentPassword: e.target.value,
+                  })
+                }
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -336,7 +466,12 @@ export default function Settings() {
                 type="password"
                 label="New Password"
                 value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    newPassword: e.target.value,
+                  })
+                }
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -344,19 +479,24 @@ export default function Settings() {
                 type="password"
                 label="Confirm New Password"
                 value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    confirmPassword: e.target.value,
+                  })
+                }
                 sx={{ mb: 2 }}
               />
-              <Button 
-                fullWidth 
-                variant="contained" 
+              <Button
+                fullWidth
+                variant="contained"
                 startIcon={<Lock />}
                 onClick={handleChangePassword}
                 disabled={changePasswordMutation.isPending}
                 sx={{
-                  backgroundColor: '#75AADB',
-                  '&:hover': {
-                    backgroundColor: '#5A8FBF',
+                  backgroundColor: "#75AADB",
+                  "&:hover": {
+                    backgroundColor: "#5A8FBF",
                   },
                 }}
               >
@@ -366,7 +506,7 @@ export default function Settings() {
                     Updating...
                   </>
                 ) : (
-                  'Update Password'
+                  "Update Password"
                 )}
               </Button>
             </CardContent>

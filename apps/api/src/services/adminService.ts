@@ -1,4 +1,4 @@
-import { getPrismaClient } from '@database/index';
+import { getPrismaClient } from "@database/index";
 // Define types locally to avoid module resolution issues
 type AdminDashboardData = {
   summary: {
@@ -69,7 +69,7 @@ type AdminFilterOptions = {
     end: Date;
   };
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 };
 
 type AdminAction = {
@@ -79,11 +79,11 @@ type AdminAction = {
   metadata?: any;
 };
 
-type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
 // type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
 
-type SystemHealthStatus = 'OPERATIONAL' | 'DEGRADED' | 'CRITICAL';
+type SystemHealthStatus = "OPERATIONAL" | "DEGRADED" | "CRITICAL";
 
 export class AdminService {
   private prisma: any;
@@ -97,7 +97,7 @@ export class AdminService {
       this.prisma = getPrismaClient();
     }
     if (!this.prisma) {
-      throw new Error('Prisma client is not available');
+      throw new Error("Prisma client is not available");
     }
     return this.prisma;
   }
@@ -107,7 +107,7 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
       const [
@@ -117,65 +117,77 @@ export class AdminService {
         totalRevenue,
         newUsers,
         recentTransactions,
-        systemAlerts
+        systemAlerts,
       ] = await Promise.all([
         prisma.user.count().catch(() => 0),
-        prisma.package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }).catch(() => 0),
-        prisma.verification.count({ where: { status: 'PENDING' } }).catch(() => 0),
-        prisma.transaction.aggregate({
-          where: { 
-            status: 'COMPLETED',
-            createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-          },
-          _sum: { amount: true }
-        }).catch(() => ({ _sum: { amount: 0 } })),
-        prisma.user.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            userType: true,
-            identityVerified: true,
-            emailVerified: true,
-            createdAt: true,
-            updatedAt: true,
-            driverProfile: {
-              select: {
-                totalDeliveries: true,
-                rating: true
-              }
+        prisma.package
+          .count({ where: { status: { in: ["IN_TRANSIT", "IN_PROGRESS"] } } })
+          .catch(() => 0),
+        prisma.verification
+          .count({ where: { status: "PENDING" } })
+          .catch(() => 0),
+        prisma.transaction
+          .aggregate({
+            where: {
+              status: "COMPLETED",
+              createdAt: {
+                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              },
             },
-            verification: {
-              select: {
-                status: true
-              }
-            }
-          }
-        }).catch(() => []),
-        prisma.transaction.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            wallet: {
-              include: {
-                user: {
-                  select: {
-                    email: true,
-                    firstName: true,
-                    lastName: true
-                  }
-                }
-              }
-            }
-          }
-        }).catch((err: any) => {
-          console.error('Error fetching recent transactions:', err);
-          return [];
-        }),
-        [] // systemAlerts - table doesn't exist, return empty array
+            _sum: { amount: true },
+          })
+          .catch(() => ({ _sum: { amount: 0 } })),
+        prisma.user
+          .findMany({
+            take: 5,
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              userType: true,
+              identityVerified: true,
+              emailVerified: true,
+              createdAt: true,
+              updatedAt: true,
+              driverProfile: {
+                select: {
+                  totalDeliveries: true,
+                  rating: true,
+                },
+              },
+              verification: {
+                select: {
+                  status: true,
+                },
+              },
+            },
+          })
+          .catch(() => []),
+        prisma.transaction
+          .findMany({
+            take: 5,
+            orderBy: { createdAt: "desc" },
+            include: {
+              wallet: {
+                include: {
+                  user: {
+                    select: {
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                    },
+                  },
+                },
+              },
+            },
+          })
+          .catch((err: any) => {
+            console.error("Error fetching recent transactions:", err);
+            return [];
+          }),
+        [], // systemAlerts - table doesn't exist, return empty array
       ]);
 
       return {
@@ -185,8 +197,8 @@ export class AdminService {
           totalDeliveries: activeDeliveries, // Using activeDeliveries as total for now
           activeDeliveries,
           pendingVerifications,
-          systemHealthStatus: 'OPERATIONAL', // This would be calculated from actual system metrics
-          totalRevenue: totalRevenue._sum.amount || 0
+          systemHealthStatus: "OPERATIONAL", // This would be calculated from actual system metrics
+          totalRevenue: totalRevenue._sum.amount || 0,
         },
         recentActivity: [
           ...newUsers.map((user: any) => ({
@@ -194,45 +206,47 @@ export class AdminService {
             email: user.email,
             name: `${user.firstName} ${user.lastName}`,
             role: user.userType,
-            status: user.identityVerified ? 'VERIFIED' : 'UNVERIFIED',
+            status: user.identityVerified ? "VERIFIED" : "UNVERIFIED",
             isVerified: user.identityVerified,
             joinedAt: user.createdAt,
             lastActiveAt: user.updatedAt,
             totalDeliveries: user.driverProfile?.totalDeliveries || 0,
             rating: user.driverProfile?.rating || 0,
-            verificationStatus: user.verification?.status || 'NONE'
+            verificationStatus: user.verification?.status || "NONE",
           })),
           ...recentTransactions.map((tx: any) => ({
             id: tx.id,
             userId: tx.userId,
-            userEmail: tx.wallet?.user?.email || 'Unknown',
+            userEmail: tx.wallet?.user?.email || "Unknown",
             type: tx.type,
             amount: tx.amount,
-            currency: tx.wallet?.currency || 'USD',
+            currency: tx.wallet?.currency || "USD",
             status: tx.status,
             description: tx.description,
-            createdAt: tx.createdAt
-          }))
+            createdAt: tx.createdAt,
+          })),
         ],
         quickActions: [
           pendingVerifications,
-          await prisma.transaction.count({ where: { status: 'FAILED' } }).catch(() => 0),
+          await prisma.transaction
+            .count({ where: { status: "FAILED" } })
+            .catch(() => 0),
           0, // systemAlerts - table doesn't exist
-          0 // supportTickets - This would come from a support system
-        ]
+          0, // supportTickets - This would come from a support system
+        ],
       };
     } catch (_error: any) {
-      console.error('Error fetching dashboard data:', _error);
-      console.error('Error details:', {
+      console.error("Error fetching dashboard data:", _error);
+      console.error("Error details:", {
         message: _error?.message,
         code: _error?.code,
         name: _error?.name,
         stack: _error?.stack,
-        cause: _error?.cause
+        cause: _error?.cause,
       });
       // If it's a Prisma error, provide more context
-      if (_error?.code === 'P2002' || _error?.code?.startsWith('P')) {
-        console.error('Prisma error detected:', _error.code);
+      if (_error?.code === "P2002" || _error?.code?.startsWith("P")) {
+        console.error("Prisma error detected:", _error.code);
       }
       throw _error; // Re-throw the original error with full details
     }
@@ -243,7 +257,7 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        console.error('Prisma client not available in getVerificationRequests');
+        console.error("Prisma client not available in getVerificationRequests");
         return {
           requests: [],
           total: 0,
@@ -253,50 +267,66 @@ export class AdminService {
       }
 
       const where: any = {};
-      
+
       if (filters.status) {
-        where.status = { in: Array.isArray(filters.status) ? filters.status : [filters.status] };
+        where.status = {
+          in: Array.isArray(filters.status) ? filters.status : [filters.status],
+        };
       }
-      
+
       if (filters.search) {
         where.OR = [
-          { user: { firstName: { contains: filters.search, mode: 'insensitive' } } },
-          { user: { lastName: { contains: filters.search, mode: 'insensitive' } } },
-          { user: { email: { contains: filters.search, mode: 'insensitive' } } }
+          {
+            user: {
+              firstName: { contains: filters.search, mode: "insensitive" },
+            },
+          },
+          {
+            user: {
+              lastName: { contains: filters.search, mode: "insensitive" },
+            },
+          },
+          {
+            user: { email: { contains: filters.search, mode: "insensitive" } },
+          },
         ];
       }
-      
+
       if (filters.dateRange) {
         where.createdAt = {
           gte: filters.dateRange.start,
-          lte: filters.dateRange.end
+          lte: filters.dateRange.end,
         };
       }
 
       const [requests, total] = await Promise.all([
-        prisma.verification.findMany({
-          where,
-          include: {
-            user: { 
-              select: { 
-                id: true, 
-                email: true, 
-                firstName: true,
-                lastName: true
-              } 
-            }
-          },
-          orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
-          skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-          take: filters.limit || 20
-        }).catch((err: any) => {
-          console.error('Error fetching verifications:', err);
-          return [];
-        }),
+        prisma.verification
+          .findMany({
+            where,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+            orderBy: {
+              [filters.sortBy || "createdAt"]: filters.sortOrder || "desc",
+            },
+            skip: ((filters.page || 1) - 1) * (filters.limit || 20),
+            take: filters.limit || 20,
+          })
+          .catch((err: any) => {
+            console.error("Error fetching verifications:", err);
+            return [];
+          }),
         prisma.verification.count({ where }).catch((err: any) => {
-          console.error('Error counting verifications:', err);
+          console.error("Error counting verifications:", err);
           return 0;
-        })
+        }),
       ]);
 
       return {
@@ -315,19 +345,19 @@ export class AdminService {
             type: doc.type as any,
             url: doc.url,
             uploadedAt: doc.createdAt,
-            metadata: doc.metadata as any
+            metadata: doc.metadata as any,
           })),
           notes: req.notes,
           rejectionReason: req.rejectionReason,
-          expiresAt: req.expiresAt
+          expiresAt: req.expiresAt,
         })),
         total,
         page: filters.page || 1,
-        limit: filters.limit || 20
+        limit: filters.limit || 20,
       };
     } catch (_error) {
-      console.error('Error fetching verification requests:', _error);
-      throw new Error('Failed to fetch verification requests');
+      console.error("Error fetching verification requests:", _error);
+      throw new Error("Failed to fetch verification requests");
     }
   }
 
@@ -335,25 +365,25 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
       const request = await prisma.verification.findUnique({
         where: { id },
         include: {
-          user: { 
-            select: { 
-              id: true, 
-              email: true, 
+          user: {
+            select: {
+              id: true,
+              email: true,
               firstName: true,
-              lastName: true
-            } 
-          }
-        }
+              lastName: true,
+            },
+          },
+        },
       });
 
       if (!request) {
-        throw new Error('Verification request not found');
+        throw new Error("Verification request not found");
       }
 
       return {
@@ -364,47 +394,49 @@ export class AdminService {
         status: request.status as any,
         documents: [
           {
-            id: request.id + '_front',
+            id: request.id + "_front",
             type: request.documentType,
             url: request.frontImageUrl,
             uploadedAt: request.createdAt,
-            metadata: null
+            metadata: null,
           },
-          request.backImageUrl ? {
-            id: request.id + '_back',
-            type: request.documentType,
-            url: request.backImageUrl,
-            uploadedAt: request.createdAt,
-            metadata: null
-          } : null,
+          request.backImageUrl
+            ? {
+                id: request.id + "_back",
+                type: request.documentType,
+                url: request.backImageUrl,
+                uploadedAt: request.createdAt,
+                metadata: null,
+              }
+            : null,
           {
-            id: request.id + '_selfie',
-            type: 'SELFIE',
+            id: request.id + "_selfie",
+            type: "SELFIE",
             url: request.selfieImageUrl,
             uploadedAt: request.createdAt,
-            metadata: null
-          }
+            metadata: null,
+          },
         ].filter(Boolean) as any[],
         createdAt: request.createdAt,
-        updatedAt: request.updatedAt
+        updatedAt: request.updatedAt,
       };
     } catch (_error) {
-      console.error('Error fetching verification request:', _error);
-      throw new Error('Failed to fetch verification request');
+      console.error("Error fetching verification request:", _error);
+      throw new Error("Failed to fetch verification request");
     }
   }
 
   async reviewVerification(
-    id: string, 
-    status: VerificationStatus, 
-    notes?: string, 
+    id: string,
+    status: VerificationStatus,
+    notes?: string,
     rejectionReason?: string,
-    adminId?: string
+    adminId?: string,
   ): Promise<void> {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
       await prisma.verification.update({
@@ -414,53 +446,56 @@ export class AdminService {
           notes,
           rejectionReason,
           reviewedAt: new Date(),
-          reviewedBy: adminId
-        }
+          reviewedBy: adminId,
+        },
       });
 
       // Update user verification status if approved
-      if (status === 'APPROVED') {
+      if (status === "APPROVED") {
         const prisma = this.getPrisma();
         if (!prisma) {
-          throw new Error('Prisma client not available');
+          throw new Error("Prisma client not available");
         }
         const verification = await prisma.verification.findUnique({
           where: { id },
-          select: { userId: true, documentType: true }
+          select: { userId: true, documentType: true },
         });
 
         if (verification) {
           await this.getPrisma().user.update({
             where: { id: verification.userId },
-            data: { 
+            data: {
               isVerified: true,
-              verificationStatus: 'VERIFIED'
-            }
+              verificationStatus: "VERIFIED",
+            },
           });
         }
       }
     } catch (_error) {
-      console.error('Error reviewing verification:', _error);
-      throw new Error('Failed to review verification');
+      console.error("Error reviewing verification:", _error);
+      throw new Error("Failed to review verification");
     }
   }
 
-  async bulkReviewVerifications(actions: AdminAction[], adminId?: string): Promise<void> {
+  async bulkReviewVerifications(
+    actions: AdminAction[],
+    adminId?: string,
+  ): Promise<void> {
     try {
       for (const action of actions) {
-        if (action.targetType === 'VERIFICATION') {
+        if (action.targetType === "VERIFICATION") {
           await this.reviewVerification(
             action.targetId,
-            action.type === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+            action.type === "APPROVE" ? "APPROVED" : "REJECTED",
             action.metadata?.notes,
             action.metadata?.rejectionReason,
-            adminId
+            adminId,
           );
         }
       }
     } catch (_error) {
-      console.error('Error performing bulk review:', _error);
-      throw new Error('Failed to perform bulk review');
+      console.error("Error performing bulk review:", _error);
+      throw new Error("Failed to perform bulk review");
     }
   }
 
@@ -468,26 +503,28 @@ export class AdminService {
   async getUsers(filters: AdminFilterOptions) {
     try {
       const where: any = {};
-      
+
       if (filters.status) {
         where.status = { in: filters.status };
       }
-      
+
       if (filters.search) {
         where.OR = [
-          { name: { contains: filters.search, mode: 'insensitive' } },
-          { email: { contains: filters.search, mode: 'insensitive' } }
+          { name: { contains: filters.search, mode: "insensitive" } },
+          { email: { contains: filters.search, mode: "insensitive" } },
         ];
       }
 
       const [users, total] = await Promise.all([
         this.getPrisma().user.findMany({
           where,
-          orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
+          orderBy: {
+            [filters.sortBy || "createdAt"]: filters.sortOrder || "desc",
+          },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-          take: filters.limit || 20
+          take: filters.limit || 20,
         }),
-        this.getPrisma().user.count({ where })
+        this.getPrisma().user.count({ where }),
       ]);
 
       return {
@@ -500,24 +537,24 @@ export class AdminService {
           isVerified: user.isVerified,
           verificationStatus: user.verificationStatus,
           createdAt: user.createdAt,
-          updatedAt: user.updatedAt
+          updatedAt: user.updatedAt,
         })),
-        total
+        total,
       };
     } catch (_error) {
-      console.error('Error fetching users:', _error);
-      throw new Error('Failed to fetch users');
+      console.error("Error fetching users:", _error);
+      throw new Error("Failed to fetch users");
     }
   }
 
   async getUser(id: string) {
     try {
       const user = await this.getPrisma().user.findUnique({
-        where: { id }
+        where: { id },
       });
 
       if (!user) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       return {
@@ -529,11 +566,11 @@ export class AdminService {
         isVerified: user.isVerified,
         verificationStatus: user.verificationStatus,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        updatedAt: user.updatedAt,
       };
     } catch (_error) {
-      console.error('Error fetching user:', _error);
-      throw new Error('Failed to fetch user');
+      console.error("Error fetching user:", _error);
+      throw new Error("Failed to fetch user");
     }
   }
 
@@ -541,16 +578,16 @@ export class AdminService {
     try {
       const _user = await this.getPrisma().user.update({
         where: { id },
-        data: { 
+        data: {
           status: status as any,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
-      return { message: 'User status updated successfully' };
+      return { message: "User status updated successfully" };
     } catch (_error) {
-      console.error('Error updating user status:', _error);
-      throw new Error('Failed to update user status');
+      console.error("Error updating user status:", _error);
+      throw new Error("Failed to update user status");
     }
   }
 
@@ -558,21 +595,21 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
       // User model doesn't have a status field - skip for now
       // Could add a suspendedAt timestamp or use a different approach
       const _user = await prisma.user.update({
         where: { id },
-        data: { 
-          updatedAt: new Date()
-        }
+        data: {
+          updatedAt: new Date(),
+        },
       });
 
-      return { message: 'User suspended successfully' };
+      return { message: "User suspended successfully" };
     } catch (_error) {
-      console.error('Error suspending user:', _error);
-      throw new Error('Failed to suspend user');
+      console.error("Error suspending user:", _error);
+      throw new Error("Failed to suspend user");
     }
   }
 
@@ -580,48 +617,49 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
       // User model doesn't have a status field - skip for now
       const _user = await prisma.user.update({
         where: { id },
-        data: { 
-          updatedAt: new Date()
-        }
+        data: {
+          updatedAt: new Date(),
+        },
       });
 
-      return { message: 'User unsuspended successfully' };
+      return { message: "User unsuspended successfully" };
     } catch (_error) {
-      console.error('Error unsuspending user:', _error);
-      throw new Error('Failed to unsuspend user');
+      console.error("Error unsuspending user:", _error);
+      throw new Error("Failed to unsuspend user");
     }
   }
 
   async resetUserPassword(_id: string) {
     try {
       const temporaryPassword = Math.random().toString(36).slice(-8);
-      
-      return { 
+
+      return {
         temporaryPassword,
-        message: 'Password reset successfully'
+        message: "Password reset successfully",
       };
     } catch (_error) {
-      console.error('Error resetting user password:', _error);
-      throw new Error('Failed to reset user password');
+      console.error("Error resetting user password:", _error);
+      throw new Error("Failed to reset user password");
     }
   }
 
   async sendNotificationToUser(_id: string, _message: string) {
     try {
       // Mock notification sending - in real implementation, this would call a notification service
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Notification sent successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Notification sent successfully" };
       } else {
-        throw new Error('Notification service unavailable');
+        throw new Error("Notification service unavailable");
       }
     } catch (_error) {
-      console.error('Error sending notification:', _error);
-      throw new Error('Failed to send notification');
+      console.error("Error sending notification:", _error);
+      throw new Error("Failed to send notification");
     }
   }
 
@@ -630,11 +668,11 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
       const where: any = {};
-      
+
       if (filters.status) {
         // Handle both string and array status filters
         if (Array.isArray(filters.status)) {
@@ -645,30 +683,34 @@ export class AdminService {
       }
 
       const [transactions, total] = await Promise.all([
-        prisma.transaction.findMany({
-          where,
-          orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
-          skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-          take: filters.limit || 20,
-          include: {
-            wallet: {
-              select: {
-                currency: true,
-                user: {
-                  select: {
-                    email: true,
-                    firstName: true,
-                    lastName: true
-                  }
-                }
-              }
-            }
-          }
-        }).catch((err: any) => {
-          console.error('Error in transaction.findMany:', err);
-          return [];
-        }),
-        prisma.transaction.count({ where }).catch(() => 0)
+        prisma.transaction
+          .findMany({
+            where,
+            orderBy: {
+              [filters.sortBy || "createdAt"]: filters.sortOrder || "desc",
+            },
+            skip: ((filters.page || 1) - 1) * (filters.limit || 20),
+            take: filters.limit || 20,
+            include: {
+              wallet: {
+                select: {
+                  currency: true,
+                  user: {
+                    select: {
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                    },
+                  },
+                },
+              },
+            },
+          })
+          .catch((err: any) => {
+            console.error("Error in transaction.findMany:", err);
+            return [];
+          }),
+        prisma.transaction.count({ where }).catch(() => 0),
       ]);
 
       return {
@@ -676,7 +718,7 @@ export class AdminService {
           id: tx.id,
           userId: tx.userId,
           amount: tx.amount,
-          currency: tx.wallet?.currency || 'USD',
+          currency: tx.wallet?.currency || "USD",
           status: tx.status,
           type: tx.type,
           description: tx.description,
@@ -684,13 +726,15 @@ export class AdminService {
           createdAt: tx.createdAt,
           updatedAt: tx.updatedAt,
           userEmail: tx.wallet?.user?.email,
-          userName: tx.wallet?.user ? `${tx.wallet.user.firstName} ${tx.wallet.user.lastName}` : null
+          userName: tx.wallet?.user
+            ? `${tx.wallet.user.firstName} ${tx.wallet.user.lastName}`
+            : null,
         })),
-        total
+        total,
       };
     } catch (_error) {
-      console.error('Error fetching transactions:', _error);
-      throw new Error('Failed to fetch transactions');
+      console.error("Error fetching transactions:", _error);
+      throw new Error("Failed to fetch transactions");
     }
   }
 
@@ -698,41 +742,43 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
-      const transaction = await prisma.transaction.findUnique({
-        where: { id },
-        include: {
-          wallet: {
-            select: {
-              currency: true
-            }
-          }
-        }
-      }).catch((err: any) => {
-        console.error('Error in transaction.findUnique:', err);
-        return null;
-      });
+      const transaction = await prisma.transaction
+        .findUnique({
+          where: { id },
+          include: {
+            wallet: {
+              select: {
+                currency: true,
+              },
+            },
+          },
+        })
+        .catch((err: any) => {
+          console.error("Error in transaction.findUnique:", err);
+          return null;
+        });
 
       if (!transaction) {
-        throw new Error('Transaction not found');
+        throw new Error("Transaction not found");
       }
 
       return {
         id: transaction.id,
         userId: transaction.userId,
         amount: transaction.amount,
-        currency: transaction.wallet?.currency || 'USD', // Transaction doesn't have currency field, get from wallet
+        currency: transaction.wallet?.currency || "USD", // Transaction doesn't have currency field, get from wallet
         status: transaction.status,
         description: transaction.description,
         reference: transaction.reference,
         createdAt: transaction.createdAt,
-        updatedAt: transaction.updatedAt
+        updatedAt: transaction.updatedAt,
       };
     } catch (_error: any) {
-      console.error('Error fetching transaction:', _error);
-      throw new Error(_error.message || 'Failed to fetch transaction');
+      console.error("Error fetching transaction:", _error);
+      throw new Error(_error.message || "Failed to fetch transaction");
     }
   }
 
@@ -740,33 +786,38 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
 
-      const totalVolume = await prisma.transaction.aggregate({
-        _sum: { amount: true }
-      }).catch(() => ({ _sum: { amount: 0 } }));
+      const totalVolume = await prisma.transaction
+        .aggregate({
+          _sum: { amount: true },
+        })
+        .catch(() => ({ _sum: { amount: 0 } }));
 
       const totalCount = await prisma.transaction.count().catch(() => 0);
-      const completedCount = await prisma.transaction.count({
-        where: { status: 'COMPLETED' }
-      }).catch(() => 0);
+      const completedCount = await prisma.transaction
+        .count({
+          where: { status: "COMPLETED" },
+        })
+        .catch(() => 0);
 
       return {
         totalVolume: totalVolume._sum.amount || 0,
         totalCount,
         successRate: totalCount > 0 ? (completedCount / totalCount) * 100 : 0,
-        averageAmount: totalCount > 0 ? (totalVolume._sum.amount || 0) / totalCount : 0,
+        averageAmount:
+          totalCount > 0 ? (totalVolume._sum.amount || 0) / totalCount : 0,
         period,
         trends: {
           volumeGrowth: 8.5,
           transactionGrowth: 12.3,
-          successRateChange: 2.1
-        }
+          successRateChange: 2.1,
+        },
       };
     } catch (_error) {
-      console.error('Error fetching transaction analytics:', _error);
-      throw new Error('Failed to fetch transaction analytics');
+      console.error("Error fetching transaction analytics:", _error);
+      throw new Error("Failed to fetch transaction analytics");
     }
   }
 
@@ -775,15 +826,18 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
       const totalUsers = await prisma.user.count();
       const activeUsers = totalUsers; // User model doesn't have status field - count all as active
       const totalTransactions = await prisma.transaction.count();
       const totalDeliveries = await prisma.package.count(); // Use Package instead of Delivery
-      const totalRevenue = await prisma.transaction.aggregate({
-        _sum: { amount: true }
-      }).then((result: any) => result._sum.amount || 0).catch(() => 0);
+      const totalRevenue = await prisma.transaction
+        .aggregate({
+          _sum: { amount: true },
+        })
+        .then((result: any) => result._sum.amount || 0)
+        .catch(() => 0);
 
       return {
         period,
@@ -792,22 +846,22 @@ export class AdminService {
           activeUsers,
           totalTransactions,
           totalDeliveries,
-          totalRevenue
+          totalRevenue,
         },
         trends: {
           userGrowth: 5.2,
           transactionGrowth: 12.8,
-          revenueGrowth: 8.5
+          revenueGrowth: 8.5,
         },
         charts: {
           userActivity: [],
           transactionVolume: [],
-          revenueByMonth: []
-        }
+          revenueByMonth: [],
+        },
       };
     } catch (_error) {
-      console.error('Error fetching analytics:', _error);
-      throw new Error('Failed to fetch analytics');
+      console.error("Error fetching analytics:", _error);
+      throw new Error("Failed to fetch analytics");
     }
   }
 
@@ -815,18 +869,22 @@ export class AdminService {
     try {
       const prisma = this.getPrisma();
       if (!prisma) {
-        throw new Error('Prisma client not available');
+        throw new Error("Prisma client not available");
       }
       return {
         activeUsers: await prisma.user.count(), // User model doesn't have status field
-        activeDeliveries: await prisma.package.count({ where: { status: { in: ['IN_TRANSIT', 'IN_PROGRESS'] } } }),
-        pendingVerifications: await this.getPrisma().verification.count({ where: { status: 'PENDING' } }),
+        activeDeliveries: await prisma.package.count({
+          where: { status: { in: ["IN_TRANSIT", "IN_PROGRESS"] } },
+        }),
+        pendingVerifications: await this.getPrisma().verification.count({
+          where: { status: "PENDING" },
+        }),
         systemLoad: 45.2,
-        errorRate: 0.1
+        errorRate: 0.1,
       };
     } catch (_error) {
-      console.error('Error fetching real-time metrics:', _error);
-      throw new Error('Failed to fetch real-time metrics');
+      console.error("Error fetching real-time metrics:", _error);
+      throw new Error("Failed to fetch real-time metrics");
     }
   }
 
@@ -834,11 +892,11 @@ export class AdminService {
     try {
       return {
         downloadUrl: `https://example.com/export/${format}/${period}`,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       };
     } catch (_error) {
-      console.error('Error exporting analytics:', _error);
-      throw new Error('Failed to export analytics');
+      console.error("Error exporting analytics:", _error);
+      throw new Error("Failed to export analytics");
     }
   }
 
@@ -846,27 +904,27 @@ export class AdminService {
   async getSystemHealth() {
     try {
       const prisma = this.getPrisma();
-      let dbStatus = 'disconnected';
-      let dbType = 'MOCK';
-      
+      let dbStatus = "disconnected";
+      let dbType = "MOCK";
+
       if (prisma) {
         try {
           // Try a simple query to check database connection
           await prisma.$queryRaw`SELECT 1`;
-          dbStatus = 'connected';
-          dbType = 'REAL';
+          dbStatus = "connected";
+          dbType = "REAL";
         } catch (dbError) {
-          console.error('Database health check failed:', dbError);
-          dbStatus = 'disconnected';
+          console.error("Database health check failed:", dbError);
+          dbStatus = "disconnected";
         }
       } else {
-        dbStatus = 'disconnected';
-        dbType = 'MOCK';
+        dbStatus = "disconnected";
+        dbType = "MOCK";
       }
 
       return {
-        status: dbStatus === 'connected' ? 'healthy' : 'unhealthy',
-        version: '1.0.0',
+        status: dbStatus === "connected" ? "healthy" : "unhealthy",
+        version: "1.0.0",
         timestamp: new Date().toISOString(),
         database: dbType,
         services: {
@@ -875,25 +933,25 @@ export class AdminService {
             type: dbType.toLowerCase(),
           },
           api: {
-            status: 'healthy',
+            status: "healthy",
             uptime: process.uptime(),
           },
         },
       };
     } catch (_error) {
-      console.error('Error fetching system health:', _error);
+      console.error("Error fetching system health:", _error);
       return {
-        status: 'unhealthy',
-        version: '1.0.0',
+        status: "unhealthy",
+        version: "1.0.0",
         timestamp: new Date().toISOString(),
-        database: 'UNKNOWN',
+        database: "UNKNOWN",
         services: {
           database: {
-            status: 'error',
-            type: 'unknown',
+            status: "error",
+            type: "unknown",
           },
           api: {
-            status: 'error',
+            status: "error",
           },
         },
       };
@@ -907,19 +965,19 @@ export class AdminService {
         memoryUsage: 67.8,
         diskUsage: 23.1,
         networkLatency: 12.5,
-        period
+        period,
       };
     } catch (_error) {
-      console.error('Error fetching system metrics:', _error);
-      throw new Error('Failed to fetch system metrics');
+      console.error("Error fetching system metrics:", _error);
+      throw new Error("Failed to fetch system metrics");
     }
   }
 
   async getSystemAlerts() {
     try {
       const alerts = await this.getPrisma().systemAlert.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50
+        orderBy: { createdAt: "desc" },
+        take: 50,
       });
 
       return {
@@ -928,13 +986,13 @@ export class AdminService {
           type: alert.type,
           severity: alert.severity,
           message: alert.message,
-          createdAt: alert.createdAt
+          createdAt: alert.createdAt,
         })),
-        total: alerts.length
+        total: alerts.length,
       };
     } catch (_error) {
-      console.error('Error fetching system alerts:', _error);
-      throw new Error('Failed to fetch system alerts');
+      console.error("Error fetching system alerts:", _error);
+      throw new Error("Failed to fetch system alerts");
     }
   }
 
@@ -942,7 +1000,7 @@ export class AdminService {
   async getAdminUsers() {
     try {
       const adminUsers = await this.getPrisma().adminUser.findMany({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
 
       return adminUsers.map((admin: any) => ({
@@ -953,15 +1011,20 @@ export class AdminService {
         permissions: admin.permissions,
         isActive: admin.isActive,
         createdAt: admin.createdAt,
-        updatedAt: admin.updatedAt
+        updatedAt: admin.updatedAt,
       }));
     } catch (_error) {
-      console.error('Error fetching admin users:', _error);
-      throw new Error('Failed to fetch admin users');
+      console.error("Error fetching admin users:", _error);
+      throw new Error("Failed to fetch admin users");
     }
   }
 
-  async createAdminUser(data: { email: string; name: string; role: string; permissions: string[] }) {
+  async createAdminUser(data: {
+    email: string;
+    name: string;
+    role: string;
+    permissions: string[];
+  }) {
     try {
       const adminUser = await this.getPrisma().adminUser.create({
         data: {
@@ -969,8 +1032,8 @@ export class AdminService {
           name: data.name,
           role: data.role,
           permissions: data.permissions,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       return {
@@ -981,11 +1044,11 @@ export class AdminService {
         permissions: adminUser.permissions,
         isActive: adminUser.isActive,
         createdAt: adminUser.createdAt,
-        updatedAt: adminUser.updatedAt
+        updatedAt: adminUser.updatedAt,
       };
     } catch (_error) {
-      console.error('Error creating admin user:', _error);
-      throw new Error('Failed to create admin user');
+      console.error("Error creating admin user:", _error);
+      throw new Error("Failed to create admin user");
     }
   }
 
@@ -993,42 +1056,58 @@ export class AdminService {
   async performBulkActions(actions: AdminAction[]) {
     try {
       const results = { successful: 0, failed: 0, errors: [] as string[] };
-      
+
       for (const action of actions) {
         try {
-          if (action.targetType === 'USER' && action.type === 'SUSPEND') {
+          if (action.targetType === "USER" && action.type === "SUSPEND") {
             await this.suspendUser(action.targetId, 7, action.metadata?.reason);
-          } else if (action.targetType === 'USER' && action.type === 'UNSUSPEND') {
+          } else if (
+            action.targetType === "USER" &&
+            action.type === "UNSUSPEND"
+          ) {
             await this.unsuspendUser(action.targetId);
-          } else if (action.targetType === 'VERIFICATION' && action.type === 'APPROVE') {
-            await this.reviewVerification(action.targetId, 'APPROVED', action.metadata?.notes);
+          } else if (
+            action.targetType === "VERIFICATION" &&
+            action.type === "APPROVE"
+          ) {
+            await this.reviewVerification(
+              action.targetId,
+              "APPROVED",
+              action.metadata?.notes,
+            );
           }
           results.successful++;
         } catch (_error) {
           results.failed++;
-          results.errors.push(`Failed to ${action.type} ${action.targetType} ${action.targetId}: ${_error}`);
+          results.errors.push(
+            `Failed to ${action.type} ${action.targetType} ${action.targetId}: ${_error}`,
+          );
         }
       }
 
       return results;
     } catch (_error) {
-      console.error('Error performing bulk actions:', _error);
-      throw new Error('Failed to perform bulk actions');
+      console.error("Error performing bulk actions:", _error);
+      throw new Error("Failed to perform bulk actions");
     }
   }
 
   // Audit Log
   // --- Admin Notifications ---
-  async getAdminNotifications(options: { unreadOnly?: boolean; limit?: number; type?: string }) {
+  async getAdminNotifications(options: {
+    unreadOnly?: boolean;
+    limit?: number;
+    type?: string;
+  }) {
     try {
       const prisma = this.getPrisma();
       const notifications: any[] = [];
 
       // Get pending verifications as notifications
       const pendingVerifications = await prisma.verification.findMany({
-        where: { status: 'PENDING' },
+        where: { status: "PENDING" },
         take: options.limit || 10,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           user: {
             select: {
@@ -1044,9 +1123,9 @@ export class AdminService {
       pendingVerifications.forEach((verification: any) => {
         notifications.push({
           id: `verification-${verification.id}`,
-          type: 'VERIFICATION_PENDING',
-          title: 'Pending Verification',
-          message: `${verification.user?.firstName || 'User'} ${verification.user?.lastName || ''} submitted a verification request`,
+          type: "VERIFICATION_PENDING",
+          title: "Pending Verification",
+          message: `${verification.user?.firstName || "User"} ${verification.user?.lastName || ""} submitted a verification request`,
           read: false,
           createdAt: verification.createdAt,
           data: {
@@ -1059,9 +1138,9 @@ export class AdminService {
 
       // Get pending packages that need approval
       const pendingPackages = await prisma.package.findMany({
-        where: { status: 'PENDING' },
+        where: { status: "PENDING" },
         take: Math.max(1, Math.floor((options.limit || 10) / 2)),
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           customer: {
             select: {
@@ -1076,9 +1155,9 @@ export class AdminService {
       pendingPackages.forEach((pkg: any) => {
         notifications.push({
           id: `package-${pkg.id}`,
-          type: 'PACKAGE_PENDING_APPROVAL',
-          title: 'Package Pending Approval',
-          message: `Package from ${pkg.customer?.firstName || 'Customer'} ${pkg.customer?.lastName || ''} needs approval`,
+          type: "PACKAGE_PENDING_APPROVAL",
+          title: "Package Pending Approval",
+          message: `Package from ${pkg.customer?.firstName || "Customer"} ${pkg.customer?.lastName || ""} needs approval`,
           read: false,
           createdAt: pkg.createdAt,
           data: {
@@ -1090,7 +1169,10 @@ export class AdminService {
 
       // Sort by creation date (newest first) and limit
       const sortedNotifications = notifications
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
         .slice(0, options.limit || 10);
 
       // Filter unread only if requested
@@ -1104,30 +1186,32 @@ export class AdminService {
         total: filteredNotifications.length,
       };
     } catch (error: any) {
-      console.error('Error fetching admin notifications:', error);
-      throw new Error(error.message || 'Failed to fetch admin notifications');
+      console.error("Error fetching admin notifications:", error);
+      throw new Error(error.message || "Failed to fetch admin notifications");
     }
   }
 
   async getAuditLog(filters: AdminFilterOptions) {
     try {
       const where: any = {};
-      
+
       if (filters.search) {
         where.OR = [
-          { action: { contains: filters.search, mode: 'insensitive' } },
-          { details: { contains: filters.search, mode: 'insensitive' } }
+          { action: { contains: filters.search, mode: "insensitive" } },
+          { details: { contains: filters.search, mode: "insensitive" } },
         ];
       }
 
       const [logs, total] = await Promise.all([
         this.getPrisma().auditLog.findMany({
           where,
-          orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
+          orderBy: {
+            [filters.sortBy || "createdAt"]: filters.sortOrder || "desc",
+          },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-          take: filters.limit || 20
+          take: filters.limit || 20,
         }),
-        this.getPrisma().auditLog.count({ where })
+        this.getPrisma().auditLog.count({ where }),
       ]);
 
       return {
@@ -1137,101 +1221,113 @@ export class AdminService {
           details: log.details,
           userId: log.userId,
           adminId: log.adminId,
-          createdAt: log.createdAt
+          createdAt: log.createdAt,
         })),
-        total
+        total,
       };
     } catch (_error) {
-      console.error('Error fetching audit log:', _error);
-      throw new Error('Failed to fetch audit log');
+      console.error("Error fetching audit log:", _error);
+      throw new Error("Failed to fetch audit log");
     }
   }
 
   async retryFailedTransaction(_id: string, _adminId: string) {
     try {
       // Implementation for retrying failed transaction
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Transaction retry initiated successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Transaction retry initiated successfully" };
       } else {
-        throw new Error('Transaction retry service unavailable');
+        throw new Error("Transaction retry service unavailable");
       }
     } catch (_error) {
-      console.error('Error retrying transaction:', _error);
-      throw new Error('Failed to retry transaction');
+      console.error("Error retrying transaction:", _error);
+      throw new Error("Failed to retry transaction");
     }
   }
 
-  async refundTransaction(_id: string, _amount: number, _reason: string, _adminId: string) {
+  async refundTransaction(
+    _id: string,
+    _amount: number,
+    _reason: string,
+    _adminId: string,
+  ) {
     try {
       // Implementation for refunding transaction
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Refund processed successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Refund processed successfully" };
       } else {
-        throw new Error('Refund service unavailable');
+        throw new Error("Refund service unavailable");
       }
     } catch (_error) {
-      console.error('Error processing refund:', _error);
-      throw new Error('Failed to process refund');
+      console.error("Error processing refund:", _error);
+      throw new Error("Failed to process refund");
     }
   }
 
   async resolveAlert(_id: string, _resolution: string, _adminId: string) {
     try {
       // Implementation for resolving alert
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Alert resolved successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Alert resolved successfully" };
       } else {
-        throw new Error('Alert resolution service unavailable');
+        throw new Error("Alert resolution service unavailable");
       }
     } catch (_error) {
-      console.error('Error resolving alert:', _error);
-      throw new Error('Failed to resolve alert');
+      console.error("Error resolving alert:", _error);
+      throw new Error("Failed to resolve alert");
     }
   }
 
   async acknowledgeAlert(_id: string, _adminId: string) {
     try {
       // Implementation for acknowledging alert
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Alert acknowledged successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Alert acknowledged successfully" };
       } else {
-        throw new Error('Alert acknowledgment service unavailable');
+        throw new Error("Alert acknowledgment service unavailable");
       }
     } catch (_error) {
-      console.error('Error acknowledging alert:', _error);
-      throw new Error('Failed to acknowledge alert');
+      console.error("Error acknowledging alert:", _error);
+      throw new Error("Failed to acknowledge alert");
     }
   }
 
   async updateAdminUser(_id: string, _updates: any, _updatedBy: string) {
     try {
       // Implementation for updating admin user
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Admin user updated successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Admin user updated successfully" };
       } else {
-        throw new Error('Admin user update service unavailable');
+        throw new Error("Admin user update service unavailable");
       }
     } catch (_error) {
-      console.error('Error updating admin user:', _error);
-      throw new Error('Failed to update admin user');
+      console.error("Error updating admin user:", _error);
+      throw new Error("Failed to update admin user");
     }
   }
 
   async deleteAdminUser(_id: string, _deletedBy: string) {
     try {
       // Implementation for deleting admin user
-      if (Math.random() > 0.1) { // 90% chance of success
-        return { message: 'Admin user deleted successfully' };
+      if (Math.random() > 0.1) {
+        // 90% chance of success
+        return { message: "Admin user deleted successfully" };
       } else {
-        throw new Error('Admin user deletion service unavailable');
+        throw new Error("Admin user deletion service unavailable");
       }
     } catch (_error) {
-      console.error('Error deleting admin user:', _error);
-      throw new Error('Failed to delete admin user');
+      console.error("Error deleting admin user:", _error);
+      throw new Error("Failed to delete admin user");
     }
   }
 
-  // Settings management - store in memory for now (can be moved to database later)
+  // Settings management
+  // Persist in database when Prisma is available, with in-memory fallback.
   private static settingsStore: any = {
     emailNotifications: true,
     smsNotifications: false,
@@ -1243,24 +1339,68 @@ export class AdminService {
 
   async getSettings() {
     try {
-      return AdminService.settingsStore;
+      // Try DB first
+      try {
+        const prisma = this.getPrisma();
+        const row = await prisma.appSetting.findUnique({
+          where: { key: "admin" },
+        });
+
+        if (row?.value && typeof row.value === "object") {
+          const merged = {
+            ...AdminService.settingsStore,
+            ...(row.value as any),
+          };
+          // Keep in-memory store in sync as a fallback.
+          AdminService.settingsStore = merged;
+          return merged;
+        }
+
+        // Seed default row if it doesn't exist yet.
+        const created = await prisma.appSetting.create({
+          data: { key: "admin", value: AdminService.settingsStore },
+        });
+        return created.value;
+      } catch (dbError) {
+        // Prisma unavailable or DB error: fall back to in-memory
+        console.warn("Settings: falling back to in-memory store:", dbError);
+        return AdminService.settingsStore;
+      }
     } catch (_error) {
-      console.error('Error fetching settings:', _error);
-      throw new Error('Failed to fetch settings');
+      console.error("Error fetching settings:", _error);
+      throw new Error("Failed to fetch settings");
     }
   }
 
   async saveSettings(settings: any) {
     try {
-      // Merge with existing settings
-      AdminService.settingsStore = {
+      const merged = {
         ...AdminService.settingsStore,
-        ...settings,
+        ...(settings && typeof settings === "object" ? settings : {}),
       };
-      return AdminService.settingsStore;
+
+      // Update in-memory immediately
+      AdminService.settingsStore = merged;
+
+      // Try persist to DB
+      try {
+        const prisma = this.getPrisma();
+        await prisma.appSetting.upsert({
+          where: { key: "admin" },
+          create: { key: "admin", value: merged },
+          update: { value: merged },
+        });
+      } catch (dbError) {
+        console.warn(
+          "Settings: failed to persist to database, kept in memory:",
+          dbError,
+        );
+      }
+
+      return merged;
     } catch (_error) {
-      console.error('Error saving settings:', _error);
-      throw new Error('Failed to save settings');
+      console.error("Error saving settings:", _error);
+      throw new Error("Failed to save settings");
     }
   }
 }

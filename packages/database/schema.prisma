@@ -248,6 +248,13 @@ model PackageTracking {
   package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
 }
 
+model AppSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
