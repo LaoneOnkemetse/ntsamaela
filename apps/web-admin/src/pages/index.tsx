@@ -9,31 +9,42 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window === 'undefined') return; // SSR check
-    
-    // Safety timeout: if loading takes more than 5 seconds, proceed anyway
-    const safetyTimeout = setTimeout(() => {
-      const hasToken = localStorage.getItem('token');
-      if (hasToken) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
-    }, 5000);
-    
-    if (!loading) {
-      clearTimeout(safetyTimeout);
-      // Check for token instead of user (user might not be loaded yet)
-      const hasToken = localStorage.getItem('token');
-      if (hasToken) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
+    if (typeof window === "undefined") return;
+
+    const hasToken = localStorage.getItem("token");
+    if (!hasToken) {
+      router.replace("/login");
+      return;
     }
-    
-    return () => clearTimeout(safetyTimeout);
-  }, [loading, router]);
+
+    // Verify token before sending to dashboard; invalid token -> clear and login
+    let cancelled = false;
+    fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${hasToken}` },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          router.replace("/login");
+        } else if (res.ok) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/login");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) router.replace("/login");
+      });
+
+    const t = setTimeout(() => {
+      if (!cancelled) router.replace("/login");
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [router]);
 
   return (
     <Box

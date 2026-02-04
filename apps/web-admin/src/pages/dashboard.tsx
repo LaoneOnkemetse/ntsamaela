@@ -169,20 +169,49 @@ export default function Dashboard() {
     }
   }, [loading, router]);
 
+  // Don't render dashboard content until we have a token (avoids showing dashboard without login)
+  const hasToken =
+    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
+  if (!loading && !hasToken) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="60vh"
+        flexDirection="column"
+      >
+        <CircularProgress size={48} />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Redirecting to login...
+        </Typography>
+      </Box>
+    );
+  }
+
   // Fetch dashboard stats
-  const { data: dashboardData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+  const {
+    data: dashboardData,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+    error: dashboardError,
+  } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: async () => {
-      try {
-        const data = await getDashboardStats();
-        return data;
-      } catch (error: any) {
-        console.error('Error fetching dashboard stats:', error);
-        return null;
-      }
+      const data = await getDashboardStats();
+      return data;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
   });
+
+  // On 401, clear token and force login
+  useEffect(() => {
+    const status = (dashboardError as any)?.response?.status;
+    if (status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+  }, [dashboardError]);
 
   // Fetch recent packages
   const { data: packagesData, isLoading: packagesLoading } = useQuery({

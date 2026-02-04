@@ -9,8 +9,12 @@ type ErrorBody = {
 function getBackendBase(): string | null {
   const raw = process.env.API_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
   if (!raw) return null;
-  const trimmed = raw.replace(/\/$/, "");
-  // Ensure we target the backend API prefix.
+  let trimmed = raw.trim().replace(/\/$/, "");
+  if (!trimmed) return null;
+  // Must have a scheme or new URL() fails; Railway APIs are HTTPS
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    trimmed = `https://${trimmed}`;
+  }
   return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 

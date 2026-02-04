@@ -103,16 +103,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               if (data?.success && data?.data) {
                 setUser(data.data);
               }
+            } else if (response.status === 401) {
+              // Token invalid or expired - clear so user is sent to login
+              localStorage.removeItem("token");
+              setToken(null);
+              setUser(null);
             }
           } catch (fetchError: any) {
             clearTimeout(fetchTimeout);
-            // Log errors for debugging, but don't block the app
             if (fetchError.name !== 'AbortError') {
-              console.warn('Auth check: Could not verify token (API may be unreachable):', {
-                error: fetchError.message,
-                name: fetchError.name,
-                url: '/api/auth/me',
-              });
+              const status = fetchError.response?.status;
+              if (status === 401) {
+                localStorage.removeItem("token");
+                setToken(null);
+                setUser(null);
+              } else {
+                console.warn('Auth check: Could not verify token (API may be unreachable):', {
+                  error: fetchError.message,
+                  url: '/api/auth/me',
+                });
+              }
             }
           }
         } else {

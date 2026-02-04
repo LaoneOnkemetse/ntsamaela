@@ -37,9 +37,22 @@ const defaultSettings = {
 };
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState(defaultSettings);
+
+  const hasToken =
+    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
+  if (!loading && !hasToken) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", flexDirection: "column" }}>
+        <CircularProgress size={48} />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Redirecting to login...
+        </Typography>
+      </Box>
+    );
+  }
 
   // Load settings from server on mount
   const {
@@ -68,10 +81,18 @@ export default function Settings() {
 
   useEffect(() => {
     if (serverSettings && typeof serverSettings === "object") {
-      // Only update if we got valid settings from server
       setSettings({ ...defaultSettings, ...serverSettings });
     }
   }, [serverSettings]);
+
+  // On 401, clear token and force login (handles invalid/stale token even if interceptor didn't run)
+  useEffect(() => {
+    const status = (settingsError as any)?.response?.status;
+    if (status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+  }, [settingsError]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -147,7 +168,7 @@ export default function Settings() {
         throw error;
       }
     },
-    retry: 1,
+    retry: false, // Don't retry on 401
   });
 
   const { data: systemMetrics } = useQuery({
@@ -242,9 +263,12 @@ export default function Settings() {
 
       {Boolean(settingsError || healthError) && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {settingsError
-            ? `Failed to load settings from server: ${settingsError instanceof Error ? settingsError.message : String(settingsError)}`
-            : `Failed to load system health from server: ${healthError instanceof Error ? healthError.message : String(healthError)}`}
+          {(settingsError as any)?.response?.status === 401 ||
+          (healthError as any)?.response?.status === 401
+            ? "Session expired or invalid. Redirecting to login..."
+            : settingsError
+              ? `Failed to load settings from server: ${settingsError instanceof Error ? settingsError.message : String(settingsError)}`
+              : `Failed to load system health: ${healthError instanceof Error ? healthError.message : String(healthError)}`}
         </Alert>
       )}
 
@@ -387,15 +411,19 @@ export default function Settings() {
                           systemHealth?.database === "REAL" ||
                           systemHealth?.database === "real"
                             ? "#10B981"
-                            : "#EF4444",
+                            : healthError
+                              ? "#6B7280"
+                              : "#EF4444",
                       }}
                     >
-                      {systemHealth?.services?.database?.status ===
-                        "connected" ||
-                      systemHealth?.database === "REAL" ||
-                      systemHealth?.database === "real"
-                        ? "Connected"
-                        : "Disconnected"}
+                      {healthError
+                        ? "Unable to load (sign in required)"
+                        : systemHealth?.services?.database?.status ===
+                            "connected" ||
+                          systemHealth?.database === "REAL" ||
+                          systemHealth?.database === "real"
+                          ? "Connected"
+                          : "Disconnected"}
                     </span>
                   </Typography>
                   <Typography
@@ -410,13 +438,17 @@ export default function Settings() {
                           systemHealth?.status === "healthy" ||
                           systemHealth?.services?.api?.status === "healthy"
                             ? "#10B981"
-                            : "#EF4444",
+                            : healthError
+                              ? "#6B7280"
+                              : "#EF4444",
                       }}
                     >
-                      {systemHealth?.status === "healthy" ||
-                      systemHealth?.services?.api?.status === "healthy"
-                        ? "Healthy"
-                        : "Unhealthy"}
+                      {healthError
+                        ? "Unable to load (sign in required)"
+                        : systemHealth?.status === "healthy" ||
+                            systemHealth?.services?.api?.status === "healthy"
+                          ? "Healthy"
+                          : "Unhealthy"}
                     </span>
                   </Typography>
                   {systemMetrics && (
