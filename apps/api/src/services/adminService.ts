@@ -117,7 +117,7 @@ export class AdminService {
         totalRevenue,
         newUsers,
         recentTransactions,
-        systemAlerts,
+        _systemAlerts,
       ] = await Promise.all([
         prisma.user.count().catch(() => 0),
         prisma.package

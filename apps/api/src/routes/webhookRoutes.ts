@@ -1,7 +1,6 @@
 import express, { Request, Response } from "express";
 import crypto from "crypto";
 import { getPrismaClient } from "@database/index";
-import { fcmService } from "../services/fcmService";
 import { notificationService } from "../services/notificationService";
 
 const router = express.Router();
@@ -38,11 +37,11 @@ router.post("/paystack", async (req: Request, res: Response) => {
   try {
     const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
     const isDevelopment = process.env.NODE_ENV !== "production";
-    
+
     // Get payload and signature
     const payload = req.body.toString();
     const signature = req.headers["x-paystack-signature"] as string;
-    
+
     // Verify signature if secret is configured
     if (webhookSecret && webhookSecret !== "hsk_your-paystack-webhook-secret") {
       if (!signature) {
@@ -176,10 +175,10 @@ async function handleChargeSuccess(data: any, prisma: any) {
             type: "PAYMENT_SUCCESS",
             title: "Payment Successful",
             message: `Your payment of ${amount} has been processed successfully`,
-              data: {
-                transactionId: dbTransaction.id,
+            data: {
+              transactionId: dbTransaction.id,
               type: "PAYMENT_SUCCESS",
-              },
+            },
           });
         }
       }
@@ -233,10 +232,10 @@ async function handleChargeFailed(data: any, prisma: any) {
           type: "PAYMENT_FAILED",
           title: "Payment Failed",
           message: `Your payment failed: ${reason}`,
-            data: {
-              transactionId: dbTransaction.id,
+          data: {
+            transactionId: dbTransaction.id,
             type: "PAYMENT_FAILED",
-            },
+          },
         });
       }
     }
@@ -410,12 +409,15 @@ router.post("/stripe", async (req: Request, res: Response) => {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     const isDevelopment = process.env.NODE_ENV !== "production";
 
-    if (!webhookSecret || webhookSecret === "whsec_your-stripe-webhook-secret") {
+    if (
+      !webhookSecret ||
+      webhookSecret === "whsec_your-stripe-webhook-secret"
+    ) {
       if (!isDevelopment) {
         return res
           .status(500)
           .json({ error: "Stripe webhook secret not configured" });
-    }
+      }
       console.warn(
         "⚠️  Development mode: Stripe webhook secret not configured. Signature verification skipped.",
       );
@@ -433,7 +435,11 @@ router.post("/stripe", async (req: Request, res: Response) => {
           return res.status(400).json({ error: "Missing signature" });
         }
       } else {
-        const isValid = verifyStripeSignature(payload, signature, webhookSecret);
+        const isValid = verifyStripeSignature(
+          payload,
+          signature,
+          webhookSecret,
+        );
         if (!isValid) {
           console.error("Invalid Stripe webhook signature");
           if (!isDevelopment) {
@@ -515,7 +521,7 @@ async function handlePaymentIntentSucceeded(
     const paymentIntentId = paymentIntent.id;
     const amount = paymentIntent.amount / 100; // Convert from cents
     const currency = paymentIntent.currency.toUpperCase();
-    const metadata = paymentIntent.metadata || {};
+    const _metadata = paymentIntent.metadata || {};
 
     console.log(
       `Processing successful payment: ${paymentIntentId}, Amount: ${amount} ${currency}`,

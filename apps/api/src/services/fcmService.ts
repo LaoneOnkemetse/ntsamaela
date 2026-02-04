@@ -1,5 +1,4 @@
-import * as admin from 'firebase-admin';
-import { AppError } from '../utils/errors';
+import * as admin from "firebase-admin";
 
 export interface FCMNotification {
   title: string;
@@ -36,13 +35,20 @@ class FCMService {
 
     try {
       const projectId = process.env.FIREBASE_PROJECT_ID;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(
+        /\\n/g,
+        "\n",
+      );
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
       if (!projectId || !privateKey || !clientEmail) {
-        console.warn('⚠️  Firebase credentials not configured. Push notifications will be disabled.');
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('💡 To enable push notifications, set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables.');
+        console.warn(
+          "⚠️  Firebase credentials not configured. Push notifications will be disabled.",
+        );
+        if (process.env.NODE_ENV === "production") {
+          console.warn(
+            "💡 To enable push notifications, set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables.",
+          );
         }
         return;
       }
@@ -63,16 +69,19 @@ class FCMService {
 
       this.isInitialized = true;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Firebase Cloud Messaging initialized successfully');
+      if (process.env.NODE_ENV === "development") {
+        console.log("✅ Firebase Cloud Messaging initialized successfully");
         console.log(`   Project ID: ${projectId}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Firebase initialization error:', errorMessage);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("❌ Firebase initialization error:", errorMessage);
+
       // Don't crash the server - just log the error and continue without FCM
-      console.warn('⚠️  Continuing without Firebase push notifications. The server will still function normally.');
+      console.warn(
+        "⚠️  Continuing without Firebase push notifications. The server will still function normally.",
+      );
       this.isInitialized = false;
     }
   }
@@ -82,12 +91,12 @@ class FCMService {
    */
   async sendToDevice(
     deviceToken: string,
-    notification: FCMNotification
+    notification: FCMNotification,
   ): Promise<FCMResponse> {
     if (!this.app || !this.isInitialized) {
       return {
         success: false,
-        error: 'Firebase not initialized',
+        error: "Firebase not initialized",
       };
     }
 
@@ -101,16 +110,16 @@ class FCMService {
         },
         data: notification.data || {},
         android: {
-          priority: 'high' as const,
+          priority: "high" as const,
           notification: {
-            sound: 'default',
-            channelId: 'ntsamaela_notifications',
+            sound: "default",
+            channelId: "ntsamaela_notifications",
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: "default",
               badge: 1,
             },
           },
@@ -124,10 +133,10 @@ class FCMService {
         messageId: response,
       };
     } catch (error: any) {
-      console.error('FCM send error:', error);
+      console.error("FCM send error:", error);
       return {
         success: false,
-        error: error.message || 'Failed to send notification',
+        error: error.message || "Failed to send notification",
       };
     }
   }
@@ -137,19 +146,19 @@ class FCMService {
    */
   async sendToDevices(
     deviceTokens: string[],
-    notification: FCMNotification
+    notification: FCMNotification,
   ): Promise<FCMResponse> {
     if (!this.app || !this.isInitialized) {
       return {
         success: false,
-        error: 'Firebase not initialized',
+        error: "Firebase not initialized",
       };
     }
 
     if (deviceTokens.length === 0) {
       return {
         success: false,
-        error: 'No device tokens provided',
+        error: "No device tokens provided",
       };
     }
 
@@ -163,16 +172,16 @@ class FCMService {
         },
         data: notification.data || {},
         android: {
-          priority: 'high' as const,
+          priority: "high" as const,
           notification: {
-            sound: 'default',
-            channelId: 'ntsamaela_notifications',
+            sound: "default",
+            channelId: "ntsamaela_notifications",
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: "default",
               badge: 1,
             },
           },
@@ -186,17 +195,17 @@ class FCMService {
         messageId: response.responses
           .filter((r) => r.success)
           .map((r) => r.messageId)
-          .join(', '),
+          .join(", "),
         error:
           response.failureCount > 0
             ? `${response.failureCount} notifications failed`
             : undefined,
       };
     } catch (error: any) {
-      console.error('FCM multicast error:', error);
+      console.error("FCM multicast error:", error);
       return {
         success: false,
-        error: error.message || 'Failed to send notifications',
+        error: error.message || "Failed to send notifications",
       };
     }
   }
@@ -206,12 +215,12 @@ class FCMService {
    */
   async sendToTopic(
     topic: string,
-    notification: FCMNotification
+    notification: FCMNotification,
   ): Promise<FCMResponse> {
     if (!this.app || !this.isInitialized) {
       return {
         success: false,
-        error: 'Firebase not initialized',
+        error: "Firebase not initialized",
       };
     }
 
@@ -225,16 +234,16 @@ class FCMService {
         },
         data: notification.data || {},
         android: {
-          priority: 'high' as const,
+          priority: "high" as const,
           notification: {
-            sound: 'default',
-            channelId: 'ntsamaela_notifications',
+            sound: "default",
+            channelId: "ntsamaela_notifications",
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: "default",
               badge: 1,
             },
           },
@@ -248,10 +257,10 @@ class FCMService {
         messageId: response,
       };
     } catch (error: any) {
-      console.error('FCM topic send error:', error);
+      console.error("FCM topic send error:", error);
       return {
         success: false,
-        error: error.message || 'Failed to send notification',
+        error: error.message || "Failed to send notification",
       };
     }
   }
@@ -265,10 +274,12 @@ class FCMService {
     }
 
     try {
-      const response = await admin.messaging().subscribeToTopic([deviceToken], topic);
+      const response = await admin
+        .messaging()
+        .subscribeToTopic([deviceToken], topic);
       return response.successCount > 0;
     } catch (error) {
-      console.error('FCM subscribe error:', error);
+      console.error("FCM subscribe error:", error);
       return false;
     }
   }
@@ -276,16 +287,21 @@ class FCMService {
   /**
    * Unsubscribe device token from a topic
    */
-  async unsubscribeFromTopic(deviceToken: string, topic: string): Promise<boolean> {
+  async unsubscribeFromTopic(
+    deviceToken: string,
+    topic: string,
+  ): Promise<boolean> {
     if (!this.app || !this.isInitialized) {
       return false;
     }
 
     try {
-      const response = await admin.messaging().unsubscribeFromTopic([deviceToken], topic);
+      const response = await admin
+        .messaging()
+        .unsubscribeFromTopic([deviceToken], topic);
       return response.successCount > 0;
     } catch (error) {
-      console.error('FCM unsubscribe error:', error);
+      console.error("FCM unsubscribe error:", error);
       return false;
     }
   }
@@ -304,22 +320,21 @@ export const fcmService = new FCMService();
 // Export convenience functions
 export const sendPushNotification = async (
   deviceToken: string,
-  notification: FCMNotification
+  notification: FCMNotification,
 ): Promise<FCMResponse> => {
   return fcmService.sendToDevice(deviceToken, notification);
 };
 
 export const sendPushNotificationToMultiple = async (
   deviceTokens: string[],
-  notification: FCMNotification
+  notification: FCMNotification,
 ): Promise<FCMResponse> => {
   return fcmService.sendToDevices(deviceTokens, notification);
 };
 
 export const sendPushNotificationToTopic = async (
   topic: string,
-  notification: FCMNotification
+  notification: FCMNotification,
 ): Promise<FCMResponse> => {
   return fcmService.sendToTopic(topic, notification);
 };
-

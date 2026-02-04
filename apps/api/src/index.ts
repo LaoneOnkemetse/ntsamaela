@@ -1,12 +1,12 @@
-import { config } from 'dotenv';
-import { app, server, PORT } from './app';
-import { getPrismaClient } from '@database/index';
-import bcrypt from 'bcryptjs';
+import { config } from "dotenv";
+import { app, server, PORT } from "./app";
+import { getPrismaClient } from "@database/index";
+import bcrypt from "bcryptjs";
 
 // Load environment variables (Railway provides these automatically)
 // Only load .env file in development
-if (process.env.NODE_ENV !== 'production') {
-  config({ path: '../../.env' });
+if (process.env.NODE_ENV !== "production") {
+  config({ path: "../../.env" });
 }
 
 // All middleware and routes are already configured in app.ts
@@ -17,18 +17,20 @@ async function ensureAdminUser() {
   try {
     const prisma = getPrismaClient();
     if (!prisma) {
-      console.log('⚠️  Prisma client not available, skipping admin user creation');
+      console.log(
+        "⚠️  Prisma client not available, skipping admin user creation",
+      );
       return;
     }
 
-    const ADMIN_EMAIL = 'Plutonium94@ntsamaela.com';
-    const ADMIN_PASSWORD = 'pLuto@.*123hash';
-    const ADMIN_FIRST_NAME = 'Plutonium';
-    const ADMIN_LAST_NAME = 'Administrator';
-    const ADMIN_PHONE = '+26771234567';
+    const ADMIN_EMAIL = "Plutonium94@ntsamaela.com";
+    const ADMIN_PASSWORD = "pLuto@.*123hash";
+    const ADMIN_FIRST_NAME = "Plutonium";
+    const ADMIN_LAST_NAME = "Administrator";
+    const ADMIN_PHONE = "+26771234567";
 
-    console.log('🔐 Ensuring permanent admin user exists...');
-    
+    console.log("🔐 Ensuring permanent admin user exists...");
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: ADMIN_EMAIL },
@@ -42,12 +44,12 @@ async function ensureAdminUser() {
           firstName: ADMIN_FIRST_NAME,
           lastName: ADMIN_LAST_NAME,
           phone: ADMIN_PHONE,
-          userType: 'ADMIN',
+          userType: "ADMIN",
           identityVerified: true,
           emailVerified: true,
         },
       });
-      console.log('✅ Admin user updated (password preserved):', ADMIN_EMAIL);
+      console.log("✅ Admin user updated (password preserved):", ADMIN_EMAIL);
     } else {
       // User doesn't exist - create with hashed password
       const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
@@ -58,15 +60,15 @@ async function ensureAdminUser() {
           firstName: ADMIN_FIRST_NAME,
           lastName: ADMIN_LAST_NAME,
           phone: ADMIN_PHONE,
-          userType: 'ADMIN',
+          userType: "ADMIN",
           identityVerified: true,
           emailVerified: true,
         },
       });
-      console.log('✅ Admin user created with ID:', newUser.id);
+      console.log("✅ Admin user created with ID:", newUser.id);
     }
   } catch (error) {
-    console.error('⚠️  Failed to ensure admin user:', error);
+    console.error("⚠️  Failed to ensure admin user:", error);
     // Don't exit - server should still start
   }
 }
@@ -75,39 +77,39 @@ async function ensureAdminUser() {
 ensureAdminUser();
 
 // Add error handlers
-process.on('uncaughtException', (error: Error) => {
-  console.error('❌ Uncaught Exception:', error);
+process.on("uncaughtException", (error: Error) => {
+  console.error("❌ Uncaught Exception:", error);
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
   process.exit(1);
 });
 
 // Start server - listen on 0.0.0.0 to accept connections from outside container
 try {
-  server.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`🔗 API base: http://0.0.0.0:${PORT}/api`);
     console.log(`🔌 Socket.IO enabled for real-time features`);
   });
 
-  server.on('error', (error: NodeJS.ErrnoException) => {
-    if (error.syscall !== 'listen') {
+  server.on("error", (error: Error & { code?: string; syscall?: string }) => {
+    if (error.syscall !== "listen") {
       throw error;
     }
 
-    const bind = typeof PORT === 'string' ? `Pipe ${PORT}` : `Port ${PORT}`;
+    const bind = typeof PORT === "string" ? `Pipe ${PORT}` : `Port ${PORT}`;
 
     switch (error.code) {
-      case 'EACCES':
+      case "EACCES":
         console.error(`❌ ${bind} requires elevated privileges`);
         process.exit(1);
         break;
-      case 'EADDRINUSE':
+      case "EADDRINUSE":
         console.error(`❌ ${bind} is already in use`);
         process.exit(1);
         break;
@@ -116,11 +118,8 @@ try {
     }
   });
 } catch (error) {
-  console.error('❌ Failed to start server:', error);
+  console.error("❌ Failed to start server:", error);
   process.exit(1);
 }
 
 export default app;
-
-
-

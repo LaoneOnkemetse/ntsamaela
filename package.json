@@ -44,7 +44,7 @@
     "test:coverage": "jest --coverage",
     "test:coverage:comprehensive": "cd apps/api && node scripts/test-coverage.js",
     "test:ci": "jest --ci --coverage --watchAll=false",
-    "test:unit": "echo \"Skipping unit tests in pre-commit for now\" && exit 0",
+    "test:unit": "jest packages/shared/__tests__/sample.test.ts",
     "test:api": "cd apps/api && npm test",
     "test:mobile": "jest --selectProjects='Mobile' && mkdir -p coverage/mobile && { [ -f coverage/lcov.info ] && mv coverage/lcov.info coverage/mobile/ || true; [ -d coverage/lcov-report ] && mv coverage/lcov-report coverage/mobile/ || true; }",
     "test:web-admin": "cd apps/web-admin && npm test",

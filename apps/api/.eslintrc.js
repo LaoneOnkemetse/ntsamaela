@@ -9,14 +9,11 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: "module",
-    // Disable project-wide type-aware linting for speed and to avoid config files issues
-    project: undefined,
   },
   plugins: ["@typescript-eslint"],
   rules: {
-    // Relax strictness so lint doesn't block commits while we stabilize the codebase
     "@typescript-eslint/no-unused-vars": [
-      "warn",
+      "error",
       {
         argsIgnorePattern: "^_",
         varsIgnorePattern: "^_",
