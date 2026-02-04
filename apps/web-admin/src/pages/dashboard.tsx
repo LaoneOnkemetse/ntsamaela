@@ -413,7 +413,8 @@ export default function Dashboard() {
     status: string;
   }
 
-  const recentPackages = (packagesData || []).map((pkg: any): PackageItem => ({
+  const packagesList = Array.isArray(packagesData) ? packagesData : [];
+  const recentPackages = packagesList.map((pkg: any): PackageItem => ({
     id: pkg.id || pkg.packageId,
     customer: pkg.customer?.firstName ? `${pkg.customer.firstName} ${pkg.customer.lastName}` : pkg.customerName || 'Unknown',
     driver: pkg.driver?.firstName ? `${pkg.driver.firstName} ${pkg.driver.lastName}` : pkg.driverName || 'Unassigned',
@@ -434,7 +435,8 @@ export default function Dashboard() {
     submittedAt: string;
   }
 
-  const pendingVerifications = (verificationsData || []).map((ver: any): VerificationItem => ({
+  const verificationsList = Array.isArray(verificationsData) ? verificationsData : [];
+  const pendingVerifications = verificationsList.map((ver: any): VerificationItem => ({
     id: ver.id || ver.verificationId,
     userId: ver.userId || '',
     userName: ver.user?.firstName ? `${ver.user.firstName} ${ver.user.lastName}` : ver.userName || 'Unknown',
@@ -693,19 +695,19 @@ export default function Dashboard() {
                     {[
                       { 
                         label: 'Review Verifications', 
-                        count: dashboardData?.pendingVerifications || verificationsData?.length || 0, 
+                        count: dashboardData?.pendingVerifications || verificationsList.length || 0, 
                         color: '#FFB800', 
                         action: 'verifications' 
                       },
                       { 
                         label: 'Pending Approvals', 
-                        count: packagesData?.filter((p: any) => p.status === 'PENDING').length || 0, 
+                        count: packagesList.filter((p: any) => p.status === 'PENDING').length || 0, 
                         color: '#FF6D00', 
                         action: 'approvals' 
                       },
                       { 
                         label: 'Active Packages', 
-                        count: dashboardData?.activePackages || packagesData?.filter((p: any) => p.status === 'IN_TRANSIT').length || 0, 
+                        count: dashboardData?.activePackages || packagesList.filter((p: any) => p.status === 'IN_TRANSIT').length || 0, 
                         color: '#75AADB', 
                         action: 'support' 
                       },
