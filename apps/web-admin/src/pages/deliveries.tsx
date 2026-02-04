@@ -49,27 +49,6 @@ import toast from "react-hot-toast";
 export default function Deliveries() {
   const { loading } = useAuth();
   const queryClient = useQueryClient();
-  const hasToken =
-    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
-
-  if (!loading && !hasToken) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "60vh",
-          flexDirection: "column",
-        }}
-      >
-        <CircularProgress size={48} />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Redirecting to login...
-        </Typography>
-      </Box>
-    );
-  }
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
@@ -109,7 +88,7 @@ export default function Deliveries() {
     retryDelay: 1000,
   });
 
-  const packages = packagesData || [];
+  const packages = Array.isArray(packagesData) ? packagesData : [];
 
   useEffect(() => {
     const status = (error as any)?.response?.status;
@@ -178,6 +157,27 @@ export default function Deliveries() {
       return "error";
     return "default";
   };
+
+  const hasToken =
+    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
+  if (!loading && !hasToken) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "60vh",
+          flexDirection: "column",
+        }}
+      >
+        <CircularProgress size={48} />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Redirecting to login...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
