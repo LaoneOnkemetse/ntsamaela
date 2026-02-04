@@ -61,13 +61,23 @@ export const authenticateAdmin = async (
         decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
         isAdminToken = false;
       } catch (_err) {
-        // Both verifications failed
-        throw new Error("Invalid token signature");
+        // Both verifications failed - return 401 without throwing (avoids log spam)
+        return res.status(401).json({
+          success: false,
+          error: { message: "Invalid token signature" },
+        });
       }
     }
 
     if (!decoded) {
-      throw new Error("No JWT secret configured");
+      return res.status(401).json({
+        success: false,
+        error: {
+          message: process.env.JWT_SECRET
+            ? "Invalid admin token"
+            : "No JWT secret configured on server",
+        },
+      });
     }
 
     // Admin tokens and regular user tokens both use the User model

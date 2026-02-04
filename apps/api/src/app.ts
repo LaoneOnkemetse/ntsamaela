@@ -21,11 +21,28 @@ if (!process.env.DATABASE_URL) {
 if (!process.env.DISABLE_PRISMA) {
   process.env.DISABLE_PRISMA = "false"; // Enable Prisma for development
 }
+const DEFAULT_JWT_SECRET = "your-super-secret-jwt-key-here";
+const DEFAULT_ADMIN_JWT_SECRET = "your-super-secret-admin-jwt-key-here";
+
 if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = "your-super-secret-jwt-key-here";
+  process.env.JWT_SECRET = DEFAULT_JWT_SECRET;
 }
 if (!process.env.ADMIN_JWT_SECRET) {
-  process.env.ADMIN_JWT_SECRET = "your-super-secret-admin-jwt-key-here";
+  process.env.ADMIN_JWT_SECRET = DEFAULT_ADMIN_JWT_SECRET;
+}
+
+// Warn in production if still using placeholder secrets (causes "Invalid token signature" if frontend uses different env)
+if (process.env.NODE_ENV === "production") {
+  if (process.env.JWT_SECRET === DEFAULT_JWT_SECRET) {
+    console.warn(
+      "⚠️  JWT_SECRET is unset in production. Set JWT_SECRET in Railway (or your host) to a strong random string so admin/auth tokens work consistently."
+    );
+  }
+  if (process.env.ADMIN_JWT_SECRET === DEFAULT_ADMIN_JWT_SECRET) {
+    console.warn(
+      "⚠️  ADMIN_JWT_SECRET is unset in production. Set ADMIN_JWT_SECRET in Railway if you use admin-specific login."
+    );
+  }
 }
 
 // Initialize Prisma client after environment variables are loaded

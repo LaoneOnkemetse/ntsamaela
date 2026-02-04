@@ -22,10 +22,18 @@ The admin user is created automatically by the **API service** during deployment
 
 ## Environment Variables
 
-### API Service
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - For token generation
-- `PORT` - Server port (auto-set by Railway)
+### API Service (Railway – required to fix "Invalid token signature")
+
+Set these in **Railway → Your API service → Variables**:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (Railway Postgres gives this) |
+| `JWT_SECRET` | Yes | Strong random string for signing auth tokens. **Must match the secret used when users log in.** If unset, the API uses a default and you may see "Invalid token signature" in logs. Generate one: `openssl rand -base64 32` |
+| `ADMIN_JWT_SECRET` | Optional | If you use admin-specific login, set this to match. Otherwise leave unset or same as `JWT_SECRET`. |
+| `PORT` | Auto | Railway sets this |
+
+**If you see "Admin auth error: Invalid token signature" in Railway logs:** Set `JWT_SECRET` (and `ADMIN_JWT_SECRET` if used) in Railway to the same value as the environment where the frontend gets the token (e.g. your local `.env`), or ensure the frontend logs in against the Railway API URL so the token is issued with Railway’s secret.
 
 ### Web-Admin Service
 - `NEXT_PUBLIC_API_URL` - Should point to your API service URL
