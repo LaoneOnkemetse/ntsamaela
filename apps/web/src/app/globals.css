@@ -7,10 +7,17 @@
 html,
 body {
   max-width: 100vw;
+  min-height: 100vh;
   overflow-x: hidden;
-  height: 100%;
-  /* Make the landing background fill the entire viewport with no white border */
+  margin: 0;
+  padding: 0;
+  /* Full-bleed blue so no white border shows */
   background: linear-gradient(135deg, #75AADB 0%, #5A8FBF 100%);
+  background-attachment: fixed;
+}
+
+main {
+  min-height: 100%;
 }
 
 body {
