@@ -5,45 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { GetServerSideProps } from 'next';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  useAuth();
   const router = useRouter();
 
+  // Always send visitors to login first; login page will redirect to dashboard if already authenticated
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const hasToken = localStorage.getItem("token");
-    if (!hasToken) {
-      router.replace("/login");
-      return;
-    }
-
-    // Verify token before sending to dashboard; invalid token -> clear and login
-    let cancelled = false;
-    fetch("/api/auth/me", {
-      headers: { Authorization: `Bearer ${hasToken}` },
-    })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          router.replace("/login");
-        } else if (res.ok) {
-          router.replace("/dashboard");
-        } else {
-          router.replace("/login");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) router.replace("/login");
-      });
-
-    const t = setTimeout(() => {
-      if (!cancelled) router.replace("/login");
-    }, 5000);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
+    router.replace("/login");
   }, [router]);
 
   return (

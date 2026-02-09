@@ -119,7 +119,7 @@ export class AdminService {
         recentTransactions,
         _systemAlerts,
       ] = await Promise.all([
-        prisma.user.count().catch(() => 0),
+        prisma.user.count({ where: { userType: { not: "ADMIN" } } }).catch(() => 0),
         prisma.package
           .count({ where: { status: { in: ["IN_TRANSIT", "IN_PROGRESS"] } } })
           .catch(() => 0),

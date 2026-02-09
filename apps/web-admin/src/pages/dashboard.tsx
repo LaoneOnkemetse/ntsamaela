@@ -169,27 +169,7 @@ export default function Dashboard() {
     }
   }, [loading, router]);
 
-  // Don't render dashboard content until we have a token (avoids showing dashboard without login)
-  const hasToken =
-    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
-  if (!loading && !hasToken) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-        flexDirection="column"
-      >
-        <CircularProgress size={48} />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Redirecting to login...
-        </Typography>
-      </Box>
-    );
-  }
-
-  // Fetch dashboard stats
+  // Fetch dashboard stats (hooks must run unconditionally to avoid logout crash)
   const {
     data: dashboardData,
     isLoading: statsLoading,
@@ -243,6 +223,25 @@ export default function Dashboard() {
       }
     },
   });
+
+  const hasToken =
+    typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
+  if (!loading && !hasToken) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="60vh"
+        flexDirection="column"
+      >
+        <CircularProgress size={48} />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Redirecting to login...
+        </Typography>
+      </Box>
+    );
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true);
