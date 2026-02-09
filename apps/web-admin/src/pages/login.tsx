@@ -33,23 +33,16 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { setAuthData, user } = useAuth();
+  const { setAuthData, logout } = useAuth();
   const router = useRouter();
 
-  // Don't auto-redirect on login page - let the form submission handle it
-  // This prevents redirect loops
+  // Require explicit login: clear any stored session when landing on login page
+  // so the app never skips authentication (no flash-then-dashboard)
   useEffect(() => {
-    // Only redirect if we're already logged in AND not in the middle of a login attempt
-    if (user && !isLoading && router.pathname === '/login') {
-      // Small delay to prevent race conditions
-      const timer = setTimeout(() => {
-        if (user) {
-          router.push('/dashboard');
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [user, isLoading, router]);
+    if (typeof window === 'undefined') return;
+    logout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, []);
 
   const {
     register,

@@ -100,7 +100,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             if (response.ok) {
               const data = await response.json();
-              if (data?.success && data?.data) {
+              // Only set user if token is still in storage (login page may have cleared it)
+              if (data?.success && data?.data && typeof window !== 'undefined' && localStorage.getItem('token')) {
                 setUser(data.data);
               }
             } else if (response.status === 401) {
