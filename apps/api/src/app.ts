@@ -13,10 +13,16 @@ import { generalRateLimit } from "./middleware/rateLimiting";
 // Load environment variables
 dotenv.config();
 
-// Set development environment variables if not set
+// Set development environment variables if not set (do NOT default in production)
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL =
-    "postgresql://postgres:password@localhost:5432/ntsamaela";
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "❌ DATABASE_URL is required in production. Set DATABASE_URL in Railway (or your host) to your Postgres connection string."
+    );
+  } else {
+    process.env.DATABASE_URL =
+      "postgresql://postgres:password@localhost:5432/ntsamaela";
+  }
 }
 if (!process.env.DISABLE_PRISMA) {
   process.env.DISABLE_PRISMA = "false"; // Enable Prisma for development

@@ -73,10 +73,7 @@ async function ensureAdminUser() {
   }
 }
 
-// Run admin user seeding before starting server
-ensureAdminUser();
-
-// Add error handlers
+// Add error handlers (before starting server)
 process.on("uncaughtException", (error: Error) => {
   console.error("❌ Uncaught Exception:", error);
   process.exit(1);
@@ -87,7 +84,7 @@ process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   process.exit(1);
 });
 
-// Start server - listen on 0.0.0.0 to accept connections from outside container
+// Start server first so the process stays up and health checks pass; then ensure admin in background
 try {
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
@@ -95,6 +92,10 @@ try {
     console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`🔗 API base: http://0.0.0.0:${PORT}/api`);
     console.log(`🔌 Socket.IO enabled for real-time features`);
+    // Run admin seeding in background so DB errors don't block startup
+    ensureAdminUser().catch((err) => {
+      console.error("⚠️  ensureAdminUser failed (non-fatal):", err);
+    });
   });
 
   server.on("error", (error: Error & { code?: string; syscall?: string }) => {
