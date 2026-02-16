@@ -1,5 +1,9 @@
-// API Client utility for mobile app
-const API_BASE_URL = 'http://192.168.1.116:3001/api';
+// API Client utility for mobile app - uses env in prod (EXPO_PUBLIC_API_URL), local in __DEV__
+const getApiBase = () => {
+  const base = process.env.EXPO_PUBLIC_API_URL || (typeof __DEV__ !== 'undefined' && __DEV__ ? 'http://192.168.1.116:3000' : '');
+  return base ? `${base.replace(/\/$/, '')}/api` : '';
+};
+const API_BASE_URL = getApiBase();
 
 class ApiClient {
   constructor() {

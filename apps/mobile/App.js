@@ -28,6 +28,7 @@ import {
   NotificationScreen,
   AvailableDriversScreen,
 } from './src/screens';
+import { API_CONFIG } from './src/constants/config';
 import apiService from './src/services/apiService';
 import socketService from './src/services/socketService';
 
@@ -258,7 +259,7 @@ function NavigationProvider({ children }) {
 
   const fetchUserProfile = async (token) => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/auth/me`, {
         method: 'GET',
         headers: {
@@ -282,7 +283,7 @@ function NavigationProvider({ children }) {
 
   const fetchWalletBalance = async (token) => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/wallet/balance`, {
         method: 'GET',
         headers: {
@@ -319,7 +320,7 @@ function NavigationProvider({ children }) {
       // Use environment variable or default to local IP
       // For Expo Go on physical device, use your computer's local IP
       // For emulator, use localhost or 10.0.2.2 (Android) / localhost (iOS)
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       
       console.log(`🔗 Attempting to connect to: ${apiUrl}/api/auth/login-phone`);
       console.log(`📱 Phone number: ${phone}`);
@@ -824,7 +825,7 @@ function RegisterCustomerScreen() {
 
     setIsLoading(true);
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       
       // Normalize phone number
       let normalizedPhone = phoneNumber.trim();
@@ -989,7 +990,7 @@ function RegisterDriverScreen() {
 
     setIsLoading(true);
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       
       // Normalize phone number
       let normalizedPhone = phoneNumber.trim();
@@ -2943,7 +2944,7 @@ function CreatePackageScreen() {
     }
 
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/packages`, {
         method: 'POST',
         headers: {
@@ -3820,7 +3821,7 @@ function MyTripsScreen() {
     }
     
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/bids/package/${pkg.id}`, {
         method: 'GET',
         headers: {
@@ -3849,7 +3850,7 @@ function MyTripsScreen() {
     }
 
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/bids/${selectedPackage.id}/counter`, {
         method: 'POST',
         headers: {

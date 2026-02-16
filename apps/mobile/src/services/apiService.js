@@ -1,5 +1,5 @@
-// Enhanced API Service for mobile app
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+// Enhanced API Service for mobile app - uses API_CONFIG.BASE_URL (env in prod, local in __DEV__)
+import { API_CONFIG } from '../constants/config';
 
 class ApiService {
   constructor() {
@@ -25,7 +25,7 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${API_CONFIG.BASE_URL}${endpoint}`;
     const config = {
       headers: this.getHeaders(!options.isFormData),
       ...options,

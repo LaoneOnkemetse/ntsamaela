@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { Alert } from 'react-native';
 import apiService from '../services/apiService';
 import socketService from '../services/socketService';
+import { API_CONFIG } from '../constants/config';
 
 const NavigationContext = createContext();
 
@@ -95,7 +96,7 @@ export const NavigationProvider = ({ children }) => {
 
   const fetchUserProfile = async (token) => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/auth/me`, {
         method: 'GET',
         headers: {
@@ -118,7 +119,7 @@ export const NavigationProvider = ({ children }) => {
 
   const fetchWalletBalance = async (token) => {
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/wallet/balance`, {
         method: 'GET',
         headers: {
@@ -150,7 +151,7 @@ export const NavigationProvider = ({ children }) => {
         return;
       }
 
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.116:3000';
+      const apiUrl = API_CONFIG.BASE_URL;
       let normalizedPhone = phone.trim();
       if (!normalizedPhone.startsWith('+')) {
         normalizedPhone = '+' + normalizedPhone;
