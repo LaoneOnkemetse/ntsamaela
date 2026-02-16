@@ -73,7 +73,8 @@ export const getRecentActivity = async () => {
 export const getUsers = async (params?: any) => {
   try {
     const response = await apiClient.get("/admin/users", { params });
-    return response.data.data;
+    const data = response.data.data ?? response.data;
+    return data;
   } catch (error) {
     console.error("Error fetching users:", error);
     throw error;
@@ -93,7 +94,7 @@ export const createUser = async (userData: any) => {
 export const getUserById = async (id: string) => {
   try {
     const response = await apiClient.get(`/admin/users/${id}`);
-    return response.data.data;
+    return response.data.data ?? response.data;
   } catch (error) {
     console.error("Error fetching user:", error);
     throw error;
@@ -103,7 +104,7 @@ export const getUserById = async (id: string) => {
 export const updateUser = async (id: string, data: any) => {
   try {
     const response = await apiClient.put(`/admin/users/${id}`, data);
-    return response.data.data;
+    return response.data.data ?? response.data;
   } catch (error) {
     console.error("Error updating user:", error);
     throw error;

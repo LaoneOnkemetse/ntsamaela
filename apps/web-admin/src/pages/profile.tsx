@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -25,7 +25,7 @@ import { getUserById, updateUser } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUser: updateAuthUser } = useAuth();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,10 +53,32 @@ export default function Profile() {
 
   const currentUser = userData || user;
 
+  // Keep formData in sync with fetched user so display and edit state stay correct
+  useEffect(() => {
+    const source = userData || user;
+    if (source) {
+      setFormData({
+        firstName: source.firstName ?? '',
+        lastName: source.lastName ?? '',
+        email: source.email ?? '',
+        phone: source.phone ?? '',
+      });
+    }
+  }, [userData, user]);
+
   // Update user mutation
   const updateMutation = useMutation({
     mutationFn: (data: any) => updateUser(user?.id || '', data),
-    onSuccess: () => {
+    onSuccess: (updatedUser: any) => {
+      if (updatedUser && updateAuthUser) {
+        updateAuthUser({
+          ...user,
+          ...updatedUser,
+          id: user?.id ?? updatedUser.id,
+          createdAt: updatedUser.createdAt ?? user?.createdAt,
+          updatedAt: updatedUser.updatedAt ?? user?.updatedAt,
+        } as any);
+      }
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Profile updated successfully!');

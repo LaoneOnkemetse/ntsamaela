@@ -506,41 +506,46 @@ export class AdminService {
     try {
       const where: any = {};
 
-      if (filters.status) {
-        where.status = { in: filters.status };
+      if (filters.userType) {
+        where.userType = filters.userType;
       }
 
       if (filters.search) {
         where.OR = [
-          { name: { contains: filters.search, mode: "insensitive" } },
+          { firstName: { contains: filters.search, mode: "insensitive" } },
+          { lastName: { contains: filters.search, mode: "insensitive" } },
           { email: { contains: filters.search, mode: "insensitive" } },
+          { phone: { contains: filters.search, mode: "insensitive" } },
         ];
       }
+
+      const sortBy = ["createdAt", "updatedAt", "email", "firstName", "lastName", "userType"].includes(filters.sortBy || "")
+        ? (filters.sortBy as string)
+        : "createdAt";
 
       const [users, total] = await Promise.all([
         this.getPrisma().user.findMany({
           where,
-          orderBy: {
-            [filters.sortBy || "createdAt"]: filters.sortOrder || "desc",
-          },
+          orderBy: { [sortBy]: filters.sortOrder || "desc" },
           skip: ((filters.page || 1) - 1) * (filters.limit || 20),
           take: filters.limit || 20,
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            userType: true,
+            identityVerified: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         }),
         this.getPrisma().user.count({ where }),
       ]);
 
       return {
-        users: users.map((user: any) => ({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          status: user.status,
-          isVerified: user.isVerified,
-          verificationStatus: user.verificationStatus,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        })),
+        users,
         total,
       };
     } catch (_error) {
@@ -553,25 +558,27 @@ export class AdminService {
     try {
       const user = await this.getPrisma().user.findUnique({
         where: { id },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          userType: true,
+          identityVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
 
       if (!user) {
         throw new Error("User not found");
       }
 
-      return {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        status: user.status,
-        isVerified: user.isVerified,
-        verificationStatus: user.verificationStatus,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      };
-    } catch (_error) {
-      console.error("Error fetching user:", _error);
+      return user;
+    } catch (error: any) {
+      if (error.message === "User not found") throw error;
+      console.error("Error fetching user:", error);
       throw new Error("Failed to fetch user");
     }
   }

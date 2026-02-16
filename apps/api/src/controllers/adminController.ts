@@ -157,6 +157,7 @@ export class AdminController {
       const filters: AdminFilterOptions = {
         status: req.query.status as string,
         role: req.query.role as string,
+        userType: (req.query.userType || req.query.role) as string,
         dateFrom: req.query.startDate as string,
         dateTo: req.query.endDate as string,
         search: req.query.search as string,
@@ -167,7 +168,7 @@ export class AdminController {
       };
 
       const result = await this.adminService.getUsers(filters);
-      res.json(result);
+      res.json({ success: true, data: result });
     } catch (_error: any) {
       res
         .status(500)
@@ -179,11 +180,11 @@ export class AdminController {
     try {
       const { id } = req.params;
       const user = await this.adminService.getUser(id);
-      res.json(user);
+      res.json({ success: true, data: user });
     } catch (_error: any) {
       res
-        .status(500)
-        .json({ message: _error.message || "Failed to fetch user" });
+        .status(_error.message === "User not found" ? 404 : 500)
+        .json({ success: false, error: { message: _error.message || "Failed to fetch user" } });
     }
   }
 
