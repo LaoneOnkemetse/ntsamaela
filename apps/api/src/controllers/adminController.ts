@@ -48,7 +48,8 @@ export class AdminController {
           activeUsers: dashboardData.summary?.activeUsers || 0,
           activePackages: dashboardData.summary?.activeDeliveries || 0,
           totalDeliveries: dashboardData.summary?.totalDeliveries || 0,
-          pendingVerifications: dashboardData.summary?.pendingVerifications || 0,
+          pendingVerifications:
+            dashboardData.summary?.pendingVerifications || 0,
           totalRevenue: dashboardData.summary?.totalRevenue || 0,
           userGrowth: 0, // Calculate if needed
           packageGrowth: 0, // Calculate if needed
@@ -56,26 +57,27 @@ export class AdminController {
           revenueGrowth: 0, // Calculate if needed
           verificationProgress: 0, // Calculate if needed
           revenueProgress: 0, // Calculate if needed
-        }
+        },
       });
     } catch (_error: any) {
-      console.error('Dashboard error:', _error);
-      console.error('Dashboard error name:', _error?.name);
-      console.error('Dashboard error message:', _error?.message);
-      console.error('Dashboard error stack:', _error?.stack);
-      console.error('Dashboard error code:', _error?.code);
-      res
-        .status(500)
-        .json({ 
-          success: false,
-          message: _error.message || "Failed to fetch dashboard data",
-          error: process.env.NODE_ENV === 'development' ? {
-            message: _error.message,
-            name: _error.name,
-            code: _error.code,
-            stack: _error.stack
-          } : undefined
-        });
+      console.error("Dashboard error:", _error);
+      console.error("Dashboard error name:", _error?.name);
+      console.error("Dashboard error message:", _error?.message);
+      console.error("Dashboard error stack:", _error?.stack);
+      console.error("Dashboard error code:", _error?.code);
+      res.status(500).json({
+        success: false,
+        message: _error.message || "Failed to fetch dashboard data",
+        error:
+          process.env.NODE_ENV === "development"
+            ? {
+                message: _error.message,
+                name: _error.name,
+                code: _error.code,
+                stack: _error.stack,
+              }
+            : undefined,
+      });
     }
   }
 
@@ -96,11 +98,9 @@ export class AdminController {
       const result = await this.adminService.getVerificationRequests(filters);
       res.json(result);
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          message: _error.message || "Failed to fetch verification requests",
-        });
+      res.status(500).json({
+        message: _error.message || "Failed to fetch verification requests",
+      });
     }
   }
 
@@ -110,11 +110,9 @@ export class AdminController {
       const verification = await this.adminService.getVerificationRequest(id);
       res.json(verification);
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          message: _error.message || "Failed to fetch verification request",
-        });
+      res.status(500).json({
+        message: _error.message || "Failed to fetch verification request",
+      });
     }
   }
 
@@ -186,6 +184,27 @@ export class AdminController {
       res
         .status(500)
         .json({ message: _error.message || "Failed to fetch user" });
+    }
+  }
+
+  async updateUserProfile(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { firstName, lastName, email, phone } = req.body;
+      const user = await this.adminService.updateUserProfile(id, {
+        firstName,
+        lastName,
+        email,
+        phone,
+      });
+      res.json({ success: true, data: user });
+    } catch (_error: any) {
+      res
+        .status(_error.message === "User not found" ? 404 : 500)
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to update profile" },
+        });
     }
   }
 
@@ -277,17 +296,15 @@ export class AdminController {
       res.json({
         success: true,
         data: result.transactions || result,
-        total: result.total || (Array.isArray(result) ? result.length : 0)
+        total: result.total || (Array.isArray(result) ? result.length : 0),
       });
     } catch (_error: any) {
-      console.error('Transactions error:', _error);
-      res
-        .status(500)
-        .json({ 
-          success: false,
-          message: _error.message || "Failed to fetch transactions",
-          error: _error
-        });
+      console.error("Transactions error:", _error);
+      res.status(500).json({
+        success: false,
+        message: _error.message || "Failed to fetch transactions",
+        error: _error,
+      });
     }
   }
 
@@ -345,11 +362,9 @@ export class AdminController {
       );
       res.json(analytics);
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          message: _error.message || "Failed to fetch transaction analytics",
-        });
+      res.status(500).json({
+        message: _error.message || "Failed to fetch transaction analytics",
+      });
     }
   }
 
@@ -371,11 +386,9 @@ export class AdminController {
       const metrics = await this.adminService.getRealTimeMetrics();
       res.json(metrics);
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          message: _error.message || "Failed to fetch real-time metrics",
-        });
+      res.status(500).json({
+        message: _error.message || "Failed to fetch real-time metrics",
+      });
     }
   }
 
@@ -551,7 +564,7 @@ export class AdminController {
   async getAdminNotifications(req: AuthenticatedRequest, res: Response) {
     try {
       const options = {
-        unreadOnly: req.query.unreadOnly === 'true',
+        unreadOnly: req.query.unreadOnly === "true",
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
         type: req.query.type as string,
       };
@@ -560,7 +573,7 @@ export class AdminController {
     } catch (_error: any) {
       res.status(500).json({
         success: false,
-        message: _error.message || 'Failed to fetch admin notifications',
+        message: _error.message || "Failed to fetch admin notifications",
       });
     }
   }
@@ -595,7 +608,10 @@ export class AdminController {
     } catch (_error: any) {
       res
         .status(500)
-        .json({ success: false, error: { message: _error.message || "Failed to fetch settings" } });
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to fetch settings" },
+        });
     }
   }
 
@@ -606,7 +622,10 @@ export class AdminController {
     } catch (_error: any) {
       res
         .status(500)
-        .json({ success: false, error: { message: _error.message || "Failed to save settings" } });
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to save settings" },
+        });
     }
   }
 }

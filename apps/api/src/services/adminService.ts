@@ -119,7 +119,9 @@ export class AdminService {
         recentTransactions,
         _systemAlerts,
       ] = await Promise.all([
-        prisma.user.count({ where: { userType: { not: "ADMIN" } } }).catch(() => 0),
+        prisma.user
+          .count({ where: { userType: { not: "ADMIN" } } })
+          .catch(() => 0),
         prisma.package
           .count({ where: { status: { in: ["IN_TRANSIT", "IN_PROGRESS"] } } })
           .catch(() => 0),
@@ -571,6 +573,49 @@ export class AdminService {
     } catch (_error) {
       console.error("Error fetching user:", _error);
       throw new Error("Failed to fetch user");
+    }
+  }
+
+  async updateUserProfile(
+    id: string,
+    updates: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+    },
+  ) {
+    try {
+      const prisma = this.getPrisma();
+      const existing = await prisma.user.findUnique({ where: { id } });
+      if (!existing) {
+        throw new Error("User not found");
+      }
+      const data: Record<string, unknown> = { updatedAt: new Date() };
+      if (updates.firstName !== undefined) data.firstName = updates.firstName;
+      if (updates.lastName !== undefined) data.lastName = updates.lastName;
+      if (updates.email !== undefined) data.email = updates.email;
+      if (updates.phone !== undefined) data.phone = updates.phone;
+      const user = await prisma.user.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          userType: true,
+          identityVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      return user;
+    } catch (error: any) {
+      if (error.message === "User not found") throw error;
+      console.error("Error updating user profile:", error);
+      throw new Error("Failed to update profile");
     }
   }
 
