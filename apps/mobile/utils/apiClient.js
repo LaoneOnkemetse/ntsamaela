@@ -1,8 +1,8 @@
 const RAILWAY_API_URL = 'https://ntsamaelaapi-production.up.railway.app';
 
-// API Client utility - production: Railway API. Dev: local.
+// API Client - always production (Railway). Override with EXPO_PUBLIC_API_URL if needed.
 const getApiBase = () => {
-  const base = process.env.EXPO_PUBLIC_API_URL || (typeof __DEV__ !== 'undefined' && __DEV__ ? 'http://192.168.1.116:3000' : RAILWAY_API_URL);
+  const base = process.env.EXPO_PUBLIC_API_URL || RAILWAY_API_URL;
   return base ? `${base.replace(/\/$/, '')}/api` : '';
 };
 const API_BASE_URL = getApiBase();

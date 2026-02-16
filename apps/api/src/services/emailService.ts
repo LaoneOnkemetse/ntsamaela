@@ -120,7 +120,7 @@ class EmailService {
    * Account Recovery Email - Only used when user loses their phone
    */
   async sendAccountRecoveryEmail(email: string, recoveryToken: string): Promise<EmailResponse> {
-    const recoveryUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account-recovery?token=${recoveryToken}`;
+    const recoveryUrl = `${process.env.FRONTEND_URL || 'https://ntsamaelaweb-production.up.railway.app'}/account-recovery?token=${recoveryToken}`;
     const subject = 'Account Recovery - Ntsamaela';
     const body = `You requested to recover your Ntsamaela account. Click the following link to recover your account:\n\n${recoveryUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email and contact support immediately.`;
     const htmlBody = `

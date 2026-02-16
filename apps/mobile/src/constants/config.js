@@ -1,10 +1,7 @@
 const RAILWAY_API_URL = 'https://ntsamaelaapi-production.up.railway.app';
 
-// API Configuration - production: Railway API. Dev: local fallback.
-const getApiBase = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  return typeof __DEV__ !== 'undefined' && __DEV__ ? 'http://192.168.1.116:3000' : RAILWAY_API_URL;
-};
+// API Configuration - always production (Railway). Override with EXPO_PUBLIC_API_URL if needed.
+const getApiBase = () => process.env.EXPO_PUBLIC_API_URL || RAILWAY_API_URL;
 
 export const API_CONFIG = {
   get BASE_URL() {
@@ -13,12 +10,8 @@ export const API_CONFIG = {
   TIMEOUT: 10000,
 };
 
-// Socket.IO - production: same as API. Dev: local fallback.
-const getSocketUrl = () => {
-  if (process.env.EXPO_PUBLIC_SOCKET_URL) return process.env.EXPO_PUBLIC_SOCKET_URL;
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  return typeof __DEV__ !== 'undefined' && __DEV__ ? 'http://192.168.1.116:3000' : RAILWAY_API_URL;
-};
+// Socket.IO - same as API.
+const getSocketUrl = () => process.env.EXPO_PUBLIC_SOCKET_URL || process.env.EXPO_PUBLIC_API_URL || RAILWAY_API_URL;
 
 export const SOCKET_CONFIG = {
   get URL() {

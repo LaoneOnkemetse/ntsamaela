@@ -71,17 +71,17 @@ if (server) {
 // Security middleware
 app.use(helmet());
 
-// CORS configuration - allow multiple origins
+// CORS configuration - production defaults (Railway). Env vars override.
+const PRODUCTION_WEB = "https://ntsamaelaweb-production.up.railway.app";
+const PRODUCTION_WEB_ADMIN = "https://ntsamaelaweb-admin-production.up.railway.app";
 const allowedOrigins = [
   process.env.CORS_ORIGIN,
   process.env.FRONTEND_URL,
   process.env.WEB_ADMIN_URL,
-  "http://localhost:3000",
-  "http://localhost:3001",
-  // Allow Railway web-admin domains
+  PRODUCTION_WEB,
+  PRODUCTION_WEB_ADMIN,
   /^https:\/\/.*web-admin.*\.up\.railway\.app$/,
   /^https:\/\/.*webadmin.*\.up\.railway\.app$/,
-  // Allow Railway web domains
   /^https:\/\/.*ntsamaela.*\.up\.railway\.app$/,
 ].filter(Boolean) as (string | RegExp)[];
 
