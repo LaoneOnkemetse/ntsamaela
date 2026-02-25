@@ -96,10 +96,13 @@ export class AdminController {
       };
 
       const result = await this.adminService.getVerificationRequests(filters);
-      res.json(result);
+      res.json({ success: true, data: result.requests, total: result.total });
     } catch (_error: any) {
       res.status(500).json({
-        message: _error.message || "Failed to fetch verification requests",
+        success: false,
+        error: {
+          message: _error.message || "Failed to fetch verification requests",
+        },
       });
     }
   }
@@ -120,8 +123,7 @@ export class AdminController {
     try {
       const { id } = req.params;
       const { status, notes, rejectionReason } = req.body;
-      const adminId = req.user?.id; // Assuming admin user is attached to request
-
+      const adminId = req.user?.id;
       await this.adminService.reviewVerification(
         id,
         status,
@@ -129,11 +131,72 @@ export class AdminController {
         rejectionReason,
         adminId,
       );
-      res.json({ message: "Verification reviewed successfully" });
+      res.json({
+        success: true,
+        message: "Verification reviewed successfully",
+      });
     } catch (_error: any) {
       res
-        .status(500)
-        .json({ message: _error.message || "Failed to review verification" });
+        .status(_error.message?.includes("not found") ? 404 : 500)
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to review verification" },
+        });
+    }
+  }
+
+  async approveVerification(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.id;
+      await this.adminService.reviewVerification(
+        id,
+        "APPROVED",
+        undefined,
+        undefined,
+        adminId,
+      );
+      res.json({
+        success: true,
+        data: { id },
+        message: "Verification approved",
+      });
+    } catch (_error: any) {
+      res
+        .status(_error.message?.includes("not found") ? 404 : 500)
+        .json({
+          success: false,
+          error: {
+            message: _error.message || "Failed to approve verification",
+          },
+        });
+    }
+  }
+
+  async rejectVerification(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+      const adminId = req.user?.id;
+      await this.adminService.reviewVerification(
+        id,
+        "REJECTED",
+        undefined,
+        reason || "Rejected by admin",
+        adminId,
+      );
+      res.json({
+        success: true,
+        data: { id },
+        message: "Verification rejected",
+      });
+    } catch (_error: any) {
+      res
+        .status(_error.message?.includes("not found") ? 404 : 500)
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to reject verification" },
+        });
     }
   }
 
@@ -184,7 +247,10 @@ export class AdminController {
     } catch (_error: any) {
       res
         .status(_error.message === "User not found" ? 404 : 500)
-        .json({ success: false, error: { message: _error.message || "Failed to fetch user" } });
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to fetch user" },
+        });
     }
   }
 
@@ -200,12 +266,10 @@ export class AdminController {
       });
       res.json({ success: true, data: user });
     } catch (_error: any) {
-      res
-        .status(_error.message === "User not found" ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to update profile" },
-        });
+      res.status(_error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to update profile" },
+      });
     }
   }
 
@@ -240,13 +304,30 @@ export class AdminController {
   async unsuspendUser(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
-
       await this.adminService.unsuspendUser(id);
-      res.json({ message: "User unsuspended successfully" });
+      res.json({ success: true, message: "User unsuspended successfully" });
     } catch (_error: any) {
       res
-        .status(500)
-        .json({ message: _error.message || "Failed to unsuspend user" });
+        .status(_error.message === "User not found" ? 404 : 500)
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to unsuspend user" },
+        });
+    }
+  }
+
+  async deleteUser(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      await this.adminService.deleteUser(id);
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (_error: any) {
+      res
+        .status(_error.message === "User not found" ? 404 : 500)
+        .json({
+          success: false,
+          error: { message: _error.message || "Failed to delete user" },
+        });
     }
   }
 
@@ -607,12 +688,10 @@ export class AdminController {
       const settings = await this.adminService.getSettings();
       res.json({ success: true, data: settings });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to fetch settings" },
-        });
+      res.status(500).json({
+        success: false,
+        error: { message: _error.message || "Failed to fetch settings" },
+      });
     }
   }
 
@@ -621,12 +700,10 @@ export class AdminController {
       const settings = await this.adminService.saveSettings(req.body);
       res.json({ success: true, data: settings });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to save settings" },
-        });
+      res.status(500).json({
+        success: false,
+        error: { message: _error.message || "Failed to save settings" },
+      });
     }
   }
 }

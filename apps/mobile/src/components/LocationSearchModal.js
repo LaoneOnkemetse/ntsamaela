@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,23 +11,23 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-} from 'react-native';
-import * as Location from 'expo-location';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
-import { colors } from '../constants/colors';
-import { sharedStyles } from '../styles/sharedStyles';
-import { decodePolyline } from '../utils/packageUtils';
+} from "react-native";
+import * as Location from "expo-location";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { colors } from "../constants/colors";
+import { sharedStyles } from "../styles/sharedStyles";
+import { decodePolyline } from "../utils/packageUtils";
 
-export const LocationSearchModal = ({ 
-  visible, 
-  title, 
-  onSelect, 
-  onCancel, 
-  showRoute = false, 
-  routeStart = null, 
-  routeEnd = null 
+export const LocationSearchModal = ({
+  visible,
+  title,
+  onSelect,
+  onCancel,
+  showRoute = false,
+  routeStart = null,
+  routeEnd = null,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [mapRegion, setMapRegion] = useState({
     latitude: -24.6282, // Gaborone default
@@ -46,15 +46,18 @@ export const LocationSearchModal = ({
     try {
       setIsLoadingLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Location permission is required to use this feature.",
+        );
         setIsLoadingLocation(false);
         return;
       }
 
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
-      
+
       // Update map region
       const newRegion = {
         latitude,
@@ -63,16 +66,16 @@ export const LocationSearchModal = ({
         longitudeDelta: 0.05,
       };
       setMapRegion(newRegion);
-      
+
       // Reverse geocode to get address
       await reverseGeocode(latitude, longitude);
-      
+
       if (mapRef.current) {
         mapRef.current.animateToRegion(newRegion, 1000);
       }
     } catch (error) {
-      console.error('Error getting current location:', error);
-      Alert.alert('Error', 'Failed to get your current location.');
+      console.error("Error getting current location:", error);
+      Alert.alert("Error", "Failed to get your current location.");
     } finally {
       setIsLoadingLocation(false);
     }
@@ -84,27 +87,25 @@ export const LocationSearchModal = ({
       setIsLoading(true);
       const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
-        // Fallback to sample location if API key not configured
-        const sampleLocation = {
-          name: 'Selected Location',
+        setSelectedLocation({
+          name: "Selected Location",
           address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
           lat: latitude,
           lng: longitude,
-        };
-        setSelectedLocation(sampleLocation);
+        });
         setIsLoading(false);
         return;
       }
 
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`,
       );
       const data = await response.json();
-      
+
       if (data.results && data.results.length > 0) {
         const result = data.results[0];
         const location = {
-          name: result.formatted_address.split(',')[0],
+          name: result.formatted_address.split(",")[0],
           address: result.formatted_address,
           lat: latitude,
           lng: longitude,
@@ -112,7 +113,7 @@ export const LocationSearchModal = ({
         setSelectedLocation(location);
       } else {
         const location = {
-          name: 'Selected Location',
+          name: "Selected Location",
           address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
           lat: latitude,
           lng: longitude,
@@ -120,9 +121,9 @@ export const LocationSearchModal = ({
         setSelectedLocation(location);
       }
     } catch (error) {
-      console.error('Error reverse geocoding:', error);
+      console.error("Error reverse geocoding:", error);
       const location = {
-        name: 'Selected Location',
+        name: "Selected Location",
         address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
         lat: latitude,
         lng: longitude,
@@ -144,17 +145,7 @@ export const LocationSearchModal = ({
       setIsLoading(true);
       const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
-        // Fallback to sample locations if API key not configured
-        const sampleLocations = [
-          { id: 1, name: 'Gaborone Main Mall', address: 'The Mall, Gaborone', lat: -24.6282, lng: 25.9231 },
-          { id: 2, name: 'Sir Seretse Khama Airport', address: 'Airport Road, Gaborone', lat: -24.5552, lng: 25.9182 },
-          { id: 3, name: 'Francistown Bus Rank', address: 'Blue Jacket St, Francistown', lat: -21.1700, lng: 27.5083 },
-        ];
-        const filtered = sampleLocations.filter(loc =>
-          loc.name.toLowerCase().includes(query.toLowerCase()) ||
-          loc.address.toLowerCase().includes(query.toLowerCase())
-        );
-        setSearchResults(filtered);
+        setSearchResults([]);
         setIsLoading(false);
         return;
       }
@@ -163,21 +154,22 @@ export const LocationSearchModal = ({
       const response = await fetch(
         `https://places.googleapis.com/v1/places:autocomplete`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask":
+              "suggestions.placePrediction.placeId,suggestions.placePrediction.text",
           },
           body: JSON.stringify({
             input: query,
-            includedRegionCodes: ['bw'],
-            languageCode: 'en'
-          })
-        }
+            includedRegionCodes: ["bw"],
+            languageCode: "en",
+          }),
+        },
       );
       const data = await response.json();
-      
+
       if (data.suggestions) {
         const results = await Promise.all(
           data.suggestions.slice(0, 5).map(async (suggestion) => {
@@ -187,31 +179,38 @@ export const LocationSearchModal = ({
                 `https://places.googleapis.com/v1/places/${suggestion.placePrediction.placeId}`,
                 {
                   headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': apiKey,
-                    'X-Goog-FieldMask': 'id,displayName,formattedAddress,location'
-                  }
-                }
+                    "Content-Type": "application/json",
+                    "X-Goog-Api-Key": apiKey,
+                    "X-Goog-FieldMask":
+                      "id,displayName,formattedAddress,location",
+                  },
+                },
               );
               const detailsData = await detailsResponse.json();
-              
+
               if (detailsData.location) {
                 return {
                   id: detailsData.id || suggestion.placePrediction.placeId,
-                  name: detailsData.displayName?.text || suggestion.placePrediction.text?.text || 'Unknown',
-                  address: detailsData.formattedAddress || suggestion.placePrediction.text?.text || '',
+                  name:
+                    detailsData.displayName?.text ||
+                    suggestion.placePrediction.text?.text ||
+                    "Unknown",
+                  address:
+                    detailsData.formattedAddress ||
+                    suggestion.placePrediction.text?.text ||
+                    "",
                   lat: detailsData.location.latitude || 0,
                   lng: detailsData.location.longitude || 0,
                 };
               }
             }
             return null;
-          })
+          }),
         );
-        setSearchResults(results.filter(r => r !== null));
+        setSearchResults(results.filter((r) => r !== null));
       }
     } catch (error) {
-      console.error('Error searching addresses:', error);
+      console.error("Error searching addresses:", error);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
@@ -234,16 +233,18 @@ export const LocationSearchModal = ({
 
           const origin = `${routeStart.lat},${routeStart.lng}`;
           const destination = `${routeEnd.lat},${routeEnd.lng}`;
-          
+
           const response = await fetch(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`
+            `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`,
           );
           const data = await response.json();
 
-          if (data.status === 'OK' && data.routes[0]) {
-            const polyline = decodePolyline(data.routes[0].overview_polyline.points);
+          if (data.status === "OK" && data.routes[0]) {
+            const polyline = decodePolyline(
+              data.routes[0].overview_polyline.points,
+            );
             setRoutePolyline(polyline);
-            
+
             // Fit map to show entire route
             if (polyline.length > 0 && mapRef.current) {
               const coordinates = polyline;
@@ -254,7 +255,7 @@ export const LocationSearchModal = ({
             }
           }
         } catch (error) {
-          console.error('Error loading route:', error);
+          console.error("Error loading route:", error);
         }
       };
       loadRoute();
@@ -281,7 +282,7 @@ export const LocationSearchModal = ({
     setSelectedLocation(location);
     setSearchQuery(location.address);
     setSearchResults([]);
-    
+
     const newRegion = {
       latitude: location.lat,
       longitude: location.lng,
@@ -289,7 +290,7 @@ export const LocationSearchModal = ({
       longitudeDelta: 0.01,
     };
     setMapRegion(newRegion);
-    
+
     if (mapRef.current) {
       mapRef.current.animateToRegion(newRegion, 1000);
     }
@@ -298,7 +299,7 @@ export const LocationSearchModal = ({
   const handleSelect = () => {
     if (selectedLocation) {
       onSelect(selectedLocation);
-      setSearchQuery('');
+      setSearchQuery("");
       setSelectedLocation(null);
       setSearchResults([]);
     }
@@ -306,28 +307,28 @@ export const LocationSearchModal = ({
 
   const handleCancel = () => {
     onCancel();
-    setSearchQuery('');
+    setSearchQuery("");
     setSelectedLocation(null);
     setSearchResults([]);
   };
 
   return (
-    <Modal 
-      visible={visible} 
-      transparent 
-      animationType="slide" 
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
       onRequestClose={handleCancel}
     >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <View style={sharedStyles.modalOverlay}>
-          <View style={[sharedStyles.modalContent, { height: '90%' }]}>
+          <View style={[sharedStyles.modalContent, { height: "90%" }]}>
             <Text style={sharedStyles.modalTitle}>{title}</Text>
-            
+
             {/* Search Input */}
-            <View style={{ position: 'relative', marginBottom: 12 }}>
+            <View style={{ position: "relative", marginBottom: 12 }}>
               <TextInput
                 style={sharedStyles.modalInput}
                 placeholder="Search location or drag map..."
@@ -336,7 +337,7 @@ export const LocationSearchModal = ({
                 onChangeText={setSearchQuery}
               />
               {isLoading && (
-                <View style={{ position: 'absolute', right: 12, top: 12 }}>
+                <View style={{ position: "absolute", right: 12, top: 12 }}>
                   <ActivityIndicator size="small" color={colors.primary} />
                 </View>
               )}
@@ -344,8 +345,15 @@ export const LocationSearchModal = ({
 
             {/* Search Results */}
             {searchResults.length > 0 && (
-              <ScrollView style={{ maxHeight: 150, marginBottom: 12, backgroundColor: colors.cardBg, borderRadius: 8 }}>
-                {searchResults.map(location => (
+              <ScrollView
+                style={{
+                  maxHeight: 150,
+                  marginBottom: 12,
+                  backgroundColor: colors.cardBg,
+                  borderRadius: 8,
+                }}
+              >
+                {searchResults.map((location) => (
                   <TouchableOpacity
                     key={location.id}
                     style={styles.locationItem}
@@ -354,7 +362,9 @@ export const LocationSearchModal = ({
                     <Text style={styles.locationIcon}>📍</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.locationName}>{location.name}</Text>
-                      <Text style={styles.locationAddress}>{location.address}</Text>
+                      <Text style={styles.locationAddress}>
+                        {location.address}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -362,7 +372,14 @@ export const LocationSearchModal = ({
             )}
 
             {/* Map View */}
-            <View style={{ flex: 1, borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+            <View
+              style={{
+                flex: 1,
+                borderRadius: 8,
+                overflow: "hidden",
+                marginBottom: 12,
+              }}
+            >
               <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -382,7 +399,7 @@ export const LocationSearchModal = ({
                     lineDashPattern={[1]}
                   />
                 )}
-                
+
                 {/* Route start marker */}
                 {showRoute && routeStart && (
                   <Marker
@@ -394,7 +411,7 @@ export const LocationSearchModal = ({
                     pinColor={colors.success}
                   />
                 )}
-                
+
                 {/* Route end marker */}
                 {showRoute && routeEnd && (
                   <Marker
@@ -406,7 +423,7 @@ export const LocationSearchModal = ({
                     pinColor={colors.error}
                   />
                 )}
-                
+
                 {/* Selected location marker */}
                 {selectedLocation && (
                   <Marker
@@ -422,7 +439,7 @@ export const LocationSearchModal = ({
                   />
                 )}
               </MapView>
-              
+
               {/* Current Location Button */}
               <TouchableOpacity
                 style={styles.currentLocationButton}
@@ -442,8 +459,12 @@ export const LocationSearchModal = ({
               <View style={styles.selectedLocationInfo}>
                 <Text style={styles.locationIcon}>📍</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.locationName}>{selectedLocation.name}</Text>
-                  <Text style={styles.locationAddress}>{selectedLocation.address}</Text>
+                  <Text style={styles.locationName}>
+                    {selectedLocation.name}
+                  </Text>
+                  <Text style={styles.locationAddress}>
+                    {selectedLocation.address}
+                  </Text>
                 </View>
               </View>
             )}
@@ -451,7 +472,10 @@ export const LocationSearchModal = ({
             {/* Action Buttons */}
             <View style={sharedStyles.modalButtons}>
               <TouchableOpacity
-                style={[sharedStyles.modalButton, sharedStyles.modalCancelButton]}
+                style={[
+                  sharedStyles.modalButton,
+                  sharedStyles.modalCancelButton,
+                ]}
                 onPress={handleCancel}
               >
                 <Text style={sharedStyles.modalCancelButtonText}>Cancel</Text>
@@ -460,7 +484,7 @@ export const LocationSearchModal = ({
                 style={[
                   sharedStyles.modalButton,
                   sharedStyles.modalButtonSubmit,
-                  (!selectedLocation || isLoading) && { opacity: 0.5 }
+                  (!selectedLocation || isLoading) && { opacity: 0.5 },
                 ]}
                 onPress={handleSelect}
                 disabled={!selectedLocation || isLoading}
@@ -477,8 +501,8 @@ export const LocationSearchModal = ({
 
 const styles = StyleSheet.create({
   locationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -489,7 +513,7 @@ const styles = StyleSheet.create({
   },
   locationName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 4,
   },
@@ -498,15 +522,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   currentLocationButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 16,
     right: 16,
     backgroundColor: colors.cardBg,
     borderRadius: 24,
     width: 48,
     height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -517,12 +541,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   selectedLocationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.cardBgLight,
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
   },
 });
-

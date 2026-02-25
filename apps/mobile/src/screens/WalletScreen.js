@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,18 +10,18 @@ import {
   TextInput,
   Modal,
   Linking,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../constants/colors';
-import apiService from '../services/apiService';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../constants/colors";
+import apiService from "../services/apiService";
 
-export const WalletScreen = ({ navigation, route }) => {
+export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [commissionBreakdown, setCommissionBreakdown] = useState(null);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
-  const [rechargeAmount, setRechargeAmount] = useState('');
+  const [rechargeAmount, setRechargeAmount] = useState("");
 
   useEffect(() => {
     loadWalletData();
@@ -30,26 +30,47 @@ export const WalletScreen = ({ navigation, route }) => {
   const loadWalletData = async () => {
     setLoading(true);
     try {
-      const [balanceRes, transactionsRes, commissionRes] = await Promise.all([
-        apiService.getWalletBalance(),
-        apiService.getTransactions({ limit: 50 }),
-        apiService.getCommissionBreakdown().catch(() => null),
-      ]);
+      const [balanceRes, transactionsRes, commissionRes] =
+        await Promise.allSettled([
+          apiService.getWalletBalance(),
+          apiService.getTransactions({ limit: 50 }),
+          apiService.getCommissionBreakdown().catch(() => null),
+        ]);
 
-      if (balanceRes.success) {
-        setBalance(balanceRes.data?.availableBalance || 0);
+      const balanceValue =
+        balanceRes.status === "fulfilled" ? balanceRes.value : null;
+      const transactionsValue =
+        transactionsRes.status === "fulfilled" ? transactionsRes.value : null;
+      const commissionValue =
+        commissionRes.status === "fulfilled" ? commissionRes.value : null;
+
+      if (balanceValue?.success && balanceValue.data != null) {
+        const bal = balanceValue.data?.availableBalance ?? balanceValue.data;
+        setBalance(typeof bal === "number" ? bal : 0);
+      } else if (
+        balanceRes.status === "rejected" &&
+        balanceRes.reason?.response?.status === 403
+      ) {
+        Alert.alert(
+          "Not available",
+          "Wallet is only available for drivers and customers with an account.",
+        );
       }
 
-      if (transactionsRes.success) {
-        setTransactions(transactionsRes.data?.transactions || []);
+      if (transactionsValue?.success && transactionsValue.data != null) {
+        const list =
+          transactionsValue.data?.transactions ?? transactionsValue.data;
+        setTransactions(Array.isArray(list) ? list : []);
+      } else {
+        setTransactions([]);
       }
 
-      if (commissionRes?.success) {
-        setCommissionBreakdown(commissionRes.data);
+      if (commissionValue?.success && commissionValue.data) {
+        setCommissionBreakdown(commissionValue.data);
       }
     } catch (error) {
-      console.error('Failed to load wallet data:', error);
-      Alert.alert('Error', 'Failed to load wallet information');
+      console.error("Failed to load wallet data:", error);
+      Alert.alert("Error", "Failed to load wallet information");
     } finally {
       setLoading(false);
     }
@@ -58,14 +79,14 @@ export const WalletScreen = ({ navigation, route }) => {
   const handleRecharge = async () => {
     const amount = parseFloat(rechargeAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount');
+      Alert.alert("Invalid Amount", "Please enter a valid amount");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await apiService.rechargeWallet(amount, 'PAYSTACK');
-      
+      const response = await apiService.rechargeWallet(amount, "PAYSTACK");
+
       if (response.success) {
         if (response.data?.paymentUrl) {
           // Open payment URL in browser
@@ -73,52 +94,59 @@ export const WalletScreen = ({ navigation, route }) => {
           if (canOpen) {
             await Linking.openURL(response.data.paymentUrl);
             Alert.alert(
-              'Payment',
-              'Redirecting to payment gateway. Please complete the payment and return to the app.',
-              [{ text: 'OK', onPress: () => setShowRechargeModal(false) }]
+              "Payment",
+              "Redirecting to payment gateway. Please complete the payment and return to the app.",
+              [{ text: "OK", onPress: () => setShowRechargeModal(false) }],
             );
           } else {
-            Alert.alert('Error', 'Cannot open payment URL');
+            Alert.alert("Error", "Cannot open payment URL");
           }
         } else {
-          Alert.alert('Success', 'Wallet recharged successfully');
+          Alert.alert("Success", "Wallet recharged successfully");
           setShowRechargeModal(false);
-          setRechargeAmount('');
+          setRechargeAmount("");
           loadWalletData();
         }
       } else {
-        Alert.alert('Error', response.error?.message || 'Failed to recharge wallet');
+        Alert.alert(
+          "Error",
+          response.error?.message || "Failed to recharge wallet",
+        );
       }
     } catch (error) {
-      console.error('Recharge error:', error);
-      Alert.alert('Error', error.message || 'Failed to recharge wallet');
+      console.error("Recharge error:", error);
+      Alert.alert("Error", error.message || "Failed to recharge wallet");
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount) => {
-    return `P ${amount.toFixed(2)}`;
+    const n = Number(amount);
+    if (n !== n) return "P 0.00";
+    return `P ${n.toFixed(2)}`;
   };
 
   const formatDate = (dateString) => {
+    if (dateString == null) return "—";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getTransactionColor = (type) => {
     switch (type) {
-      case 'DEPOSIT':
-      case 'EARNING':
+      case "DEPOSIT":
+      case "EARNING":
         return colors.success;
-      case 'WITHDRAWAL':
-      case 'COMMISSION':
+      case "WITHDRAWAL":
+      case "COMMISSION":
         return colors.error;
       default:
         return colors.textSecondary;
@@ -127,7 +155,10 @@ export const WalletScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         <Text style={styles.title}>My Wallet</Text>
 
         {/* Balance Card */}
@@ -176,37 +207,49 @@ export const WalletScreen = ({ navigation, route }) => {
             <Text style={styles.emptyText}>No transactions yet</Text>
           ) : (
             transactions.map((transaction) => (
-              <View key={transaction.id} style={styles.transactionCard}>
+              <View
+                key={transaction.id || Math.random()}
+                style={styles.transactionCard}
+              >
                 <View style={styles.transactionHeader}>
-                  <Text style={styles.transactionType}>{transaction.type}</Text>
+                  <Text style={styles.transactionType}>
+                    {transaction.type || "—"}
+                  </Text>
                   <Text
                     style={[
                       styles.transactionAmount,
                       { color: getTransactionColor(transaction.type) },
                     ]}
                   >
-                    {transaction.type === 'WITHDRAWAL' || transaction.type === 'COMMISSION'
-                      ? '-'
-                      : '+'}
-                    {formatCurrency(Math.abs(transaction.amount))}
+                    {transaction.type === "WITHDRAWAL" ||
+                    transaction.type === "COMMISSION"
+                      ? "-"
+                      : "+"}
+                    {formatCurrency(Math.abs(Number(transaction.amount) || 0))}
                   </Text>
                 </View>
-                <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                <Text style={styles.transactionDate}>{formatDate(transaction.createdAt)}</Text>
+                <Text style={styles.transactionDescription}>
+                  {transaction.description || "—"}
+                </Text>
+                <Text style={styles.transactionDate}>
+                  {formatDate(transaction.createdAt)}
+                </Text>
                 <View
                   style={[
                     styles.statusBadge,
                     {
                       backgroundColor:
-                        transaction.status === 'COMPLETED'
+                        transaction.status === "COMPLETED"
                           ? colors.success
-                          : transaction.status === 'PENDING'
-                          ? colors.warning
-                          : colors.error,
+                          : transaction.status === "PENDING"
+                            ? colors.warning
+                            : colors.error,
                     },
                   ]}
                 >
-                  <Text style={styles.statusText}>{transaction.status}</Text>
+                  <Text style={styles.statusText}>
+                    {transaction.status || "—"}
+                  </Text>
                 </View>
               </View>
             ))
@@ -236,7 +279,7 @@ export const WalletScreen = ({ navigation, route }) => {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setShowRechargeModal(false);
-                  setRechargeAmount('');
+                  setRechargeAmount("");
                 }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -273,7 +316,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     marginBottom: 20,
   },
@@ -282,7 +325,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   balanceLabel: {
     fontSize: 14,
@@ -291,7 +334,7 @@ const styles = StyleSheet.create({
   },
   balanceAmount: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.primary,
     marginBottom: 16,
   },
@@ -304,7 +347,7 @@ const styles = StyleSheet.create({
   rechargeButtonText: {
     color: colors.textLight,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   commissionCard: {
     backgroundColor: colors.cardBg,
@@ -314,13 +357,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 12,
   },
   commissionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   commissionLabel: {
@@ -329,14 +372,14 @@ const styles = StyleSheet.create({
   },
   commissionValue: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
   },
   transactionsSection: {
     marginTop: 10,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: colors.textTertiary,
     marginTop: 20,
   },
@@ -347,18 +390,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   transactionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   transactionType: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
   },
   transactionAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   transactionDescription: {
     fontSize: 14,
@@ -371,7 +414,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusBadge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -379,23 +422,23 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: colors.textLight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: colors.cardBg,
     borderRadius: 12,
     padding: 24,
-    width: '80%',
+    width: "80%",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     marginBottom: 16,
   },
@@ -409,28 +452,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardBgLight,
   },
   modalButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   modalButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButton: {
     backgroundColor: colors.border,
   },
   cancelButtonText: {
     color: colors.textPrimary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   confirmButton: {
     backgroundColor: colors.primary,
   },
   confirmButtonText: {
     color: colors.textLight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
-

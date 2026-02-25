@@ -1,40 +1,40 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Alert } from 'react-native';
-import apiService from '../services/apiService';
-import socketService from '../services/socketService';
-import { API_CONFIG } from '../constants/config';
+import React, { createContext, useContext, useState } from "react";
+import { Alert } from "react-native";
+import apiService from "../services/apiService";
+import socketService from "../services/socketService";
+import { API_CONFIG } from "../constants/config";
 
 const NavigationContext = createContext();
 
 export const useNavigation = () => {
   const context = useContext(NavigationContext);
   if (!context) {
-    throw new Error('useNavigation must be used within NavigationProvider');
+    throw new Error("useNavigation must be used within NavigationProvider");
   }
   return context;
 };
 
 export const NavigationProvider = ({ children }) => {
-  const [currentScreen, setCurrentScreen] = useState('loading');
-  const [screenHistory, setScreenHistory] = useState(['loading']);
+  const [currentScreen, setCurrentScreen] = useState("loading");
+  const [screenHistory, setScreenHistory] = useState(["loading"]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userType, setUserType] = useState(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState("home");
   const [authToken, setAuthToken] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [screenParams, setScreenParams] = useState({});
-  
+
   const [userProfile, setUserProfile] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
+    firstName: "",
+    lastName: "",
+    phone: "",
     profilePhoto: null,
     rating: 0,
     totalDeliveries: 0,
     totalEarnings: 0,
     isVerified: false,
     phoneVerified: false,
-    email: '',
+    email: "",
     userId: null,
   });
 
@@ -54,17 +54,17 @@ export const NavigationProvider = ({ children }) => {
         id: 999,
         driver: `${userProfile.firstName} ${userProfile.lastName}`,
         rating: userProfile.rating,
-        location: 'Current Location',
-        vehicle: 'My Vehicle',
+        location: "Current Location",
+        vehicle: "My Vehicle",
         totalDeliveries: userProfile.totalDeliveries,
-        earnings: `P ${userProfile.totalEarnings}`
+        earnings: `P ${userProfile.totalEarnings}`,
       };
-      setActiveDrivers(prev => {
-        const exists = prev.some(d => d.id === 999);
+      setActiveDrivers((prev) => {
+        const exists = prev.some((d) => d.id === 999);
         return exists ? prev : [...prev, currentDriverProfile];
       });
     } else {
-      setActiveDrivers(prev => prev.filter(d => d.id !== 999));
+      setActiveDrivers((prev) => prev.filter((d) => d.id !== 999));
     }
   };
 
@@ -77,20 +77,20 @@ export const NavigationProvider = ({ children }) => {
       to: tripData.to.name,
       date: `${tripData.date}, ${tripData.time}`,
       spacesLeft: 3,
-      price: 'P 100'
+      price: "P 100",
     };
-    setUpcomingTrips(prev => [...prev, newTrip]);
+    setUpcomingTrips((prev) => [...prev, newTrip]);
   };
 
   const navigate = (screenName, replace = false, params = {}) => {
     if (replace) {
       setScreenHistory([screenName]);
     } else {
-      setScreenHistory(prev => [...prev, screenName]);
+      setScreenHistory((prev) => [...prev, screenName]);
     }
     setCurrentScreen(screenName);
     if (Object.keys(params).length > 0) {
-      setScreenParams(prev => ({ ...prev, [screenName]: params }));
+      setScreenParams((prev) => ({ ...prev, [screenName]: params }));
     }
   };
 
@@ -98,10 +98,10 @@ export const NavigationProvider = ({ children }) => {
     try {
       const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/auth/me`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
       if (response.ok) {
@@ -112,7 +112,7 @@ export const NavigationProvider = ({ children }) => {
       }
       return null;
     } catch (error) {
-      console.error('Failed to fetch user profile:', error);
+      console.error("Failed to fetch user profile:", error);
       return null;
     }
   };
@@ -121,10 +121,10 @@ export const NavigationProvider = ({ children }) => {
     try {
       const apiUrl = API_CONFIG.BASE_URL;
       const response = await fetch(`${apiUrl}/api/wallet/balance`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
       if (response.ok) {
@@ -135,7 +135,7 @@ export const NavigationProvider = ({ children }) => {
       }
       return 0;
     } catch (error) {
-      console.error('Failed to fetch wallet balance:', error);
+      console.error("Failed to fetch wallet balance:", error);
       return 0;
     }
   };
@@ -143,18 +143,18 @@ export const NavigationProvider = ({ children }) => {
   const login = async (phone, password) => {
     try {
       if (!phone || !phone.trim()) {
-        Alert.alert('Validation Error', 'Phone number is required');
+        Alert.alert("Validation Error", "Phone number is required");
         return;
       }
       if (!password || !password.trim()) {
-        Alert.alert('Validation Error', 'Password is required');
+        Alert.alert("Validation Error", "Password is required");
         return;
       }
 
       const apiUrl = API_CONFIG.BASE_URL;
       let normalizedPhone = phone.trim();
-      if (!normalizedPhone.startsWith('+')) {
-        normalizedPhone = '+' + normalizedPhone;
+      if (!normalizedPhone.startsWith("+")) {
+        normalizedPhone = "+" + normalizedPhone;
       }
 
       const controller = new AbortController();
@@ -163,49 +163,78 @@ export const NavigationProvider = ({ children }) => {
       let response;
       try {
         response = await fetch(`${apiUrl}/api/auth/login-phone`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone: normalizedPhone, password }),
-          signal: controller.signal
+          signal: controller.signal,
         });
-      } catch (fetchError) {
+      } catch {
         clearTimeout(timeoutId);
-        Alert.alert('Connection Error', 'Unable to connect to the server. Please check your internet connection and try again.');
+        Alert.alert(
+          "Connection Error",
+          "Unable to connect to the server. Please check your internet connection and try again.",
+        );
         return;
       }
 
       clearTimeout(timeoutId);
-      
+
       if (!response) {
-        Alert.alert('Connection Error', 'Unable to connect to the server. Please try again.');
+        Alert.alert(
+          "Connection Error",
+          "Unable to connect to the server. Please try again.",
+        );
         return;
       }
 
       let data;
       try {
         data = await response.json();
-      } catch (parseError) {
-        Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+      } catch {
+        Alert.alert("Sign in Failed", "Unable to sign in. Please try again.");
         return;
       }
 
-      if (!response.ok || response.status === 401 || response.status === 403 || data.success !== true) {
-        const errorCode = data.error?.code || 'UNKNOWN_ERROR';
-        if (errorCode === 'USER_NOT_FOUND') {
-          Alert.alert('Phone Number Not Registered', 'This phone number is not registered. Would you like to sign up?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign Up', onPress: () => navigate('registerCustomer', true) }
-          ]);
-        } else if (errorCode === 'INVALID_PASSWORD') {
-          Alert.alert('Incorrect Password', 'The password you entered is incorrect. Please try again.');
+      if (
+        !response.ok ||
+        response.status === 401 ||
+        response.status === 403 ||
+        data.success !== true
+      ) {
+        const errorCode = data.error?.code || "UNKNOWN_ERROR";
+        if (errorCode === "USER_NOT_FOUND") {
+          Alert.alert(
+            "Phone Number Not Registered",
+            "This phone number is not registered. Would you like to sign up?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign Up",
+                onPress: () => navigate("registerCustomer", true),
+              },
+            ],
+          );
+        } else if (errorCode === "INVALID_PASSWORD") {
+          Alert.alert(
+            "Incorrect Password",
+            "The password you entered is incorrect. Please try again.",
+          );
         } else {
-          Alert.alert('Sign in Failed', 'Unable to sign in. Please check your credentials and try again.');
+          Alert.alert(
+            "Sign in Failed",
+            "Unable to sign in. Please check your credentials and try again.",
+          );
         }
         return;
       }
 
-      if (!data.data || !data.data.token || !data.data.user || !data.data.user.id) {
-        Alert.alert('Sign in Failed', 'Unable to sign in. Please try again.');
+      if (
+        !data.data ||
+        !data.data.token ||
+        !data.data.user ||
+        !data.data.user.id
+      ) {
+        Alert.alert("Sign in Failed", "Unable to sign in. Please try again.");
         return;
       }
 
@@ -214,8 +243,8 @@ export const NavigationProvider = ({ children }) => {
 
       setAuthToken(token);
       setUserProfile({
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
+        firstName: userData.firstName || "",
+        lastName: userData.lastName || "",
         phone: userData.phone || normalizedPhone,
         profilePhoto: userData.profilePictureUrl || null,
         rating: 0,
@@ -223,16 +252,16 @@ export const NavigationProvider = ({ children }) => {
         totalEarnings: 0,
         isVerified: userData.identityVerified || false,
         phoneVerified: userData.phoneVerified || false,
-        email: userData.email || '',
+        email: userData.email || "",
         userId: userData.id,
       });
 
-      const actualUserType = userData.userType?.toLowerCase() || 'customer';
+      const actualUserType = userData.userType?.toLowerCase() || "customer";
       setUserType(actualUserType);
 
       const fullProfile = await fetchUserProfile(token);
       if (fullProfile) {
-        setUserProfile(prev => ({
+        setUserProfile((prev) => ({
           ...prev,
           firstName: fullProfile.firstName || prev.firstName,
           lastName: fullProfile.lastName || prev.lastName,
@@ -246,9 +275,9 @@ export const NavigationProvider = ({ children }) => {
       }
 
       const walletBalance = await fetchWalletBalance(token);
-      if (actualUserType === 'customer') {
+      if (actualUserType === "customer") {
         setCustomerWallet(walletBalance);
-      } else if (actualUserType === 'driver') {
+      } else if (actualUserType === "driver") {
         setDriverWallet(walletBalance);
       }
 
@@ -257,16 +286,22 @@ export const NavigationProvider = ({ children }) => {
       try {
         socketService.connect(token);
       } catch (socketError) {
-        console.warn('Socket.IO connection failed:', socketError);
+        console.warn("Socket.IO connection failed:", socketError);
       }
 
-      navigate('home', true);
+      navigate("home", true);
     } catch (error) {
-      console.error('Login error:', error);
-      if (error.name === 'AbortError') {
-        Alert.alert('Connection Timeout', 'The request took too long. Please check your internet connection and try again.');
+      console.error("Login error:", error);
+      if (error.name === "AbortError") {
+        Alert.alert(
+          "Connection Timeout",
+          "The request took too long. Please check your internet connection and try again.",
+        );
       } else {
-        Alert.alert('Connection Error', 'Unable to connect to the server. Please check your internet connection and try again.');
+        Alert.alert(
+          "Connection Error",
+          "Unable to connect to the server. Please check your internet connection and try again.",
+        );
       }
       setIsAuthenticated(false);
       setAuthToken(null);
@@ -277,10 +312,10 @@ export const NavigationProvider = ({ children }) => {
   const logout = () => {
     setIsAuthenticated(false);
     setUserType(null);
-    setActiveTab('home');
+    setActiveTab("home");
     apiService.setToken(null);
     socketService.disconnect();
-    navigate('login', true);
+    navigate("login", true);
   };
 
   const goBack = () => {
@@ -294,42 +329,44 @@ export const NavigationProvider = ({ children }) => {
   };
 
   return (
-    <NavigationContext.Provider value={{
-      currentScreen,
-      navigate,
-      goBack,
-      isAuthenticated,
-      userType,
-      login,
-      logout,
-      activeTab,
-      setActiveTab,
-      userProfile,
-      setUserProfile,
-      customerWallet,
-      setCustomerWallet,
-      driverWallet,
-      setDriverWallet,
-      myPackages,
-      setMyPackages,
-      availablePackages,
-      setAvailablePackages,
-      myBids,
-      setMyBids,
-      notifications,
-      setNotifications,
-      upcomingTrips,
-      setUpcomingTrips,
-      addTrip,
-      isActiveDriver,
-      toggleActiveDriverStatus,
-      activeDrivers,
-      setActiveDrivers,
-      authToken,
-      screenParams,
-    }}>
+    <NavigationContext.Provider
+      value={{
+        currentScreen,
+        navigate,
+        goBack,
+        isAuthenticated,
+        userType,
+        login,
+        logout,
+        activeTab,
+        setActiveTab,
+        userProfile,
+        setUserProfile,
+        customerWallet,
+        setCustomerWallet,
+        driverWallet,
+        setDriverWallet,
+        myPackages,
+        setMyPackages,
+        availablePackages,
+        setAvailablePackages,
+        myBids,
+        setMyBids,
+        notifications,
+        setNotifications,
+        upcomingTrips,
+        setUpcomingTrips,
+        addTrip,
+        isActiveDriver,
+        toggleActiveDriverStatus,
+        activeDrivers,
+        setActiveDrivers,
+        authToken,
+        screenParams,
+        setScreenParams,
+      }}
+    >
       {children}
     </NavigationContext.Provider>
   );
 };
-

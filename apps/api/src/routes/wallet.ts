@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import WalletController from '../controllers/walletController';
-import { authenticateToken, requireAdmin } from '../middleware/authMiddleware';
-import { requireUserType } from '../middleware/roleAuth';
-import { validateRequest } from '../middleware/validationMiddleware';
+import { Router } from "express";
+import WalletController from "../controllers/walletController";
+import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
+import { requireUserType } from "../middleware/roleAuth";
+import { validateRequest } from "../middleware/validationMiddleware";
 
 const router = Router();
 const walletController = new WalletController();
@@ -13,10 +13,10 @@ const walletController = new WalletController();
  * @access Private
  */
 router.get(
-  '/balance',
+  "/balance",
   authenticateToken,
-  requireUserType(['DRIVER']),
-  walletController.getWalletBalance
+  requireUserType(["DRIVER", "CUSTOMER"]),
+  walletController.getWalletBalance,
 );
 
 /**
@@ -25,18 +25,22 @@ router.get(
  * @access Private
  */
 router.post(
-  '/recharge',
+  "/recharge",
   authenticateToken,
-  requireUserType(['DRIVER']),
+  requireUserType(["DRIVER"]),
   validateRequest({
     body: {
-      amount: { type: 'number', required: true, min: 0.01, max: 10000 },
-      paymentMethod: { type: 'string', enum: ['CARD', 'BANK_TRANSFER', 'MOBILE_MONEY'], required: true },
-      paymentReference: { type: 'string', required: false },
-      description: { type: 'string', required: false }
-    }
+      amount: { type: "number", required: true, min: 0.01, max: 10000 },
+      paymentMethod: {
+        type: "string",
+        enum: ["CARD", "BANK_TRANSFER", "MOBILE_MONEY"],
+        required: true,
+      },
+      paymentReference: { type: "string", required: false },
+      description: { type: "string", required: false },
+    },
   }),
-  walletController.rechargeWallet
+  walletController.rechargeWallet,
 );
 
 /**
@@ -45,16 +49,16 @@ router.post(
  * @access Private
  */
 router.get(
-  '/transactions',
+  "/transactions",
   authenticateToken,
-  requireUserType(['DRIVER']),
+  requireUserType(["DRIVER", "CUSTOMER"]),
   validateRequest({
     query: {
-      limit: { type: 'number', required: false, min: 1, max: 100 },
-      offset: { type: 'number', required: false, min: 0 }
-    }
+      limit: { type: "number", required: false, min: 1, max: 100 },
+      offset: { type: "number", required: false, min: 0 },
+    },
   }),
-  walletController.getTransactionHistory
+  walletController.getTransactionHistory,
 );
 
 /**
@@ -63,16 +67,16 @@ router.get(
  * @access Private (Driver only)
  */
 router.post(
-  '/commission/reserve',
+  "/commission/reserve",
   authenticateToken,
-  requireUserType(['DRIVER']),
+  requireUserType(["DRIVER"]),
   validateRequest({
     body: {
-      tripId: { type: 'string', required: true },
-      tripAmount: { type: 'number', required: true, min: 0.01 }
-    }
+      tripId: { type: "string", required: true },
+      tripAmount: { type: "number", required: true, min: 0.01 },
+    },
   }),
-  walletController.reserveCommission
+  walletController.reserveCommission,
 );
 
 /**
@@ -81,16 +85,20 @@ router.post(
  * @access Private (Driver only)
  */
 router.post(
-  '/commission/release',
+  "/commission/release",
   authenticateToken,
-  requireUserType(['DRIVER']),
+  requireUserType(["DRIVER"]),
   validateRequest({
     body: {
-      reservationId: { type: 'string', required: true },
-      status: { type: 'string', enum: ['CONFIRMED', 'CANCELLED'], required: true }
-    }
+      reservationId: { type: "string", required: true },
+      status: {
+        type: "string",
+        enum: ["CONFIRMED", "CANCELLED"],
+        required: true,
+      },
+    },
   }),
-  walletController.releaseCommission
+  walletController.releaseCommission,
 );
 
 /**
@@ -99,10 +107,10 @@ router.post(
  * @access Private
  */
 router.get(
-  '/notifications',
+  "/notifications",
   authenticateToken,
-  requireUserType(['DRIVER']),
-  walletController.getLowBalanceNotifications
+  requireUserType(["DRIVER"]),
+  walletController.getLowBalanceNotifications,
 );
 
 /**
@@ -111,15 +119,15 @@ router.get(
  * @access Private
  */
 router.post(
-  '/commission/calculate',
+  "/commission/calculate",
   authenticateToken,
-  requireUserType(['DRIVER']),
+  requireUserType(["DRIVER"]),
   validateRequest({
     body: {
-      tripAmount: { type: 'number', required: true, min: 0.01 }
-    }
+      tripAmount: { type: "number", required: true, min: 0.01 },
+    },
   }),
-  walletController.calculateCommission
+  walletController.calculateCommission,
 );
 
 /**
@@ -128,10 +136,10 @@ router.post(
  * @access Private (Admin only)
  */
 router.post(
-  '/admin/process-expired',
+  "/admin/process-expired",
   authenticateToken,
   requireAdmin,
-  walletController.processExpiredReservations
+  walletController.processExpiredReservations,
 );
 
 export default router;

@@ -331,27 +331,49 @@ export class AdminService {
         }),
       ]);
 
+      const documents = (req: any) => [
+        {
+          id: req.id + "_front",
+          type: req.documentType,
+          url: req.frontImageUrl,
+          uploadedAt: req.createdAt,
+          metadata: null,
+        },
+        ...(req.backImageUrl
+          ? [
+              {
+                id: req.id + "_back",
+                type: req.documentType,
+                url: req.backImageUrl,
+                uploadedAt: req.createdAt,
+                metadata: null,
+              },
+            ]
+          : []),
+        {
+          id: req.id + "_selfie",
+          type: "SELFIE",
+          url: req.selfieImageUrl,
+          uploadedAt: req.createdAt,
+          metadata: null,
+        },
+      ];
       return {
         requests: requests.map((req: any) => ({
           id: req.id,
           userId: req.userId,
-          userEmail: req.user.email,
-          userName: `${req.user.firstName} ${req.user.lastName}`,
-          type: req.type as any,
-          status: req.status as any,
+          userEmail: req.user?.email,
+          userName: req.user
+            ? `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim()
+            : "",
+          documentType: req.documentType,
+          type: req.documentType,
+          status: req.status,
           submittedAt: req.createdAt,
           reviewedAt: req.reviewedAt,
           reviewedBy: req.reviewedBy,
-          documents: req.documents.map((doc: any) => ({
-            id: doc.id,
-            type: doc.type as any,
-            url: doc.url,
-            uploadedAt: doc.createdAt,
-            metadata: doc.metadata as any,
-          })),
-          notes: req.notes,
+          documents: documents(req),
           rejectionReason: req.rejectionReason,
-          expiresAt: req.expiresAt,
         })),
         total,
         page: filters.page || 1,
@@ -445,31 +467,22 @@ export class AdminService {
         where: { id },
         data: {
           status,
-          notes,
-          rejectionReason,
+          rejectionReason: rejectionReason ?? undefined,
           reviewedAt: new Date(),
-          reviewedBy: adminId,
+          reviewedBy: adminId ?? undefined,
         },
       });
 
-      // Update user verification status if approved
+      // Update user identity verification flag when approved
       if (status === "APPROVED") {
-        const prisma = this.getPrisma();
-        if (!prisma) {
-          throw new Error("Prisma client not available");
-        }
         const verification = await prisma.verification.findUnique({
           where: { id },
-          select: { userId: true, documentType: true },
+          select: { userId: true },
         });
-
         if (verification) {
-          await this.getPrisma().user.update({
+          await prisma.user.update({
             where: { id: verification.userId },
-            data: {
-              isVerified: true,
-              verificationStatus: "VERIFIED",
-            },
+            data: { identityVerified: true, updatedAt: new Date() },
           });
         }
       }
@@ -519,7 +532,14 @@ export class AdminService {
         ];
       }
 
-      const sortBy = ["createdAt", "updatedAt", "email", "firstName", "lastName", "userType"].includes(filters.sortBy || "")
+      const sortBy = [
+        "createdAt",
+        "updatedAt",
+        "email",
+        "firstName",
+        "lastName",
+        "userType",
+      ].includes(filters.sortBy || "")
         ? (filters.sortBy as string)
         : "createdAt";
 
@@ -671,18 +691,40 @@ export class AdminService {
       if (!prisma) {
         throw new Error("Prisma client not available");
       }
-      // User model doesn't have a status field - skip for now
       const _user = await prisma.user.update({
         where: { id },
-        data: {
-          updatedAt: new Date(),
-        },
+        data: { updatedAt: new Date() },
       });
-
       return { message: "User unsuspended successfully" };
     } catch (_error) {
       console.error("Error unsuspending user:", _error);
       throw new Error("Failed to unsuspend user");
+    }
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    try {
+      const prisma = this.getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client not available");
+      }
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, userType: true },
+      });
+      if (!user) {
+        throw new Error("User not found");
+      }
+      await prisma.user.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error.code === "P2003") {
+        throw new Error("Cannot delete user: related records exist");
+      }
+      if (error.message === "User not found") throw error;
+      console.error("Error deleting user:", error);
+      throw new Error("Failed to delete user");
     }
   }
 

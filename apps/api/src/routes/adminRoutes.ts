@@ -28,6 +28,14 @@ router.put(
   adminController.reviewVerification.bind(adminController),
 );
 router.post(
+  "/verifications/:id/approve",
+  adminController.approveVerification.bind(adminController),
+);
+router.post(
+  "/verifications/:id/reject",
+  adminController.rejectVerification.bind(adminController),
+);
+router.post(
   "/verifications/bulk-review",
   adminController.bulkReviewVerifications.bind(adminController),
 );
@@ -51,6 +59,7 @@ router.post(
   "/users/:id/unsuspend",
   adminController.unsuspendUser.bind(adminController),
 );
+router.delete("/users/:id", adminController.deleteUser.bind(adminController));
 router.post(
   "/users/:id/reset-password",
   adminController.resetUserPassword.bind(adminController),

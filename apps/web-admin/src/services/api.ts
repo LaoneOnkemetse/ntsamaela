@@ -229,7 +229,7 @@ export const deleteTrip = async (id: string) => {
 export const getVerifications = async (params?: any) => {
   try {
     const response = await apiClient.get("/admin/verifications", { params });
-    return response.data.data;
+    return response.data.data ?? response.data?.verifications ?? response.data;
   } catch (error) {
     console.error("Error fetching verifications:", error);
     throw error;

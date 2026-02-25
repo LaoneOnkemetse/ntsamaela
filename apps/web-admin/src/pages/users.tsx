@@ -124,7 +124,11 @@ export default function Users() {
       setAnchorEl(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to delete user");
+      const msg =
+        error.response?.data?.error?.message ??
+        error.response?.data?.message ??
+        "Failed to delete user";
+      toast.error(msg);
     },
   });
 
@@ -191,8 +195,10 @@ export default function Users() {
 
   const handleSuspend = () => {
     if (selectedUser) {
-      const action =
-        selectedUser.status === "SUSPENDED" ? "unsuspend" : "suspend";
+      const status =
+        selectedUser.status ??
+        (selectedUser.identityVerified ? "VERIFIED" : "ACTIVE");
+      const action = status === "SUSPENDED" ? "unsuspend" : "suspend";
       suspendUserMutation.mutate({ id: selectedUser.id, action });
     }
   };
@@ -326,13 +332,21 @@ export default function Users() {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={user.status || "ACTIVE"}
-                        color={getStatusColor(user.status) as any}
+                        label={
+                          user.status ??
+                          (user.identityVerified ? "VERIFIED" : "ACTIVE")
+                        }
+                        color={
+                          getStatusColor(
+                            user.status ??
+                              (user.identityVerified ? "VERIFIED" : "ACTIVE"),
+                          ) as any
+                        }
                         size="small"
                       />
                     </TableCell>
                     <TableCell>
-                      {user.isVerified ? (
+                      {(user.isVerified ?? user.identityVerified) ? (
                         <CheckCircle color="success" />
                       ) : (
                         <Chip
@@ -378,7 +392,11 @@ export default function Users() {
           }}
         >
           <Block sx={{ mr: 1 }} fontSize="small" />
-          {selectedUser?.status === "SUSPENDED" ? "Unsuspend" : "Suspend"}
+          {(selectedUser?.status ??
+            (selectedUser?.identityVerified ? "VERIFIED" : "ACTIVE")) ===
+          "SUSPENDED"
+            ? "Unsuspend"
+            : "Suspend"}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -529,7 +547,12 @@ export default function Users() {
         onClose={() => setSuspendDialogOpen(false)}
       >
         <DialogTitle>
-          {selectedUser?.status === "SUSPENDED" ? "Unsuspend" : "Suspend"} User
+          {(selectedUser?.status ??
+            (selectedUser?.identityVerified ? "VERIFIED" : "ACTIVE")) ===
+          "SUSPENDED"
+            ? "Unsuspend"
+            : "Suspend"}{" "}
+          User
         </DialogTitle>
         <DialogContent>
           <Typography>
