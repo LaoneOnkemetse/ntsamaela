@@ -327,9 +327,15 @@ export default function Verifications() {
                         size="small"
                         startIcon={<Visibility />}
                         onClick={() => handleReview(verification)}
-                        disabled={verification.status !== "PENDING"}
+                        disabled={
+                          verification.status !== "PENDING" ||
+                          verification.itemType === "unverified_user" ||
+                          String(verification.id || "").startsWith("user-")
+                        }
                       >
-                        Review
+                        {verification.itemType === "unverified_user"
+                          ? "Awaiting documents"
+                          : "Review"}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -352,8 +358,11 @@ export default function Verifications() {
         fullWidth
       >
         <DialogTitle>
-          Review Verification - {selectedVerification?.user?.firstName}{" "}
-          {selectedVerification?.user?.lastName}
+          Review Verification -{" "}
+          {selectedVerification?.userName ||
+            (selectedVerification?.user
+              ? `${selectedVerification.user.firstName} ${selectedVerification.user.lastName}`
+              : "Unknown")}
         </DialogTitle>
         <DialogContent>
           {selectedVerification && (

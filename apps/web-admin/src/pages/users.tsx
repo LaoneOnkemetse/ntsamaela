@@ -63,6 +63,13 @@ export default function Users() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
   const [newUserData, setNewUserData] = useState({
     email: "",
     password: "",
@@ -195,10 +202,8 @@ export default function Users() {
 
   const handleSuspend = () => {
     if (selectedUser) {
-      const status =
-        selectedUser.status ??
-        (selectedUser.identityVerified ? "VERIFIED" : "ACTIVE");
-      const action = status === "SUSPENDED" ? "unsuspend" : "suspend";
+      const isSuspended = !!selectedUser.suspendedAt;
+      const action = isSuspended ? "unsuspend" : "suspend";
       suspendUserMutation.mutate({ id: selectedUser.id, action });
     }
   };
@@ -209,7 +214,21 @@ export default function Users() {
     }
   };
 
-  const users = usersData || [];
+  const handleEditSave = () => {
+    if (selectedUser?.id) {
+      updateUserMutation.mutate(
+        { id: selectedUser.id, data: editFormData },
+        {
+          onSuccess: () => {
+            setEditDialogOpen(false);
+            setSelectedUser(null);
+          },
+        },
+      );
+    }
+  };
+
+  const users = Array.isArray(usersData) ? usersData : usersData?.users ?? [];
 
   const getStatusColor = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -333,13 +352,17 @@ export default function Users() {
                     <TableCell>
                       <Chip
                         label={
-                          user.status ??
-                          (user.identityVerified ? "VERIFIED" : "ACTIVE")
+                          user.suspendedAt
+                            ? "SUSPENDED"
+                            : user.status ??
+                              (user.identityVerified ? "VERIFIED" : "ACTIVE")
                         }
                         color={
                           getStatusColor(
-                            user.status ??
-                              (user.identityVerified ? "VERIFIED" : "ACTIVE"),
+                            user.suspendedAt
+                              ? "SUSPENDED"
+                              : user.status ??
+                                (user.identityVerified ? "VERIFIED" : "ACTIVE"),
                           ) as any
                         }
                         size="small"
@@ -380,7 +403,16 @@ export default function Users() {
       >
         <MenuItem
           onClick={() => {
-            handleMenuClose(); /* Navigate to edit */
+            if (selectedUser) {
+              setEditFormData({
+                firstName: selectedUser.firstName ?? "",
+                lastName: selectedUser.lastName ?? "",
+                email: selectedUser.email ?? "",
+                phone: selectedUser.phone ?? "",
+              });
+              setEditDialogOpen(true);
+            }
+            handleMenuClose();
           }}
         >
           <EditIcon sx={{ mr: 1 }} fontSize="small" />
@@ -392,11 +424,7 @@ export default function Users() {
           }}
         >
           <Block sx={{ mr: 1 }} fontSize="small" />
-          {(selectedUser?.status ??
-            (selectedUser?.identityVerified ? "VERIFIED" : "ACTIVE")) ===
-          "SUSPENDED"
-            ? "Unsuspend"
-            : "Suspend"}
+          {selectedUser?.suspendedAt ? "Unsuspend" : "Suspend"}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -408,6 +436,70 @@ export default function Users() {
           Delete
         </MenuItem>
       </Menu>
+
+      {/* Edit User Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit User</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+            <TextField
+              fullWidth
+              label="First name"
+              value={editFormData.firstName}
+              onChange={(e) =>
+                setEditFormData((prev) => ({ ...prev, firstName: e.target.value }))
+              }
+            />
+            <TextField
+              fullWidth
+              label="Last name"
+              value={editFormData.lastName}
+              onChange={(e) =>
+                setEditFormData((prev) => ({ ...prev, lastName: e.target.value }))
+              }
+            />
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={editFormData.email}
+              onChange={(e) =>
+                setEditFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+            <TextField
+              fullWidth
+              label="Phone"
+              value={editFormData.phone}
+              onChange={(e) =>
+                setEditFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleEditSave}
+            disabled={updateUserMutation.isPending}
+          >
+            {updateUserMutation.isPending ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -547,11 +639,7 @@ export default function Users() {
         onClose={() => setSuspendDialogOpen(false)}
       >
         <DialogTitle>
-          {(selectedUser?.status ??
-            (selectedUser?.identityVerified ? "VERIFIED" : "ACTIVE")) ===
-          "SUSPENDED"
-            ? "Unsuspend"
-            : "Suspend"}{" "}
+          {selectedUser?.suspendedAt ? "Unsuspend" : "Suspend"}{" "}
           User
         </DialogTitle>
         <DialogContent>

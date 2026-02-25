@@ -113,7 +113,8 @@ export class AdminService {
       const [
         totalUsers,
         activeDeliveries,
-        pendingVerifications,
+        pendingVerificationCount,
+        unverifiedUserCount,
         totalRevenue,
         newUsers,
         recentTransactions,
@@ -127,6 +128,14 @@ export class AdminService {
           .catch(() => 0),
         prisma.verification
           .count({ where: { status: "PENDING" } })
+          .catch(() => 0),
+        prisma.user
+          .count({
+            where: {
+              userType: { not: "ADMIN" },
+              identityVerified: false,
+            },
+          })
           .catch(() => 0),
         prisma.transaction
           .aggregate({
@@ -192,11 +201,13 @@ export class AdminService {
         [], // systemAlerts - table doesn't exist, return empty array
       ]);
 
+      const pendingVerifications =
+        pendingVerificationCount + unverifiedUserCount;
       return {
         summary: {
           totalUsers,
-          activeUsers: totalUsers, // Assuming all users are active for now
-          totalDeliveries: activeDeliveries, // Using activeDeliveries as total for now
+          activeUsers: totalUsers,
+          totalDeliveries: activeDeliveries,
           activeDeliveries,
           pendingVerifications,
           systemHealthStatus: "OPERATIONAL", // This would be calculated from actual system metrics
@@ -301,7 +312,13 @@ export class AdminService {
         };
       }
 
-      const [requests, total] = await Promise.all([
+      const statusFilter = Array.isArray(filters.status)
+        ? filters.status[0]
+        : filters.status;
+      const includeUnverified =
+        !statusFilter || statusFilter === "PENDING" || statusFilter === "pending";
+
+      const [requests, unverifiedUsers] = await Promise.all([
         prisma.verification
           .findMany({
             where,
@@ -325,11 +342,43 @@ export class AdminService {
             console.error("Error fetching verifications:", err);
             return [];
           }),
-        prisma.verification.count({ where }).catch((err: any) => {
-          console.error("Error counting verifications:", err);
-          return 0;
-        }),
+        includeUnverified
+          ? prisma.user
+              .findMany({
+                where: {
+                  userType: { not: "ADMIN" },
+                  identityVerified: false,
+                  verification: null,
+                },
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  createdAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: filters.limit || 20,
+              })
+              .catch(() => [])
+          : [],
       ]);
+
+      const verificationTotal = await prisma.verification
+        .count({ where })
+        .catch(() => 0);
+      const unverifiedTotal = includeUnverified
+        ? await prisma.user
+            .count({
+              where: {
+                userType: { not: "ADMIN" },
+                identityVerified: false,
+                verification: null,
+              },
+            })
+            .catch(() => 0)
+        : 0;
+      const total = verificationTotal + unverifiedTotal;
 
       const documents = (req: any) => [
         {
@@ -358,23 +407,40 @@ export class AdminService {
           metadata: null,
         },
       ];
+      const verificationItems = requests.map((req: any) => ({
+        id: req.id,
+        userId: req.userId,
+        userEmail: req.user?.email,
+        userName: req.user
+          ? `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim()
+          : "",
+        documentType: req.documentType,
+        type: req.documentType,
+        itemType: "verification" as const,
+        status: req.status,
+        submittedAt: req.createdAt,
+        reviewedAt: req.reviewedAt,
+        reviewedBy: req.reviewedBy,
+        documents: documents(req),
+        rejectionReason: req.rejectionReason,
+      }));
+      const unverifiedItems = (unverifiedUsers || []).map((u: any) => ({
+        id: `user-${u.id}`,
+        userId: u.id,
+        userEmail: u.email,
+        userName: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+        documentType: "Awaiting documents",
+        type: "Awaiting documents",
+        itemType: "unverified_user" as const,
+        status: "PENDING",
+        submittedAt: u.createdAt,
+        reviewedAt: null,
+        reviewedBy: null,
+        documents: [],
+        rejectionReason: null,
+      }));
       return {
-        requests: requests.map((req: any) => ({
-          id: req.id,
-          userId: req.userId,
-          userEmail: req.user?.email,
-          userName: req.user
-            ? `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim()
-            : "",
-          documentType: req.documentType,
-          type: req.documentType,
-          status: req.status,
-          submittedAt: req.createdAt,
-          reviewedAt: req.reviewedAt,
-          reviewedBy: req.reviewedBy,
-          documents: documents(req),
-          rejectionReason: req.rejectionReason,
-        })),
+        requests: [...verificationItems, ...unverifiedItems],
         total,
         page: filters.page || 1,
         limit: filters.limit || 20,
@@ -517,19 +583,34 @@ export class AdminService {
   // User Management Methods
   async getUsers(filters: AdminFilterOptions) {
     try {
-      const where: any = {};
+      const where: any = { userType: { not: "ADMIN" } };
 
       if (filters.userType) {
         where.userType = filters.userType;
       }
 
+      const status =
+        typeof filters.status === "string"
+          ? filters.status
+          : Array.isArray(filters.status)
+            ? filters.status[0]
+            : undefined;
+      if (status === "active" || status === "ACTIVE") {
+        where.suspendedAt = null;
+      } else if (status === "suspended" || status === "SUSPENDED") {
+        where.suspendedAt = { not: null };
+      }
+
       if (filters.search) {
-        where.OR = [
-          { firstName: { contains: filters.search, mode: "insensitive" } },
-          { lastName: { contains: filters.search, mode: "insensitive" } },
-          { email: { contains: filters.search, mode: "insensitive" } },
-          { phone: { contains: filters.search, mode: "insensitive" } },
-        ];
+        where.AND = where.AND || [];
+        where.AND.push({
+          OR: [
+            { firstName: { contains: filters.search, mode: "insensitive" } },
+            { lastName: { contains: filters.search, mode: "insensitive" } },
+            { email: { contains: filters.search, mode: "insensitive" } },
+            { phone: { contains: filters.search, mode: "insensitive" } },
+          ],
+        });
       }
 
       const sortBy = [
@@ -557,6 +638,7 @@ export class AdminService {
             phone: true,
             userType: true,
             identityVerified: true,
+            suspendedAt: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -586,6 +668,7 @@ export class AdminService {
           phone: true,
           userType: true,
           identityVerified: true,
+          suspendedAt: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -669,15 +752,10 @@ export class AdminService {
       if (!prisma) {
         throw new Error("Prisma client not available");
       }
-      // User model doesn't have a status field - skip for now
-      // Could add a suspendedAt timestamp or use a different approach
-      const _user = await prisma.user.update({
+      await prisma.user.update({
         where: { id },
-        data: {
-          updatedAt: new Date(),
-        },
+        data: { suspendedAt: new Date(), updatedAt: new Date() },
       });
-
       return { message: "User suspended successfully" };
     } catch (_error) {
       console.error("Error suspending user:", _error);
@@ -691,9 +769,9 @@ export class AdminService {
       if (!prisma) {
         throw new Error("Prisma client not available");
       }
-      const _user = await prisma.user.update({
+      await prisma.user.update({
         where: { id },
-        data: { updatedAt: new Date() },
+        data: { suspendedAt: null, updatedAt: new Date() },
       });
       return { message: "User unsuspended successfully" };
     } catch (_error) {

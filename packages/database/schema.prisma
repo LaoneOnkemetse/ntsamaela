@@ -30,6 +30,7 @@ model User {
   passwordResetExpires     DateTime?
   accountRecoveryToken     String?
   accountRecoveryExpires   DateTime?
+  suspendedAt              DateTime?
   fcmTokens                String[]        @default([])
   adminReviews             AdminReview[]
   driverProfile            Driver?
