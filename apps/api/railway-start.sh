@@ -70,21 +70,21 @@ else
   echo "💡 Server will continue - check database state manually if needed"
 fi
 
-# Generate Prisma client if needed
+# Generate Prisma client from database package (uses Prisma 5.x; root npx can pull wrong version)
 echo "🔧 Generating Prisma client..."
-if npx prisma generate --schema=./packages/database/schema.prisma 2>&1; then
+if (cd /app/packages/database && npx prisma generate) 2>&1; then
   echo "✅ Prisma client generated successfully"
 else
-  echo "⚠️  Prisma client generation failed - continuing..."
+  echo "⚠️  Prisma client generation failed - app may use client from build"
 fi
 
-# Ensure permanent admin user exists
+# Ensure permanent admin user exists (use database package's Prisma client if present)
 echo "🔐 Ensuring permanent admin user exists..."
 ADMIN_SEEDED=false
 for seed_path in "/app/apps/api/seed-admin.js" "/app/seed-admin.js" "./apps/api/seed-admin.js" "./seed-admin.js"; do
   if [ -f "$seed_path" ]; then
     echo "✅ Found seed script at: $seed_path"
-    if node "$seed_path" 2>&1; then
+    if NODE_PATH="/app/packages/database/node_modules:/app/node_modules" node "$seed_path" 2>&1; then
       echo "✅ Admin user ensured"
       ADMIN_SEEDED=true
       break
@@ -103,10 +103,10 @@ fi
 
 echo "✅ Setup complete"
 
-# Verify dist/index.js exists (search for it, prioritize API entry point)
-echo "🔍 Searching for index.js..."
-# First, try the most likely locations (based on tsc-alias output structure)
-for path in "/app/dist/apps/api/src/index.js" "/app/dist/index.js" "/app/dist/apps/api/index.js" "/app/dist/apps/api/dist/index.js"; do
+# Verify API entry point exists (workspace build outputs to apps/api/dist)
+echo "🔍 Searching for API index.js..."
+SERVER_FILE=""
+for path in "/app/apps/api/dist/src/index.js" "/app/apps/api/dist/index.js" "/app/dist/apps/api/src/index.js" "/app/dist/index.js" "/app/dist/apps/api/index.js"; do
   if [ -f "$path" ]; then
     SERVER_FILE="$path"
     echo "✅ Found server file at: $SERVER_FILE"
@@ -114,28 +114,11 @@ for path in "/app/dist/apps/api/src/index.js" "/app/dist/index.js" "/app/dist/ap
   fi
 done
 
-# If not found in expected locations, search but exclude nested directories
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  echo "🔍 Searching in dist directory..."
-  # Find index.js files in apps/api/src (the actual entry point)
-  SERVER_FILE=$(find /app/dist/apps/api/src -maxdepth 1 -name "index.js" -type f 2>/dev/null | head -1)
-  
-  # If still not found, search more broadly but exclude nested directories
-  if [ -z "$SERVER_FILE" ]; then
-    SERVER_FILE=$(find /app/dist -maxdepth 4 -name "index.js" -type f 2>/dev/null | \
-      grep -v node_modules | \
-      grep -v packages | \
-      grep -v "/types/" | \
-      grep -v "/test/" | \
-      grep -v "/__tests__/" | \
-      grep -v "/controllers/" | \
-      grep -v "/services/" | \
-      grep -v "/routes/" | \
-      grep -v "/middleware/" | \
-      grep -v "/utils/" | \
-      grep "/apps/api/src/" | \
-      head -1)
-  fi
+  SERVER_FILE=$(find /app/apps/api/dist -maxdepth 3 -name "index.js" -type f 2>/dev/null | head -1)
+fi
+if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
+  SERVER_FILE=$(find /app/dist -maxdepth 4 -name "index.js" -type f 2>/dev/null | grep -v node_modules | grep -v packages | head -1)
 fi
 
 # Final check - if still not found, show all options
