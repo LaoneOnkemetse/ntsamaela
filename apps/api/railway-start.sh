@@ -10,6 +10,9 @@ echo "🔗 DATABASE_URL: ${DATABASE_URL:+SET}"
 echo "📦 Running database migrations..."
 cd /app
 
+# Ensure Node resolves @prisma/client from the database package first (where we generate it)
+export NODE_PATH="/app/packages/database/node_modules:/app/node_modules:${NODE_PATH:-}"
+
 # Check if _prisma_migrations table exists and has any failed migrations
 echo "🔍 Checking migration state..."
 MIGRATION_STATE=$(npx prisma migrate status --schema=./packages/database/schema.prisma 2>&1 || echo "ERROR")
@@ -73,6 +76,12 @@ fi
 echo "🔧 Generating Prisma client..."
 if (cd /app/packages/database && npx prisma generate) 2>&1; then
   echo "✅ Prisma client generated (database package)"
+  # API resolves @prisma/client from apps/api/node_modules; copy generated client there
+  if [ -d /app/packages/database/node_modules/.prisma ] && [ -d /app/apps/api/node_modules ]; then
+    cp -r /app/packages/database/node_modules/.prisma /app/apps/api/node_modules/ 2>/dev/null && \
+    cp -r /app/packages/database/node_modules/@prisma /app/apps/api/node_modules/ 2>/dev/null && \
+    echo "✅ Prisma client copied to api node_modules" || echo "⚠️  Copy skipped (api may use NODE_PATH)"
+  fi
 else
   echo "⚠️  Prisma client generation failed in database package"
 fi
