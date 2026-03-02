@@ -77,12 +77,22 @@ echo "🔧 Generating Prisma client..."
 # First, generate using the database package (schema and tooling live here)
 if (cd /app/packages/database && npx prisma generate) 2>&1; then
   echo "✅ Prisma client generated (database package)"
+
+  # Ensure the runtime @prisma/client that Node resolves (from /app/node_modules)
+  # has a fully generated client + engines. This is where the compiled API code
+  # is currently loading from (see stack traces in production logs).
+  if [ -d /app/packages/database/node_modules/.prisma ]; then
+    mkdir -p /app/node_modules
+    cp -r /app/packages/database/node_modules/.prisma /app/node_modules/ 2>/dev/null || true
+    cp -r /app/packages/database/node_modules/@prisma /app/node_modules/ 2>/dev/null || true
+    echo "✅ Prisma client copied to /app/node_modules"
+  fi
 else
   echo "⚠️  Prisma client generation failed in database package"
 fi
 
-# Then, generate in the API workspace so the client and engines are initialized
-# exactly where the running API resolves @prisma/client from.
+# Then, generate in the API workspace (still using the shared schema) so any
+# workspace-local references also have a matching client.
 if (cd /app/apps/api && npx prisma generate --schema=../../packages/database/schema.prisma) 2>&1; then
   echo "✅ Prisma client generated (api workspace)"
 else
