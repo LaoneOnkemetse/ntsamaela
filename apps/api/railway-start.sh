@@ -70,56 +70,37 @@ else
   echo "💡 Server will continue - check database state manually if needed"
 fi
 
-# Generate Prisma client from database package (uses Prisma 5.x; root npx can pull wrong version)
 echo "🔧 Generating Prisma client..."
 if (cd /app/packages/database && npx prisma generate) 2>&1; then
-  echo "✅ Prisma client generated successfully"
+  echo "✅ Prisma client generated (database package)"
 else
-  echo "⚠️  Prisma client generation failed - app may use client from build"
+  echo "⚠️  Prisma client generation failed in database package"
 fi
 
-# Ensure permanent admin user exists (use database package's Prisma client if present)
-echo "🔐 Ensuring permanent admin user exists..."
-ADMIN_SEEDED=false
-for seed_path in "/app/apps/api/seed-admin.js" "/app/seed-admin.js" "./apps/api/seed-admin.js" "./seed-admin.js"; do
-  if [ -f "$seed_path" ]; then
-    echo "✅ Found seed script at: $seed_path"
-    if NODE_PATH="/app/packages/database/node_modules:/app/node_modules" node "$seed_path" 2>&1; then
-      echo "✅ Admin user ensured"
-      ADMIN_SEEDED=true
-      break
-    else
-      echo "⚠️  Admin user seeding failed at $seed_path - trying next location..."
-    fi
-  fi
-done
-
-if [ "$ADMIN_SEEDED" = "false" ]; then
-  echo "⚠️  seed-admin.js not found in any expected location"
-  echo "📁 Searching for seed-admin.js..."
-  find /app -name "seed-admin.js" -type f 2>/dev/null | head -5 || echo "No seed-admin.js found"
-  echo "⚠️  Skipping admin user creation - you may need to run it manually"
-fi
-
+# NOTE: We no longer run the standalone seed-admin.js here.
+# Admin user is ensured inside the API process itself (src/index.ts -> ensureAdminUser).
+echo "🔐 Skipping external seed-admin.js (admin user will be ensured by API on startup)"
 echo "✅ Setup complete"
 
-# Verify API entry point exists (workspace build outputs to apps/api/dist)
+# API entry: tsc may output dist/index.js or dist/apps/api/src/index.js (when schema includes packages)
 echo "🔍 Searching for API index.js..."
 SERVER_FILE=""
-for path in "/app/apps/api/dist/src/index.js" "/app/apps/api/dist/index.js" "/app/dist/apps/api/src/index.js" "/app/dist/index.js" "/app/dist/apps/api/index.js"; do
+for path in "/app/apps/api/dist/index.js" "/app/apps/api/dist/src/index.js" "/app/apps/api/dist/apps/api/src/index.js" "/app/dist/apps/api/src/index.js" "/app/dist/index.js"; do
   if [ -f "$path" ]; then
     SERVER_FILE="$path"
     echo "✅ Found server file at: $SERVER_FILE"
     break
   fi
 done
-
+# Do not use dist/packages/database/index.js (that is the DB package, not the API)
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  SERVER_FILE=$(find /app/apps/api/dist -maxdepth 3 -name "index.js" -type f 2>/dev/null | head -1)
+  SERVER_FILE=$(find /app/apps/api/dist -maxdepth 5 -name "index.js" -type f 2>/dev/null | grep -v "packages/database" | head -1)
 fi
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
-  SERVER_FILE=$(find /app/dist -maxdepth 4 -name "index.js" -type f 2>/dev/null | grep -v node_modules | grep -v packages | head -1)
+  SERVER_FILE=$(find /app/dist -maxdepth 5 -name "index.js" -type f 2>/dev/null | grep -v node_modules | grep -v "packages/" | head -1)
 fi
+# Never run the database package entry as the API server
+case "$SERVER_FILE" in *packages/database*) SERVER_FILE="" ;; esac
 
 # Final check - if still not found, show all options
 if [ -z "$SERVER_FILE" ] || [ ! -f "$SERVER_FILE" ]; then
