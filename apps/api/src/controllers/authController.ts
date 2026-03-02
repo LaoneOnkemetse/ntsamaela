@@ -128,6 +128,7 @@ export class AuthController {
             message: "email and newPassword (min 6 chars) required",
           },
         });
+      }
       const prisma = getPrismaClient();
       if (!prisma) {
         return res.status(503).json({

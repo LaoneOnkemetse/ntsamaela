@@ -10,6 +10,7 @@ type AdminDashboardData = {
     totalRevenue: number;
     systemHealthStatus: SystemHealthStatus;
   };
+  recentUsers?: any[];
   recentActivity: any[];
   quickActions: any[];
 };
