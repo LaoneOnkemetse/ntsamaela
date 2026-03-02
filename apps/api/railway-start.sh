@@ -23,6 +23,7 @@ if echo "$MIGRATION_STATE" | grep -qi "failed\|error\|P3009"; then
   npx prisma migrate resolve --rolled-back 20250906140130_add_verification_audit_log --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --rolled-back 20251125101618_add_phone_verification_and_delivery_pin --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --rolled-back 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --rolled-back 20260204000000_add_user_suspended_at --schema=./packages/database/schema.prisma 2>&1 || true
 fi
 
 # Deploy migrations (Prisma will apply them in chronological order)
@@ -43,7 +44,9 @@ elif echo "$MIGRATION_OUTPUT" | grep -qi "already exists\|42701\|P3008"; then
   npx prisma migrate resolve --applied 20250906140130_add_verification_audit_log --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --applied 20251125101618_add_phone_verification_and_delivery_pin --schema=./packages/database/schema.prisma 2>&1 || true
   npx prisma migrate resolve --applied 20250101000000_add_fcm_tokens --schema=./packages/database/schema.prisma 2>&1 || true
-  
+  npx prisma migrate resolve --applied 20260128120000_add_app_setting --schema=./packages/database/schema.prisma 2>&1 || true
+  npx prisma migrate resolve --applied 20260204000000_add_user_suspended_at --schema=./packages/database/schema.prisma 2>&1 || true
+
   echo "✅ All migrations marked as applied"
 elif echo "$MIGRATION_OUTPUT" | grep -qi "P3009"; then
   echo "⚠️  Migration system has failed migrations that need resolution"
