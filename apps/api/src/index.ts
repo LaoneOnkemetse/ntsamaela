@@ -37,7 +37,8 @@ async function ensureAdminUser() {
     });
 
     if (existingUser) {
-      // User exists - only update non-password fields, don't change password hash
+      // User exists - ensure profile fields and password match the configured admin credentials
+      const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
       await prisma.user.update({
         where: { email: ADMIN_EMAIL },
         data: {
@@ -47,9 +48,13 @@ async function ensureAdminUser() {
           userType: "ADMIN",
           identityVerified: true,
           emailVerified: true,
+          passwordHash,
         },
       });
-      console.log("✅ Admin user updated (password preserved):", ADMIN_EMAIL);
+      console.log(
+        "✅ Admin user updated with configured password:",
+        ADMIN_EMAIL,
+      );
     } else {
       // User doesn't exist - create with hashed password
       const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
