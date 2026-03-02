@@ -37,7 +37,7 @@
   "dependencies": {
     "@expo/webpack-config": "18.0.0",
     "@google-cloud/vision": "^4.0.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^5.19.1",
     "@sendgrid/mail": "^8.1.6",
     "@types/form-data": "^2.2.1",
     "@types/socket.io": "^3.0.1",
@@ -67,7 +67,7 @@
     "nodemailer": "^6.9.4",
     "paystack": "^2.0.1",
     "pg": "^8.16.3",
-    "prisma": "^6.16.2",
+    "prisma": "^5.19.1",
     "redis": "^4.6.8",
     "sharp": "^0.34.4",
     "socket.io": "^4.8.1",
