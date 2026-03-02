@@ -102,6 +102,54 @@ export class AdminService {
     return this.prisma;
   }
 
+  async getDebugCounts(): Promise<{
+    usersTotal: number;
+    usersNonAdmin: number;
+    verificationsTotal: number;
+    verificationsPending: number;
+    verificationsWithDocuments: { id: string; userId: string; status: string; documentType: string; hasFront: boolean; hasBack: boolean; hasSelfie: boolean }[];
+  }> {
+    const prisma = this.getPrisma();
+    const [usersTotal, usersNonAdmin, verificationsTotal, verificationsPending, verificationsSample] =
+      await Promise.all([
+        prisma.user.count().catch(() => 0),
+        prisma.user.count({ where: { userType: { not: "ADMIN" } } }).catch(() => 0),
+        prisma.verification.count().catch(() => 0),
+        prisma.verification.count({ where: { status: "PENDING" } }).catch(() => 0),
+        prisma.verification
+          .findMany({
+            take: 20,
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              userId: true,
+              status: true,
+              documentType: true,
+              frontImageUrl: true,
+              backImageUrl: true,
+              selfieImageUrl: true,
+            },
+          })
+          .catch(() => []),
+      ]);
+    const verificationsWithDocuments = (verificationsSample || []).map((v: any) => ({
+      id: v.id,
+      userId: v.userId,
+      status: v.status,
+      documentType: v.documentType,
+      hasFront: !!v.frontImageUrl,
+      hasBack: !!v.backImageUrl,
+      hasSelfie: !!v.selfieImageUrl,
+    }));
+    return {
+      usersTotal,
+      usersNonAdmin,
+      verificationsTotal,
+      verificationsPending,
+      verificationsWithDocuments,
+    };
+  }
+
   // --- Dashboard ---
   async getDashboardData(): Promise<AdminDashboardData> {
     try {
@@ -203,6 +251,15 @@ export class AdminService {
 
       const pendingVerifications =
         pendingVerificationCount + unverifiedUserCount;
+      const recentUsers = (newUsers || []).map((user: any) => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        userType: user.userType,
+        identityVerified: user.identityVerified,
+        createdAt: user.createdAt,
+      }));
       return {
         summary: {
           totalUsers,
@@ -210,9 +267,10 @@ export class AdminService {
           totalDeliveries: activeDeliveries,
           activeDeliveries,
           pendingVerifications,
-          systemHealthStatus: "OPERATIONAL", // This would be calculated from actual system metrics
+          systemHealthStatus: "OPERATIONAL",
           totalRevenue: totalRevenue._sum.amount || 0,
         },
+        recentUsers,
         recentActivity: [
           ...newUsers.map((user: any) => ({
             id: user.id,

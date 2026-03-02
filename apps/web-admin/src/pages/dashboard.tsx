@@ -759,6 +759,32 @@ export default function Dashboard() {
               </Card>
             </Grid>
 
+            {/* Recent users (from dashboard API) */}
+            {Array.isArray(dashboardData?.recentUsers) && dashboardData.recentUsers.length > 0 && (
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        Recent Users
+                      </Typography>
+                      <Chip label={dashboardData.recentUsers.length} size="small" sx={{ fontWeight: 600 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {dashboardData.recentUsers.slice(0, 5).map((u: any) => (
+                        <Typography key={u.id} variant="body2">
+                          {u.firstName} {u.lastName} {u.identityVerified ? '(Verified)' : '(Unverified)'}
+                        </Typography>
+                      ))}
+                    </Box>
+                    <Button fullWidth variant="outlined" sx={{ mt: 2 }} onClick={() => router.push('/users')}>
+                      View all users
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
+
             {/* Pending Verifications */}
             <Grid item xs={12}>
               <Card>

@@ -1,8 +1,7 @@
 /**
  * Script to ensure permanent admin user exists in database
- * This script ensures the admin user always exists with the correct credentials
- * Run this on Railway: railway run node apps/api/seed-admin.js
- * Or it will run automatically during deployment via railway-start.sh
+ * Run on Railway: node apps/api/seed-admin.js (or via railway run)
+ * Credentials can be overridden with env: ADMIN_EMAIL, ADMIN_PASSWORD
  */
 
 const { PrismaClient } = require('@prisma/client');
@@ -10,12 +9,12 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-// Permanent admin credentials
-const ADMIN_EMAIL = 'Plutonium94@ntsamaela.com';
-const ADMIN_PASSWORD = 'pLuto@.*123hash';
-const ADMIN_FIRST_NAME = 'Plutonium';
-const ADMIN_LAST_NAME = 'Administrator';
-const ADMIN_PHONE = '+26771234567'; // Botswana phone number format
+// Admin credentials (no special chars that can be mangled in forms/JSON)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'Plutonium94@ntsamaela.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!Ntsamaela';
+const ADMIN_FIRST_NAME = process.env.ADMIN_FIRST_NAME || 'Plutonium';
+const ADMIN_LAST_NAME = process.env.ADMIN_LAST_NAME || 'Administrator';
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '+26771234567';
 
 async function ensureAdminUser() {
   console.log('🔐 Ensuring permanent admin user exists...');

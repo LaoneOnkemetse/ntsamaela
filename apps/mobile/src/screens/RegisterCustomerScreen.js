@@ -88,6 +88,27 @@ export const RegisterCustomerScreen = () => {
       });
 
       if (response.success) {
+        const token = response.data?.token;
+        if (token && (idFront || passportFront) && selfie) {
+          apiService.setToken(token);
+          const formData = new FormData();
+          const front = idFront || passportFront;
+          const back = idBack || passportBack;
+          const frontUri = typeof front === 'string' ? front : (front?.uri ?? front);
+          const backUri = back && (typeof back === 'string' ? back : (back?.uri ?? back));
+          const selfieUri = typeof selfie === 'string' ? selfie : (selfie?.uri ?? selfie);
+          formData.append('frontImage', { uri: frontUri, type: 'image/jpeg', name: 'front.jpg' });
+          if (backUri) {
+            formData.append('backImage', { uri: backUri, type: 'image/jpeg', name: 'back.jpg' });
+          }
+          formData.append('selfieImage', { uri: selfieUri, type: 'image/jpeg', name: 'selfie.jpg' });
+          formData.append('documentType', idFront ? 'ID_CARD' : 'PASSPORT');
+          try {
+            await apiService.submitVerification(formData);
+          } catch (e) {
+            console.warn('Verification submit after register:', e);
+          }
+        }
         Alert.alert('Success', 'Account created successfully! Please check your phone for the verification code.', [
           { text: 'OK', onPress: () => navigate('login', true) }
         ]);

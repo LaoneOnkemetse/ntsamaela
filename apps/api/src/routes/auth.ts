@@ -67,6 +67,16 @@ router.post('/request-account-recovery', accountRecoveryValidation, validateRequ
 router.post('/confirm-account-recovery', accountRecoveryConfirmValidation, validateRequest, authController.confirmAccountRecovery.bind(authController));
 router.post('/logout', requireAuth, authController.logout.bind(authController));
 router.post('/change-password', requireAuth, authController.changePassword.bind(authController));
+router.post(
+  '/admin-reset-password',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('secret').notEmpty().withMessage('Secret is required'),
+  ],
+  validateRequest,
+  authController.adminResetPassword.bind(authController),
+);
 router.post('/fcm-token/register', requireAuth, [body('fcmToken').notEmpty().withMessage('FCM token is required')], validateRequest, authController.registerFcmToken.bind(authController));
 router.post('/fcm-token/remove', requireAuth, [body('fcmToken').notEmpty().withMessage('FCM token is required')], validateRequest, authController.removeFcmToken.bind(authController));
 

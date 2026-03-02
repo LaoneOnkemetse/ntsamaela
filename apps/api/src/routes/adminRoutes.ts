@@ -8,6 +8,12 @@ const adminController = new AdminController();
 // Apply admin authentication middleware to all routes
 router.use(authenticateAdmin);
 
+// --- Debug (check database counts and documents) ---
+router.get(
+  "/debug/counts",
+  adminController.getDebugCounts.bind(adminController),
+);
+
 // --- Dashboard ---
 router.get(
   "/dashboard",

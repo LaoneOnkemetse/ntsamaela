@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import { getPrismaClient } from "@database/index";
 import { authService } from "../services/authService";
 import {
@@ -81,6 +82,105 @@ export class AuthController {
         error: {
           code: "LOGIN_ERROR",
           message: _error.message,
+        },
+      });
+    }
+  }
+
+  /**
+   * One-time admin password reset. Only works when ADMIN_RESET_SECRET is set.
+   * POST /api/auth/admin-reset-password
+   * Body: { email, newPassword, secret }
+   * Set ADMIN_RESET_SECRET on Railway, call once, then remove the env var.
+   */
+  async adminResetPassword(
+    req: Request<
+      {},
+      {},
+      { email: string; newPassword: string; secret: string }
+    >,
+    res: Response,
+  ) {
+    try {
+      const { email, newPassword, secret } = req.body;
+      const resetSecret = process.env.ADMIN_RESET_SECRET;
+      if (!resetSecret || resetSecret.length < 16) {
+        return res.status(501).json({
+          success: false,
+          error: {
+            code: "ADMIN_RESET_DISABLED",
+            message:
+              "Admin reset is disabled. Set ADMIN_RESET_SECRET (min 16 chars) to enable.",
+          },
+        });
+      }
+      if (secret !== resetSecret) {
+        return res.status(403).json({
+          success: false,
+          error: { code: "INVALID_SECRET", message: "Invalid secret" },
+        });
+      }
+      if (!email || !newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "BAD_REQUEST",
+            message: "email and newPassword (min 6 chars) required",
+          },
+        });
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DB_UNAVAILABLE", message: "Database unavailable" },
+        });
+      }
+      const normalizedEmail = email.trim();
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true, userType: true },
+      });
+      if (user && user.userType !== "ADMIN") {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: "NOT_ADMIN",
+            message: "This email is not an admin user",
+          },
+        });
+      }
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash, updatedAt: new Date() },
+        });
+      } else {
+        await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash,
+            firstName: "Admin",
+            lastName: "User",
+            phone: "+26770000000",
+            userType: "ADMIN",
+            identityVerified: true,
+            emailVerified: true,
+          },
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message:
+          "Admin password set. Use email and your new password to log in. Remove ADMIN_RESET_SECRET from env after use.",
+      });
+    } catch (_error: any) {
+      console.error("Admin reset error:", _error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: "RESET_ERROR",
+          message: _error?.message || "Failed to reset password",
         },
       });
     }

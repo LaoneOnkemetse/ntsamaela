@@ -51,10 +51,26 @@ apiClient.interceptors.response.use(
 export const getDashboardStats = async () => {
   try {
     const response = await apiClient.get("/admin/dashboard");
-    // Handle both nested and flat response structures
-    return response.data.data || response.data.summary || response.data;
+    const raw = response.data?.data || response.data?.summary || response.data;
+    const totalUsers = Number(raw?.totalUsers ?? 0);
+    const recentUsers = Array.isArray(raw?.recentUsers) ? raw.recentUsers : [];
+    return {
+      ...raw,
+      totalUsers: totalUsers >= 0 ? totalUsers : 0,
+      recentUsers,
+    };
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
+    throw error;
+  }
+};
+
+export const getDebugCounts = async () => {
+  try {
+    const response = await apiClient.get("/admin/debug/counts");
+    return response.data?.data ?? response.data;
+  } catch (error) {
+    console.error("Error fetching debug counts:", error);
     throw error;
   }
 };
@@ -73,8 +89,11 @@ export const getRecentActivity = async () => {
 export const getUsers = async (params?: any) => {
   try {
     const response = await apiClient.get("/admin/users", { params });
-    const data = response.data.data ?? response.data;
-    return data;
+    const raw = response.data?.data ?? response.data;
+    // Ensure we always return { users, total } so list is never wrong
+    const users = Array.isArray(raw) ? raw : raw?.users ?? [];
+    const total = typeof raw?.total === "number" ? raw.total : users.length;
+    return { users, total };
   } catch (error) {
     console.error("Error fetching users:", error);
     throw error;

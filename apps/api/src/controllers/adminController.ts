@@ -36,6 +36,18 @@ export class AdminController {
     this.adminService = new AdminService();
   }
 
+  async getDebugCounts(req: AuthenticatedRequest, res: Response) {
+    try {
+      const counts = await this.adminService.getDebugCounts();
+      res.json({ success: true, data: counts });
+    } catch (_error: any) {
+      res.status(500).json({
+        success: false,
+        error: { message: _error?.message || "Failed to fetch debug counts" },
+      });
+    }
+  }
+
   // --- Dashboard ---
   async getDashboardData(req: AuthenticatedRequest, res: Response) {
     try {
@@ -44,19 +56,20 @@ export class AdminController {
       res.json({
         success: true,
         data: {
-          totalUsers: dashboardData.summary?.totalUsers || 0,
-          activeUsers: dashboardData.summary?.activeUsers || 0,
-          activePackages: dashboardData.summary?.activeDeliveries || 0,
-          totalDeliveries: dashboardData.summary?.totalDeliveries || 0,
+          totalUsers: dashboardData.summary?.totalUsers ?? 0,
+          activeUsers: dashboardData.summary?.activeUsers ?? 0,
+          activePackages: dashboardData.summary?.activeDeliveries ?? 0,
+          totalDeliveries: dashboardData.summary?.totalDeliveries ?? 0,
           pendingVerifications:
-            dashboardData.summary?.pendingVerifications || 0,
-          totalRevenue: dashboardData.summary?.totalRevenue || 0,
-          userGrowth: 0, // Calculate if needed
-          packageGrowth: 0, // Calculate if needed
-          verificationChange: 0, // Calculate if needed
-          revenueGrowth: 0, // Calculate if needed
-          verificationProgress: 0, // Calculate if needed
-          revenueProgress: 0, // Calculate if needed
+            dashboardData.summary?.pendingVerifications ?? 0,
+          totalRevenue: dashboardData.summary?.totalRevenue ?? 0,
+          recentUsers: dashboardData.recentUsers ?? [],
+          userGrowth: 0,
+          packageGrowth: 0,
+          verificationChange: 0,
+          revenueGrowth: 0,
+          verificationProgress: 0,
+          revenueProgress: 0,
         },
       });
     } catch (_error: any) {
