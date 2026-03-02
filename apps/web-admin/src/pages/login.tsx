@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import {
   Box,
   TextField,
@@ -9,110 +9,103 @@ import {
   CircularProgress,
   IconButton,
   InputAdornment,
-  Checkbox,
   FormControlLabel,
-} from '@mui/material';
-import { Visibility, VisibilityOff, Lock, Email, ArrowForward } from '@mui/icons-material';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import toast from 'react-hot-toast';
+  Checkbox,
+} from "@mui/material";
+import {
+  Visibility,
+  VisibilityOff,
+  Lock,
+  Email,
+  ArrowForward,
+} from "@mui/icons-material";
+import toast from "react-hot-toast";
 
-import { useAuth } from '../hooks/useAuth';
-import { authService } from '../services/authService';
-import { GetServerSideProps } from 'next';
+import { useAuth } from "../hooks/useAuth";
+import { authService } from "../services/authService";
 
-const schema = yup.object({
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
-});
-
-type FormData = yup.InferType<typeof schema>;
+const DEFAULT_EMAIL = "Plutonium94@ntsamaela.com";
+const DEFAULT_PASSWORD = "pLuto@.*123hash";
 
 export default function Login() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState(DEFAULT_EMAIL);
+  const [password, setPassword] = useState(DEFAULT_PASSWORD);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
   const { setAuthData, logout } = useAuth();
   const router = useRouter();
 
-  // Require explicit login: clear any stored session when landing on login page
-  // so the app never skips authentication (no flash-then-dashboard)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     logout();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clear session on login page mount only
   }, []);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: yupResolver(schema),
-  });
+  const validate = (): boolean => {
+    const err: { email?: string; password?: string } = {};
+    if (!email || !email.trim()) err.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      err.email = "Invalid email";
+    if (!password) err.password = "Password is required";
+    else if (password.length < 6)
+      err.password = "Password must be at least 6 characters";
+    setFieldErrors(err);
+    return Object.keys(err).length === 0;
+  };
 
-  const [emailError, setEmailError] = useState<string>('');
-  const [passwordError, setPasswordError] = useState<string>('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFieldErrors({});
+    if (!validate()) return;
 
-  const onSubmit = async (data: FormData) => {
     setIsLoading(true);
-    setEmailError('');
-    setPasswordError('');
-    
     try {
-      const response = await authService.login({ email: data.email, password: data.password });
-      
+      const payload = {
+        email: email.trim(),
+        password,
+      };
+      const response = await authService.login(payload);
+
       if (response.success && response.data) {
-        // Update auth context directly with the response data (no need to call API again)
         const { user: userData, token: userToken } = response.data;
         setAuthData(userData, userToken);
-        toast.success('Welcome back!');
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 100);
-      } else {
-        // Handle specific error cases
-        const errorCode = response.error?.code;
-        const errorMessage = response.error?.message || 'Login failed';
-        
-        // Clear previous errors
-        setEmailError('');
-        setPasswordError('');
-        
-        // Check for specific error messages first
-        const errorLower = errorMessage.toLowerCase();
-        
-        if (errorCode === 'NETWORK_ERROR' || errorLower.includes('network')) {
-          toast.error('Network error: Unable to connect to server. Please check your connection.');
-        } else if (errorLower.includes('email') || errorLower.includes('user not found') || errorLower.includes('user does not exist')) {
-          // Email-related errors
-          setEmailError('Email not found');
-        } else if (errorLower.includes('password') || errorLower.includes('incorrect password') || errorLower.includes('wrong password')) {
-          // Password-related errors
-          setPasswordError('Incorrect password');
-        } else if (errorCode === 'INVALID_CREDENTIALS' || errorLower.includes('invalid')) {
-          // Generic invalid credentials from API (doesn't say which field)
-          // Heuristic:
-          // - If email is the known admin email, assume password is wrong
-          // - Otherwise, assume email is wrong / not found
-          const adminEmail = 'plutonium94@ntsamaela.com';
-          if (data.email.trim().toLowerCase() === adminEmail) {
-            setPasswordError('Incorrect password');
-          } else {
-            setEmailError('Email not found or incorrect');
-          }
-        } else {
-          // Unknown error - show generic message
-          toast.error(errorMessage);
-        }
+        toast.success("Welcome back!");
+        router.push("/dashboard");
+        return;
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      if (error.message?.includes('fetch') || error.message?.includes('network')) {
-        toast.error('Network error: Unable to connect to server. Please check if the API is running.');
+
+      const msg = (response.error?.message || "Login failed").toLowerCase();
+      if (
+        msg.includes("password") ||
+        msg.includes("incorrect") ||
+        msg.includes("invalid")
+      ) {
+        setFieldErrors((prev) => ({ ...prev, password: "Incorrect password" }));
+      } else if (
+        msg.includes("email") ||
+        msg.includes("not found") ||
+        msg.includes("user")
+      ) {
+        setFieldErrors((prev) => ({ ...prev, email: "Email not found" }));
       } else {
-        toast.error(error.message || 'An unexpected error occurred');
+        toast.error(response.error?.message || "Login failed");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Connection error";
+      if (
+        message.toLowerCase().includes("fetch") ||
+        message.toLowerCase().includes("network")
+      ) {
+        toast.error(
+          "Cannot reach server. Check your connection and that the API is running.",
+        );
+      } else {
+        toast.error(message);
       }
     } finally {
       setIsLoading(false);
@@ -122,77 +115,72 @@ export default function Login() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
+        minHeight: "100vh",
+        display: "flex",
+        background:
+          "linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)",
+        position: "relative",
+        overflow: "hidden",
+        "&::before": {
           content: '""',
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(14, 165, 233, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15), transparent 50%)',
+          background:
+            "radial-gradient(circle at 20% 50%, rgba(14, 165, 233, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15), transparent 50%)",
         },
       }}
     >
       <Box
         sx={{
           flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           p: 3,
-          position: 'relative',
+          position: "relative",
           zIndex: 1,
         }}
       >
         <Box
           sx={{
-            width: '100%',
+            width: "100%",
             maxWidth: 480,
-            display: 'flex',
-            flexDirection: 'column',
+            display: "flex",
+            flexDirection: "column",
             gap: 3,
           }}
         >
-          <Box sx={{ textAlign: 'center', mb: 2 }}>
-            <Box sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 80,
-              height: 80,
-              borderRadius: '20px',
-              background: '#75AADB',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              fontSize: '3.5rem',
-              fontWeight: 900,
-              color: '#FFFFFF',
-              mb: 3,
-            }}>
+          <Box sx={{ textAlign: "center", mb: 2 }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 80,
+                height: 80,
+                borderRadius: "20px",
+                background: "#75AADB",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                fontSize: "3.5rem",
+                fontWeight: 900,
+                color: "#FFFFFF",
+                mb: 3,
+              }}
+            >
               N
             </Box>
             <Typography
               variant="h3"
-              sx={{
-                fontWeight: 800,
-                color: '#FFFFFF',
-                mb: 1,
-                textShadow: '0px 2px 20px rgba(0, 0, 0, 0.2)',
-              }}
+              sx={{ fontWeight: 800, color: "#FFFFFF", mb: 1 }}
             >
               Ntsamaela
             </Typography>
             <Typography
               variant="h6"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.9)',
-                fontWeight: 500,
-              }}
+              sx={{ color: "rgba(255, 255, 255, 0.9)", fontWeight: 500 }}
             >
               Admin Dashboard
             </Typography>
@@ -203,12 +191,11 @@ export default function Login() {
             sx={{
               p: 4,
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              background: "rgba(255, 255, 255, 0.95)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
             }}
           >
-            <Box sx={{ mb: 3, textAlign: 'center' }}>
+            <Box sx={{ mb: 3, textAlign: "center" }}>
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
                 Welcome Back
               </Typography>
@@ -217,42 +204,42 @@ export default function Login() {
               </Typography>
             </Box>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit}>
               <TextField
-                {...register('email')}
                 fullWidth
-                placeholder="admin@ntsamaela.com"
-                margin="normal"
-                error={!!errors.email || !!emailError}
-                helperText={errors.email?.message || emailError}
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={!!fieldErrors.email}
+                helperText={fieldErrors.email}
                 disabled={isLoading}
+                margin="normal"
+                autoComplete="username"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Email sx={{ color: 'text.secondary' }} />
+                      <Email sx={{ color: "text.secondary" }} />
                     </InputAdornment>
                   ),
                 }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    background: '#F9FAFB',
-                  },
-                }}
+                sx={{ "& .MuiOutlinedInput-root": { background: "#F9FAFB" } }}
               />
-
               <TextField
-                {...register('password')}
                 fullWidth
-                placeholder="Enter your password"
-                type={showPassword ? 'text' : 'password'}
-                margin="normal"
-                error={!!errors.password || !!passwordError}
-                helperText={errors.password?.message || passwordError}
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={!!fieldErrors.password}
+                helperText={fieldErrors.password}
                 disabled={isLoading}
+                margin="normal"
+                autoComplete="current-password"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Lock sx={{ color: 'text.secondary' }} />
+                      <Lock sx={{ color: "text.secondary" }} />
                     </InputAdornment>
                   ),
                   endAdornment: (
@@ -260,30 +247,32 @@ export default function Login() {
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
+                        aria-label="toggle password"
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
                   ),
                 }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    background: '#F9FAFB',
-                  },
-                }}
+                sx={{ "& .MuiOutlinedInput-root": { background: "#F9FAFB" } }}
               />
-
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, mb: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mt: 2,
+                  mb: 3,
+                }}
+              >
                 <FormControlLabel
                   control={
                     <Checkbox
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                       sx={{
-                        color: '#0EA5E9',
-                        '&.Mui-checked': {
-                          color: '#0EA5E9',
-                        },
+                        color: "#0EA5E9",
+                        "&.Mui-checked": { color: "#0EA5E9" },
                       }}
                     />
                   }
@@ -296,24 +285,17 @@ export default function Login() {
                 <Button
                   variant="text"
                   size="small"
-                  onClick={() => {
-                    toast('Please contact your administrator to reset your password.', {
-                      icon: 'ℹ️',
-                      duration: 4000,
-                    });
-                  }}
-                  sx={{
-                    color: '#0EA5E9',
-                    fontWeight: 600,
-                    '&:hover': {
-                      background: 'rgba(14, 165, 233, 0.08)',
-                    },
-                  }}
+                  onClick={() =>
+                    toast(
+                      "Use Settings to change your password after logging in.",
+                      { icon: "ℹ️", duration: 4000 },
+                    )
+                  }
+                  sx={{ color: "#0EA5E9", fontWeight: 600 }}
                 >
                   Forgot password?
                 </Button>
               </Box>
-
               <Button
                 type="submit"
                 fullWidth
@@ -323,23 +305,30 @@ export default function Login() {
                 endIcon={isLoading ? null : <ArrowForward />}
                 sx={{
                   py: 1.5,
-                  fontSize: '1rem',
+                  fontSize: "1rem",
                   fontWeight: 600,
-                  background: '#0EA5E9',
-                  color: '#FFFFFF',
-                  '&:hover': {
-                    background: '#0284C7',
-                    boxShadow: '0px 8px 20px rgba(14, 165, 233, 0.4)',
+                  background: "#0EA5E9",
+                  color: "#FFFFFF",
+                  "&:hover": {
+                    background: "#0284C7",
+                    boxShadow: "0px 8px 20px rgba(14, 165, 233, 0.4)",
                   },
                 }}
               >
-                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+                {isLoading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
           </Paper>
 
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+          <Box sx={{ textAlign: "center" }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "rgba(255, 255, 255, 0.8)" }}
+            >
               © 2025 Ntsamaela. All rights reserved.
             </Typography>
           </Box>
@@ -348,11 +337,3 @@ export default function Login() {
     </Box>
   );
 }
-
-export const getServerSideProps: GetServerSideProps = async () => {
-  return {
-    props: {},
-  };
-};
-
-

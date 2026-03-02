@@ -23,9 +23,22 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSystemHealth, getSystemMetrics } from "../services/api";
+import {
+  getSystemHealth,
+  getSystemMetrics,
+  getAdminUsers,
+  createAdminUser,
+  resetUserPassword,
+  deleteAdminUser,
+} from "../services/api";
 import apiClient from "../services/api";
 import toast from "react-hot-toast";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import { PersonAdd } from "@mui/icons-material";
+import type { AuthUser } from "@shared/types";
 
 const defaultSettings = {
   emailNotifications: true,
@@ -40,19 +53,21 @@ export default function Settings() {
   const { user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState(defaultSettings);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
+  const [newAdminForm, setNewAdminForm] = useState({
+    email: "",
+    password: "",
+    firstName: "Admin",
+    lastName: "User",
+    phone: "+26770000000",
+  });
+  const [newPasswordValue, setNewPasswordValue] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 
   const hasToken =
     typeof window !== "undefined" ? !!localStorage.getItem("token") : false;
-  if (!loading && !hasToken) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", flexDirection: "column" }}>
-        <CircularProgress size={48} />
-        <Typography variant="body1" sx={{ mt: 2 }}>
-          Redirecting to login...
-        </Typography>
-      </Box>
-    );
-  }
 
   // Load settings from server on mount
   const {
@@ -99,6 +114,76 @@ export default function Settings() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const { data: adminUsersList = [], refetch: refetchAdmins } = useQuery({
+    queryKey: ["adminUsers"],
+    queryFn: getAdminUsers,
+  });
+
+  const createAdminMutation = useMutation({
+    mutationFn: createAdminUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      setAdminDialogOpen(false);
+      setNewAdminForm({
+        email: "",
+        password: "",
+        firstName: "Admin",
+        lastName: "User",
+        phone: "+26770000000",
+      });
+      toast.success("Admin user created");
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.message ||
+          "Failed to create admin",
+      );
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({
+      userId,
+      newPassword,
+    }: {
+      userId: string;
+      newPassword: string;
+    }) => resetUserPassword(userId, newPassword),
+    onSuccess: () => {
+      setPasswordDialogOpen(false);
+      setSelectedAdminId(null);
+      setNewPasswordValue("");
+      setNewPasswordConfirm("");
+      toast.success("Password updated");
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.message ||
+          "Failed to update password",
+      );
+    },
+  });
+
+  const deleteAdminMutation = useMutation({
+    mutationFn: deleteAdminUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      toast.success("Admin user removed");
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          err?.message ||
+          "Failed to delete admin",
+      );
+    },
+  });
+
+  const currentUser = user as AuthUser | undefined;
+  const currentUserId = currentUser?.id;
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings((prev) => ({
@@ -233,6 +318,25 @@ export default function Settings() {
       newPassword: passwordData.newPassword,
     });
   };
+
+  if (!loading && !hasToken) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "60vh",
+          flexDirection: "column",
+        }}
+      >
+        <CircularProgress size={48} />
+        <Typography variant="body1" sx={{ mt: 2 }}>
+          Redirecting to login...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -419,9 +523,9 @@ export default function Settings() {
                       {healthError
                         ? "Unable to load (sign in required)"
                         : systemHealth?.services?.database?.status ===
-                            "connected" ||
-                          systemHealth?.database === "REAL" ||
-                          systemHealth?.database === "real"
+                              "connected" ||
+                            systemHealth?.database === "REAL" ||
+                            systemHealth?.database === "real"
                           ? "Connected"
                           : "Disconnected"}
                     </span>
@@ -544,7 +648,229 @@ export default function Settings() {
             </CardContent>
           </Card>
         </Grid>
+
+        <Grid item xs={12}>
+          <Card>
+            <CardHeader
+              title="Admin Users"
+              subheader="Main admin can add other admins and change their passwords"
+              action={
+                <Button
+                  variant="contained"
+                  startIcon={<PersonAdd />}
+                  onClick={() => setAdminDialogOpen(true)}
+                  sx={{
+                    backgroundColor: "#75AADB",
+                    "&:hover": { backgroundColor: "#5A8FBF" },
+                  }}
+                >
+                  Add Admin
+                </Button>
+              }
+            />
+            <CardContent>
+              <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                {adminUsersList.map((admin: any) => (
+                  <Box
+                    component="li"
+                    key={admin.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      py: 1,
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body1">
+                        {admin.name || admin.email}{" "}
+                        {admin.id === currentUserId && "(you)"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {admin.email}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Lock />}
+                        onClick={() => {
+                          setSelectedAdminId(admin.id);
+                          setNewPasswordValue("");
+                          setNewPasswordConfirm("");
+                          setPasswordDialogOpen(true);
+                        }}
+                      >
+                        Change password
+                      </Button>
+                      {admin.id !== currentUserId && (
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          onClick={() => {
+                            if (
+                              window.confirm(`Remove admin ${admin.email}?`)
+                            ) {
+                              deleteAdminMutation.mutate(admin.id);
+                            }
+                          }}
+                          disabled={deleteAdminMutation.isPending}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+
+      <Dialog
+        open={adminDialogOpen}
+        onClose={() => setAdminDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add Admin User</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            value={newAdminForm.email}
+            onChange={(e) =>
+              setNewAdminForm((f) => ({ ...f, email: e.target.value }))
+            }
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Password"
+            type="password"
+            value={newAdminForm.password}
+            onChange={(e) =>
+              setNewAdminForm((f) => ({ ...f, password: e.target.value }))
+            }
+            margin="normal"
+            required
+            helperText="Min 6 characters"
+          />
+          <TextField
+            fullWidth
+            label="First name"
+            value={newAdminForm.firstName}
+            onChange={(e) =>
+              setNewAdminForm((f) => ({ ...f, firstName: e.target.value }))
+            }
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Last name"
+            value={newAdminForm.lastName}
+            onChange={(e) =>
+              setNewAdminForm((f) => ({ ...f, lastName: e.target.value }))
+            }
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Phone"
+            value={newAdminForm.phone}
+            onChange={(e) =>
+              setNewAdminForm((f) => ({ ...f, phone: e.target.value }))
+            }
+            margin="normal"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAdminDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (
+                !newAdminForm.email ||
+                !newAdminForm.password ||
+                newAdminForm.password.length < 6
+              ) {
+                toast.error("Email and password (min 6 chars) required");
+                return;
+              }
+              createAdminMutation.mutate(newAdminForm);
+            }}
+            disabled={createAdminMutation.isPending}
+          >
+            {createAdminMutation.isPending ? "Creating..." : "Create Admin"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={() => {
+          setPasswordDialogOpen(false);
+          setSelectedAdminId(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Change Admin Password</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="New password"
+            type="password"
+            value={newPasswordValue}
+            onChange={(e) => setNewPasswordValue(e.target.value)}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Confirm new password"
+            type="password"
+            value={newPasswordConfirm}
+            onChange={(e) => setNewPasswordConfirm(e.target.value)}
+            margin="normal"
+            required
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (newPasswordValue.length < 6) {
+                toast.error("Password must be at least 6 characters");
+                return;
+              }
+              if (newPasswordValue !== newPasswordConfirm) {
+                toast.error("Passwords do not match");
+                return;
+              }
+              if (selectedAdminId) {
+                resetPasswordMutation.mutate({
+                  userId: selectedAdminId,
+                  newPassword: newPasswordValue,
+                });
+              }
+            }}
+            disabled={!selectedAdminId || resetPasswordMutation.isPending}
+          >
+            {resetPasswordMutation.isPending
+              ? "Updating..."
+              : "Update Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

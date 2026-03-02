@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { getPrismaClient } from "@database/index";
 // Define types locally to avoid module resolution issues
 type AdminDashboardData = {
@@ -108,40 +109,59 @@ export class AdminService {
     usersNonAdmin: number;
     verificationsTotal: number;
     verificationsPending: number;
-    verificationsWithDocuments: { id: string; userId: string; status: string; documentType: string; hasFront: boolean; hasBack: boolean; hasSelfie: boolean }[];
+    verificationsWithDocuments: {
+      id: string;
+      userId: string;
+      status: string;
+      documentType: string;
+      hasFront: boolean;
+      hasBack: boolean;
+      hasSelfie: boolean;
+    }[];
   }> {
     const prisma = this.getPrisma();
-    const [usersTotal, usersNonAdmin, verificationsTotal, verificationsPending, verificationsSample] =
-      await Promise.all([
-        prisma.user.count().catch(() => 0),
-        prisma.user.count({ where: { userType: { not: "ADMIN" } } }).catch(() => 0),
-        prisma.verification.count().catch(() => 0),
-        prisma.verification.count({ where: { status: "PENDING" } }).catch(() => 0),
-        prisma.verification
-          .findMany({
-            take: 20,
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              userId: true,
-              status: true,
-              documentType: true,
-              frontImageUrl: true,
-              backImageUrl: true,
-              selfieImageUrl: true,
-            },
-          })
-          .catch(() => []),
-      ]);
-    const verificationsWithDocuments = (verificationsSample || []).map((v: any) => ({
-      id: v.id,
-      userId: v.userId,
-      status: v.status,
-      documentType: v.documentType,
-      hasFront: !!v.frontImageUrl,
-      hasBack: !!v.backImageUrl,
-      hasSelfie: !!v.selfieImageUrl,
-    }));
+    const [
+      usersTotal,
+      usersNonAdmin,
+      verificationsTotal,
+      verificationsPending,
+      verificationsSample,
+    ] = await Promise.all([
+      prisma.user.count().catch(() => 0),
+      prisma.user
+        .count({ where: { userType: { not: "ADMIN" } } })
+        .catch(() => 0),
+      prisma.verification.count().catch(() => 0),
+      prisma.verification
+        .count({ where: { status: "PENDING" } })
+        .catch(() => 0),
+      prisma.verification
+        .findMany({
+          take: 20,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            userId: true,
+            status: true,
+            documentType: true,
+            frontImageUrl: true,
+            backImageUrl: true,
+            selfieImageUrl: true,
+          },
+        })
+        .catch(() => []),
+    ]);
+    const verificationsWithDocuments = (verificationsSample || []).map(
+      (v: any) => ({
+        id: v.id,
+        userId: v.userId,
+        status: v.status,
+        documentType: v.documentType,
+        hasFront: !!v.frontImageUrl,
+        hasBack: !!v.backImageUrl,
+        hasSelfie: !!v.selfieImageUrl,
+      }),
+    );
     return {
       usersTotal,
       usersNonAdmin,
@@ -375,7 +395,9 @@ export class AdminService {
         ? filters.status[0]
         : filters.status;
       const includeUnverified =
-        !statusFilter || statusFilter === "PENDING" || statusFilter === "pending";
+        !statusFilter ||
+        statusFilter === "PENDING" ||
+        statusFilter === "pending";
 
       const [requests, unverifiedUsers] = await Promise.all([
         prisma.verification
@@ -865,17 +887,25 @@ export class AdminService {
     }
   }
 
-  async resetUserPassword(_id: string) {
+  async resetUserPassword(userId: string, newPassword: string) {
     try {
-      const temporaryPassword = Math.random().toString(36).slice(-8);
-
-      return {
-        temporaryPassword,
-        message: "Password reset successfully",
-      };
-    } catch (_error) {
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+      const prisma = this.getPrisma();
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error("User not found");
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, updatedAt: new Date() },
+      });
+      return { message: "Password reset successfully" };
+    } catch (_error: any) {
       console.error("Error resetting user password:", _error);
-      throw new Error("Failed to reset user password");
+      throw _error.message
+        ? _error
+        : new Error("Failed to reset user password");
     }
   }
 
@@ -1227,22 +1257,33 @@ export class AdminService {
     }
   }
 
-  // Admin User Management Methods
+  // Admin User Management (using User model with userType ADMIN)
   async getAdminUsers() {
     try {
-      const adminUsers = await this.getPrisma().adminUser.findMany({
+      const users = await this.getPrisma().user.findMany({
+        where: { userType: "ADMIN" },
         orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          createdAt: true,
+          updatedAt: true,
+          suspendedAt: true,
+        },
       });
-
-      return adminUsers.map((admin: any) => ({
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        role: admin.role,
-        permissions: admin.permissions,
-        isActive: admin.isActive,
-        createdAt: admin.createdAt,
-        updatedAt: admin.updatedAt,
+      return users.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        phone: u.phone,
+        isActive: !u.suspendedAt,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
       }));
     } catch (_error) {
       console.error("Error fetching admin users:", _error);
@@ -1252,34 +1293,72 @@ export class AdminService {
 
   async createAdminUser(data: {
     email: string;
-    name: string;
-    role: string;
-    permissions: string[];
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
   }) {
     try {
-      const adminUser = await this.getPrisma().adminUser.create({
+      const prisma = this.getPrisma();
+      const existing = await prisma.user.findUnique({
+        where: { email: data.email.trim() },
+      });
+      if (existing) {
+        throw new Error("An admin with this email already exists");
+      }
+      const passwordHash = await bcrypt.hash(data.password, 12);
+      const user = await prisma.user.create({
         data: {
-          email: data.email,
-          name: data.name,
-          role: data.role,
-          permissions: data.permissions,
-          isActive: true,
+          email: data.email.trim(),
+          passwordHash,
+          firstName: data.firstName || "Admin",
+          lastName: data.lastName || "User",
+          phone: data.phone || "+26770000000",
+          userType: "ADMIN",
+          identityVerified: true,
+          emailVerified: true,
         },
       });
-
+      await prisma.wallet.create({
+        data: { userId: user.id, availableBalance: 0, reservedBalance: 0 },
+      });
       return {
-        id: adminUser.id,
-        email: adminUser.email,
-        name: adminUser.name,
-        role: adminUser.role,
-        permissions: adminUser.permissions,
-        isActive: adminUser.isActive,
-        createdAt: adminUser.createdAt,
-        updatedAt: adminUser.updatedAt,
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
       };
-    } catch (_error) {
+    } catch (_error: any) {
       console.error("Error creating admin user:", _error);
-      throw new Error("Failed to create admin user");
+      throw _error.message ? _error : new Error("Failed to create admin user");
+    }
+  }
+
+  async setUserPassword(userId: string, newPassword: string) {
+    try {
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+      const prisma = this.getPrisma();
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error("User not found");
+      if (user.userType !== "ADMIN") {
+        throw new Error(
+          "Only admin user passwords can be set from this endpoint",
+        );
+      }
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, updatedAt: new Date() },
+      });
+      return { message: "Password updated successfully" };
+    } catch (_error: any) {
+      console.error("Error setting user password:", _error);
+      throw _error.message ? _error : new Error("Failed to set password");
     }
   }
 
@@ -1527,33 +1606,48 @@ export class AdminService {
     }
   }
 
-  async updateAdminUser(_id: string, _updates: any, _updatedBy: string) {
+  async updateAdminUser(
+    id: string,
+    updates: { firstName?: string; lastName?: string; phone?: string },
+    _updatedBy: string,
+  ) {
     try {
-      // Implementation for updating admin user
-      if (Math.random() > 0.1) {
-        // 90% chance of success
-        return { message: "Admin user updated successfully" };
-      } else {
-        throw new Error("Admin user update service unavailable");
-      }
-    } catch (_error) {
+      const prisma = this.getPrisma();
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user || user.userType !== "ADMIN")
+        throw new Error("Admin user not found");
+      const data: any = { updatedAt: new Date() };
+      if (updates.firstName !== undefined) data.firstName = updates.firstName;
+      if (updates.lastName !== undefined) data.lastName = updates.lastName;
+      if (updates.phone !== undefined) data.phone = updates.phone;
+      const updated = await prisma.user.update({ where: { id }, data });
+      return {
+        id: updated.id,
+        email: updated.email,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+        updatedAt: updated.updatedAt,
+      };
+    } catch (_error: any) {
       console.error("Error updating admin user:", _error);
-      throw new Error("Failed to update admin user");
+      throw _error.message ? _error : new Error("Failed to update admin user");
     }
   }
 
-  async deleteAdminUser(_id: string, _deletedBy: string) {
+  async deleteAdminUser(id: string, deletedBy: string) {
     try {
-      // Implementation for deleting admin user
-      if (Math.random() > 0.1) {
-        // 90% chance of success
-        return { message: "Admin user deleted successfully" };
-      } else {
-        throw new Error("Admin user deletion service unavailable");
-      }
-    } catch (_error) {
+      const prisma = this.getPrisma();
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user || user.userType !== "ADMIN")
+        throw new Error("Admin user not found");
+      if (user.id === deletedBy)
+        throw new Error("You cannot delete your own admin account");
+      await prisma.user.delete({ where: { id } });
+      return { message: "Admin user deleted successfully" };
+    } catch (_error: any) {
       console.error("Error deleting admin user:", _error);
-      throw new Error("Failed to delete admin user");
+      throw _error.message ? _error : new Error("Failed to delete admin user");
     }
   }
 

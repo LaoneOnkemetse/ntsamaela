@@ -96,7 +96,7 @@ export default function Users() {
         if (searchQuery) params.search = searchQuery;
         if (statusFilter !== "all") params.status = statusFilter;
         const data = await getUsers(params);
-        return Array.isArray(data) ? data : data?.users || data?.data || [];
+        return Array.isArray(data) ? data : (data?.users ?? []);
       } catch (err: any) {
         console.error("Error fetching users:", err);
         // Return empty array instead of throwing to prevent UI crash
@@ -228,7 +228,7 @@ export default function Users() {
     }
   };
 
-  const users = Array.isArray(usersData) ? usersData : usersData?.users ?? [];
+  const users = Array.isArray(usersData) ? usersData : (usersData?.users ?? []);
 
   const getStatusColor = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -354,15 +354,17 @@ export default function Users() {
                         label={
                           user.suspendedAt
                             ? "SUSPENDED"
-                            : user.status ??
-                              (user.identityVerified ? "VERIFIED" : "ACTIVE")
+                            : (user.status ??
+                              (user.identityVerified ? "VERIFIED" : "ACTIVE"))
                         }
                         color={
                           getStatusColor(
                             user.suspendedAt
                               ? "SUSPENDED"
-                              : user.status ??
-                                (user.identityVerified ? "VERIFIED" : "ACTIVE"),
+                              : (user.status ??
+                                  (user.identityVerified
+                                    ? "VERIFIED"
+                                    : "ACTIVE")),
                           ) as any
                         }
                         size="small"
@@ -455,7 +457,10 @@ export default function Users() {
               label="First name"
               value={editFormData.firstName}
               onChange={(e) =>
-                setEditFormData((prev) => ({ ...prev, firstName: e.target.value }))
+                setEditFormData((prev) => ({
+                  ...prev,
+                  firstName: e.target.value,
+                }))
               }
             />
             <TextField
@@ -463,7 +468,10 @@ export default function Users() {
               label="Last name"
               value={editFormData.lastName}
               onChange={(e) =>
-                setEditFormData((prev) => ({ ...prev, lastName: e.target.value }))
+                setEditFormData((prev) => ({
+                  ...prev,
+                  lastName: e.target.value,
+                }))
               }
             />
             <TextField
@@ -639,8 +647,7 @@ export default function Users() {
         onClose={() => setSuspendDialogOpen(false)}
       >
         <DialogTitle>
-          {selectedUser?.suspendedAt ? "Unsuspend" : "Suspend"}{" "}
-          User
+          {selectedUser?.suspendedAt ? "Unsuspend" : "Suspend"} User
         </DialogTitle>
         <DialogContent>
           <Typography>

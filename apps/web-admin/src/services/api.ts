@@ -91,7 +91,7 @@ export const getUsers = async (params?: any) => {
     const response = await apiClient.get("/admin/users", { params });
     const raw = response.data?.data ?? response.data;
     // Ensure we always return { users, total } so list is never wrong
-    const users = Array.isArray(raw) ? raw : raw?.users ?? [];
+    const users = Array.isArray(raw) ? raw : (raw?.users ?? []);
     const total = typeof raw?.total === "number" ? raw.total : users.length;
     return { users, total };
   } catch (error) {
@@ -158,6 +158,79 @@ export const unsuspendUser = async (id: string) => {
     return response.data.data || response.data;
   } catch (error) {
     console.error("Error unsuspending user:", error);
+    throw error;
+  }
+};
+
+export const resetUserPassword = async (
+  userId: string,
+  newPassword: string,
+) => {
+  try {
+    const response = await apiClient.post(
+      `/admin/users/${userId}/reset-password`,
+      { newPassword },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error resetting user password:", error);
+    throw error;
+  }
+};
+
+// Admin user management (web admin users with userType ADMIN)
+export const getAdminUsers = async () => {
+  try {
+    const response = await apiClient.get("/admin/admin/users");
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.data ?? data ?? []);
+  } catch (error) {
+    console.error("Error fetching admin users:", error);
+    throw error;
+  }
+};
+
+export const createAdminUser = async (data: {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}) => {
+  try {
+    const response = await apiClient.post("/admin/admin/users", {
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName ?? "Admin",
+      lastName: data.lastName ?? "User",
+      phone: data.phone ?? "+26770000000",
+    });
+    return response.data?.data ?? response.data;
+  } catch (error) {
+    console.error("Error creating admin user:", error);
+    throw error;
+  }
+};
+
+export const updateAdminUser = async (
+  id: string,
+  data: { firstName?: string; lastName?: string; phone?: string },
+) => {
+  try {
+    const response = await apiClient.put(`/admin/admin/users/${id}`, data);
+    return response.data?.data ?? response.data;
+  } catch (error) {
+    console.error("Error updating admin user:", error);
+    throw error;
+  }
+};
+
+export const deleteAdminUser = async (id: string) => {
+  try {
+    const response = await apiClient.delete(`/admin/admin/users/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting admin user:", error);
     throw error;
   }
 };

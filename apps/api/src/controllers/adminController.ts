@@ -149,12 +149,10 @@ export class AdminController {
         message: "Verification reviewed successfully",
       });
     } catch (_error: any) {
-      res
-        .status(_error.message?.includes("not found") ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to review verification" },
-        });
+      res.status(_error.message?.includes("not found") ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to review verification" },
+      });
     }
   }
 
@@ -175,14 +173,12 @@ export class AdminController {
         message: "Verification approved",
       });
     } catch (_error: any) {
-      res
-        .status(_error.message?.includes("not found") ? 404 : 500)
-        .json({
-          success: false,
-          error: {
-            message: _error.message || "Failed to approve verification",
-          },
-        });
+      res.status(_error.message?.includes("not found") ? 404 : 500).json({
+        success: false,
+        error: {
+          message: _error.message || "Failed to approve verification",
+        },
+      });
     }
   }
 
@@ -204,12 +200,10 @@ export class AdminController {
         message: "Verification rejected",
       });
     } catch (_error: any) {
-      res
-        .status(_error.message?.includes("not found") ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to reject verification" },
-        });
+      res.status(_error.message?.includes("not found") ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to reject verification" },
+      });
     }
   }
 
@@ -258,12 +252,10 @@ export class AdminController {
       const user = await this.adminService.getUser(id);
       res.json({ success: true, data: user });
     } catch (_error: any) {
-      res
-        .status(_error.message === "User not found" ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to fetch user" },
-        });
+      res.status(_error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to fetch user" },
+      });
     }
   }
 
@@ -320,12 +312,10 @@ export class AdminController {
       await this.adminService.unsuspendUser(id);
       res.json({ success: true, message: "User unsuspended successfully" });
     } catch (_error: any) {
-      res
-        .status(_error.message === "User not found" ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to unsuspend user" },
-        });
+      res.status(_error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to unsuspend user" },
+      });
     }
   }
 
@@ -335,26 +325,31 @@ export class AdminController {
       await this.adminService.deleteUser(id);
       res.json({ success: true, message: "User deleted successfully" });
     } catch (_error: any) {
-      res
-        .status(_error.message === "User not found" ? 404 : 500)
-        .json({
-          success: false,
-          error: { message: _error.message || "Failed to delete user" },
-        });
+      res.status(_error.message === "User not found" ? 404 : 500).json({
+        success: false,
+        error: { message: _error.message || "Failed to delete user" },
+      });
     }
   }
 
   async resetUserPassword(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
-      const _adminId = req.user?.id;
-
-      const result = await this.adminService.resetUserPassword(id);
-      res.json(result);
+      const newPassword = req.body?.newPassword;
+      if (!newPassword || typeof newPassword !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: { message: "newPassword is required (min 6 characters)" },
+        });
+      }
+      const result = await this.adminService.resetUserPassword(id, newPassword);
+      res.json({ success: true, ...result });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({ message: _error.message || "Failed to reset user password" });
+      const status = _error.message === "User not found" ? 404 : 400;
+      res.status(status).json({
+        success: false,
+        error: { message: _error.message || "Failed to reset user password" },
+      });
     }
   }
 
@@ -590,20 +585,32 @@ export class AdminController {
 
   async createAdminUser(req: AuthenticatedRequest, res: Response) {
     try {
-      const { email, name, role, permissions } = req.body;
-      const _createdBy = req.user?.id;
-
+      const { email, password, firstName, lastName, phone } = req.body || {};
+      if (!email || typeof email !== "string" || !email.trim()) {
+        return res
+          .status(400)
+          .json({ success: false, error: { message: "Email is required" } });
+      }
+      if (!password || typeof password !== "string" || password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: "Password is required (min 6 characters)" },
+        });
+      }
       const user = await this.adminService.createAdminUser({
-        email,
-        name,
-        role,
-        permissions,
+        email: email.trim(),
+        password,
+        firstName: (firstName || "Admin") as string,
+        lastName: (lastName || "User") as string,
+        phone: (phone || "+26770000000") as string,
       });
-      res.status(201).json(user);
+      res.status(201).json({ success: true, data: user });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({ message: _error.message || "Failed to create admin user" });
+      const status = _error.message?.includes("already exists") ? 409 : 500;
+      res.status(status).json({
+        success: false,
+        error: { message: _error.message || "Failed to create admin user" },
+      });
     }
   }
 
