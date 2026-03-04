@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import {
   AppBar,
   Toolbar,
@@ -20,8 +20,7 @@ import {
   useMediaQuery,
   Badge,
   Tooltip,
-  CircularProgress,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Menu as MenuIcon,
   Dashboard,
@@ -35,11 +34,11 @@ import {
   Person,
   ChevronLeft,
   TrendingUp,
-} from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { getNotifications } from '../services/api';
-import Logo from './Logo';
+} from "@mui/icons-material";
+import { useAuth } from "../hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { getNotifications } from "../services/api";
+import Logo from "./Logo";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -48,26 +47,29 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] =
+    useState<null | HTMLElement>(null);
   const { user, logout, loading } = useAuth();
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Fetch admin-specific notifications (verifications, complaints, approvals, etc.)
   const { data: notificationsData } = useQuery({
-    queryKey: ['adminNotifications'],
+    queryKey: ["adminNotifications"],
     queryFn: async () => {
       try {
         // Fetch admin-specific notifications - verifications, complaints, user reports, etc.
-        const data = await getNotifications({ 
-          unreadOnly: true, 
+        const data = await getNotifications({
+          unreadOnly: true,
           limit: 10,
-          type: 'admin', // Request admin-specific notifications
+          type: "admin", // Request admin-specific notifications
         });
-        return Array.isArray(data) ? data : (data?.notifications || data?.data || []);
+        return Array.isArray(data)
+          ? data
+          : data?.notifications || data?.data || [];
       } catch (error) {
-        console.error('Error fetching admin notifications:', error);
+        console.error("Error fetching admin notifications:", error);
         return [];
       }
     },
@@ -75,7 +77,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     enabled: !!user,
   });
 
-  const unreadCount = notificationsData?.filter((n: any) => !n.read).length || 0;
+  const unreadCount = Array.isArray(notificationsData)
+    ? notificationsData.filter((n) => !n.read).length
+    : 0;
 
   const handleMenu = () => {
     setDrawerOpen(!drawerOpen);
@@ -100,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = () => {
     handleUserMenuClose();
     logout();
-    router.push('/login');
+    router.push("/login");
   };
 
   const handleNavigation = (path: string) => {
@@ -114,53 +118,98 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Only redirect if we're sure the user is not authenticated (not just loading)
   useEffect(() => {
     // Only redirect in browser, not during SSR
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Don't redirect if still loading auth state
     if (loading) return;
-    
+
     // Don't redirect if already on login or root page
-    if (router.pathname === '/login' || router.pathname === '/') return;
-    
+    if (router.pathname === "/login" || router.pathname === "/") return;
+
     // Trust token if it exists - don't require user object to be loaded
     // This prevents redirect loops when API is slow or user data fetch fails
-    const hasToken = localStorage.getItem('token');
+    const hasToken = localStorage.getItem("token");
     if (!hasToken) {
       // Only redirect if there's definitely no token
-      router.push('/login');
+      router.push("/login");
     }
     // If token exists, trust it and let the page handle auth errors
   }, [loading, router]);
 
   const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', color: '#6366F1' },
-    { text: 'Users', icon: <People />, path: '/users', color: '#10B981' },
-    { text: 'Deliveries', icon: <LocalShipping />, path: '/deliveries', color: '#F59E0B' },
-    { text: 'Wallets', icon: <AccountBalance />, path: '/wallets', color: '#8B5CF6' },
-    { text: 'Verifications', icon: <VerifiedUser />, path: '/verifications', color: '#EC4899' },
-    { text: 'Analytics', icon: <TrendingUp />, path: '/analytics', color: '#0EA5E9' },
-    { text: 'Settings', icon: <Settings />, path: '/settings', color: '#6B7280' },
+    {
+      text: "Dashboard",
+      icon: <Dashboard />,
+      path: "/dashboard",
+      color: "#6366F1",
+    },
+    { text: "Users", icon: <People />, path: "/users", color: "#10B981" },
+    {
+      text: "Deliveries",
+      icon: <LocalShipping />,
+      path: "/deliveries",
+      color: "#F59E0B",
+    },
+    {
+      text: "Wallets",
+      icon: <AccountBalance />,
+      path: "/wallets",
+      color: "#8B5CF6",
+    },
+    {
+      text: "Verifications",
+      icon: <VerifiedUser />,
+      path: "/verifications",
+      color: "#EC4899",
+    },
+    {
+      text: "Analytics",
+      icon: <TrendingUp />,
+      path: "/analytics",
+      color: "#0EA5E9",
+    },
+    {
+      text: "Settings",
+      icon: <Settings />,
+      path: "/settings",
+      color: "#6B7280",
+    },
   ];
 
   const drawerWidth = 280;
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#FFFFFF' }}>
-      <Box sx={{ 
-        p: 3, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: "#FFFFFF",
+      }}
+    >
+      <Box
+        sx={{
+          p: 3,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Logo size={40} variant="sidebar" />
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}
+            >
               Ntsamaela
             </Typography>
-            <Typography variant="caption" sx={{ color: '#75AADB', fontSize: '0.7rem', fontWeight: 600 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: "#75AADB", fontSize: "0.7rem", fontWeight: 600 }}
+            >
               ADMIN DASHBOARD
             </Typography>
           </Box>
@@ -171,9 +220,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </IconButton>
         )}
       </Box>
-      
+
       <List sx={{ px: 2, py: 3, flex: 1 }}>
-        {menuItems.map((item, index) => {
+        {menuItems.map((item) => {
           const isActive = router.pathname === item.path;
           return (
             <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
@@ -183,21 +232,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   borderRadius: 2,
                   py: 1.5,
                   px: 2,
-                  transition: 'all 0.2s ease',
-                  background: isActive ? '#0F172A' : 'transparent',
-                  color: isActive ? '#FFFFFF' : 'text.primary',
-                  '&:hover': {
-                    background: isActive ? '#1E293B' : '#F0F9FF',
+                  transition: "all 0.2s ease",
+                  background: isActive ? "#0F172A" : "transparent",
+                  color: isActive ? "#FFFFFF" : "text.primary",
+                  "&:hover": {
+                    background: isActive ? "#1E293B" : "#F0F9FF",
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: isActive ? '#FFFFFF' : item.color }}>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 40,
+                    color: isActive ? "#FFFFFF" : item.color,
+                  }}
+                >
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontSize: '0.9375rem',
+                    fontSize: "0.9375rem",
                     fontWeight: isActive ? 600 : 500,
                   }}
                 />
@@ -207,14 +261,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         })}
       </List>
 
-      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ 
-          p: 2, 
-          borderRadius: 2, 
-          background: '#F0F9FF',
-          border: '1px solid #BAE6FD',
-        }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: '#0EA5E9', mb: 0.5 }}>
+      <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            background: "#F0F9FF",
+            border: "1px solid #BAE6FD",
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "#0EA5E9", mb: 0.5 }}
+          >
             Need Help?
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -226,24 +285,35 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 
   // Don't render Layout (sidebar/navigation) on login page - let login page render its own layout
-  if (router.pathname === '/login' || router.pathname === '/') {
+  if (router.pathname === "/login" || router.pathname === "/") {
     return <>{children}</>;
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB' }}>
-      <AppBar 
-        position="fixed" 
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#F9FAFB",
+        userSelect: "none",
+        "& *": {
+          userSelect: "none",
+        },
+      }}
+    >
+      <AppBar
+        position="fixed"
         elevation={0}
-        sx={{ 
+        sx={{
           zIndex: theme.zIndex.drawer + 1,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          ...(drawerOpen && !isMobile && { 
-            width: `calc(100% - ${drawerWidth}px)`,
-            ml: `${drawerWidth}px`,
-          }),
-          transition: theme.transitions.create(['width', 'margin'], {
+          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(10px)",
+          ...(drawerOpen &&
+            !isMobile && {
+              width: `calc(100% - ${drawerWidth}px)`,
+              ml: `${drawerWidth}px`,
+            }),
+          transition: theme.transitions.create(["width", "margin"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),
@@ -261,12 +331,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <MenuIcon />
             </IconButton>
           )}
-          
+
           <Box sx={{ flexGrow: 1 }} />
-          
+
           <Tooltip title="Notifications">
-            <IconButton 
-              color="inherit" 
+            <IconButton
+              color="inherit"
               sx={{ mr: 1 }}
               onClick={handleNotificationMenuOpen}
             >
@@ -278,15 +348,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           <Tooltip title="Account">
             <IconButton onClick={handleUserMenuOpen} sx={{ ml: 1 }}>
-              <Avatar sx={{ 
-                width: 38, 
-                height: 38, 
-                background: '#0EA5E9',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: '#FFFFFF',
-              }}>
-                {(user?.firstName?.[0] || 'A')}{(user?.lastName?.[0] || 'D')}
+              <Avatar
+                sx={{
+                  width: 38,
+                  height: 38,
+                  background: "#0EA5E9",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  color: "#FFFFFF",
+                }}
+              >
+                {user?.firstName?.[0] || "A"}
+                {user?.lastName?.[0] || "D"}
               </Avatar>
             </IconButton>
           </Tooltip>
@@ -298,8 +371,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         anchorEl={notificationAnchorEl}
         open={Boolean(notificationAnchorEl)}
         onClose={handleNotificationMenuClose}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
         PaperProps={{
           sx: {
             mt: 1.5,
@@ -307,48 +380,62 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             maxWidth: 400,
             maxHeight: 400,
             borderRadius: 2,
-            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.12)',
+            boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.12)",
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Notifications
           </Typography>
         </Box>
-        <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
-          {notificationsData && notificationsData.length > 0 ? (
-            notificationsData.slice(0, 10).map((notification: any) => (
-              <MenuItem 
+        <Box sx={{ maxHeight: 300, overflow: "auto" }}>
+          {Array.isArray(notificationsData) && notificationsData.length > 0 ? (
+            notificationsData.slice(0, 10).map((notification) => (
+              <MenuItem
                 key={notification.id}
                 onClick={() => {
                   handleNotificationMenuClose();
                   // Navigate to relevant page based on notification type
-                  if (notification.type?.includes('verification')) {
-                    router.push('/verifications');
-                  } else if (notification.type?.includes('package')) {
-                    router.push('/deliveries');
+                  if (notification.type?.includes("verification")) {
+                    router.push("/verifications");
+                  } else if (notification.type?.includes("package")) {
+                    router.push("/deliveries");
                   }
                 }}
-                sx={{ 
+                sx={{
                   py: 1.5,
                   px: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
                   ...(!notification.read && {
-                    backgroundColor: 'rgba(117, 170, 219, 0.05)',
+                    backgroundColor: "rgba(117, 170, 219, 0.05)",
                   }),
                 }}
               >
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: notification.read ? 400 : 600 }}>
-                    {notification.title || 'Notification'}
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: notification.read ? 400 : 600 }}
+                  >
+                    {notification.title || "Notification"}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {notification.message || notification.body || ''}
+                    {notification.message || notification.body || ""}
                   </Typography>
                   {notification.createdAt && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 0.5 }}
+                    >
                       {new Date(notification.createdAt).toLocaleString()}
                     </Typography>
                   )}
@@ -356,7 +443,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </MenuItem>
             ))
           ) : (
-            <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+            <Box sx={{ px: 2, py: 3, textAlign: "center" }}>
               <Typography variant="body2" color="text.secondary">
                 No notifications
               </Typography>
@@ -364,13 +451,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           )}
         </Box>
         {notificationsData && notificationsData.length > 0 && (
-          <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-            <MenuItem 
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <MenuItem
               onClick={() => {
                 handleNotificationMenuClose();
-                router.push('/notifications');
+                router.push("/notifications");
               }}
-              sx={{ justifyContent: 'center', py: 1 }}
+              sx={{ justifyContent: "center", py: 1 }}
             >
               <Typography variant="caption" color="primary">
                 View All Notifications
@@ -384,14 +478,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleUserMenuClose}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
         PaperProps={{
           sx: {
             mt: 1.5,
             minWidth: 200,
             borderRadius: 2,
-            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.12)',
+            boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.12)",
           },
         }}
       >
@@ -404,20 +498,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Typography>
         </Box>
         <Divider />
-        <MenuItem onClick={() => { handleUserMenuClose(); handleNavigation('/profile'); }} sx={{ py: 1.5 }}>
+        <MenuItem
+          onClick={() => {
+            handleUserMenuClose();
+            handleNavigation("/profile");
+          }}
+          sx={{ py: 1.5 }}
+        >
           <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>
           <ListItemText>Profile</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { handleUserMenuClose(); handleNavigation('/settings'); }} sx={{ py: 1.5 }}>
+        <MenuItem
+          onClick={() => {
+            handleUserMenuClose();
+            handleNavigation("/settings");
+          }}
+          sx={{ py: 1.5 }}
+        >
           <ListItemIcon>
             <Settings fontSize="small" />
           </ListItemIcon>
           <ListItemText>Settings</ListItemText>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: 'error.main' }}>
+        <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: "error.main" }}>
           <ListItemIcon>
             <Logout fontSize="small" color="error" />
           </ListItemIcon>
@@ -427,10 +533,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <Box
         component="nav"
-        sx={{ 
-          width: { sm: drawerOpen ? drawerWidth : 0 }, 
+        sx={{
+          width: { sm: drawerOpen ? drawerWidth : 0 },
           flexShrink: { sm: 0 },
-          transition: theme.transitions.create('width', {
+          transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),
@@ -443,9 +549,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             onClose={handleMenu}
             ModalProps={{ keepMounted: true }}
             sx={{
-              display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': { 
-                boxSizing: 'border-box', 
+              display: { xs: "block", sm: "none" },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
                 width: drawerWidth,
               },
             }}
@@ -456,9 +562,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Drawer
             variant="persistent"
             sx={{
-              display: { xs: 'none', sm: 'block' },
-              '& .MuiDrawer-paper': { 
-                boxSizing: 'border-box', 
+              display: { xs: "none", sm: "block" },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
                 width: drawerWidth,
               },
             }}
@@ -473,17 +579,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${drawerOpen && !isMobile ? drawerWidth : 0}px)` },
-          transition: theme.transitions.create(['width', 'margin'], {
+          width: {
+            sm: `calc(100% - ${drawerOpen && !isMobile ? drawerWidth : 0}px)`,
+          },
+          transition: theme.transitions.create(["width", "margin"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),
         }}
       >
         <Toolbar />
-        <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          {children}
-        </Box>
+        <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>{children}</Box>
       </Box>
     </Box>
   );

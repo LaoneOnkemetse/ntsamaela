@@ -130,6 +130,8 @@ export const RegisterCustomerScreen = () => {
             name: "selfie.jpg",
           });
           formData.append("documentType", idFront ? "NATIONAL_ID" : "PASSPORT");
+          // Backend validation requires userType for verification submit
+          formData.append("userType", "CUSTOMER");
           try {
             const verifyResponse =
               await apiService.submitVerification(formData);

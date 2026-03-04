@@ -75,6 +75,10 @@ const StatCard: React.FC<StatCardProps> = ({
         position: "relative",
         overflow: "visible",
         cursor: onClick ? "pointer" : "default",
+        userSelect: "none",
+        "& *": {
+          userSelect: "none",
+        },
         transition: "all 0.3s ease",
         "&:hover": onClick
           ? {

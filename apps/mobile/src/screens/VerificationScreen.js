@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,18 +7,21 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../constants/colors';
-import { RegistrationPhotoButton } from '../components/RegistrationPhotoButton';
-import { takePhoto, selectFromGallery, showPhotoActionSheet, createFormData } from '../utils/imageUtils';
-import apiService from '../services/apiService';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../constants/colors";
+import { RegistrationPhotoButton } from "../components/RegistrationPhotoButton";
+import {
+  takePhoto,
+  selectFromGallery,
+  showPhotoActionSheet,
+} from "../utils/imageUtils";
+import apiService from "../services/apiService";
 
-export const VerificationScreen = ({ navigation, route }) => {
+export const VerificationScreen = () => {
   const [loading, setLoading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
-  const [documentType, setDocumentType] = useState('DRIVERS_LICENSE');
+  const [documentType, setDocumentType] = useState("DRIVERS_LICENSE");
   const [frontImage, setFrontImage] = useState(null);
   const [backImage, setBackImage] = useState(null);
   const [selfieImage, setSelfieImage] = useState(null);
@@ -32,7 +35,10 @@ export const VerificationScreen = ({ navigation, route }) => {
       const response = await apiService.getVerificationStatus();
       if (response.success && response.data) {
         setVerificationStatus(response.data);
-        if (response.data.status === 'APPROVED' || response.data.status === 'REJECTED') {
+        if (
+          response.data.status === "APPROVED" ||
+          response.data.status === "REJECTED"
+        ) {
           // Already verified, show status
           setFrontImage({ uri: response.data.frontImageUrl });
           if (response.data.backImageUrl) {
@@ -43,7 +49,7 @@ export const VerificationScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error('Failed to load verification status:', error);
+      console.error("Failed to load verification status:", error);
     }
   };
 
@@ -91,56 +97,64 @@ export const VerificationScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!frontImage || !selfieImage) {
-      Alert.alert('Missing Information', 'Please provide front document image and selfie');
+      Alert.alert(
+        "Missing Information",
+        "Please provide front document image and selfie",
+      );
       return;
     }
 
-    if (documentType !== 'PASSPORT' && !backImage) {
-      Alert.alert('Missing Information', 'Please provide back document image');
+    if (documentType !== "PASSPORT" && !backImage) {
+      Alert.alert("Missing Information", "Please provide back document image");
       return;
     }
 
     setLoading(true);
     try {
       const formData = new FormData();
-      
+
       // Add images
-      formData.append('frontImage', {
+      formData.append("frontImage", {
         uri: frontImage.uri,
-        type: 'image/jpeg',
-        name: 'front.jpg',
+        type: "image/jpeg",
+        name: "front.jpg",
       });
-      
+
       if (backImage) {
-        formData.append('backImage', {
+        formData.append("backImage", {
           uri: backImage.uri,
-          type: 'image/jpeg',
-          name: 'back.jpg',
+          type: "image/jpeg",
+          name: "back.jpg",
         });
       }
-      
-      formData.append('selfieImage', {
+
+      formData.append("selfieImage", {
         uri: selfieImage.uri,
-        type: 'image/jpeg',
-        name: 'selfie.jpg',
+        type: "image/jpeg",
+        name: "selfie.jpg",
       });
-      
-      formData.append('documentType', documentType);
+
+      formData.append("documentType", documentType);
+      // Backend validation requires userType for verification submit
+      formData.append("userType", "CUSTOMER");
 
       const response = await apiService.submitVerification(formData);
-      
+
       if (response.success) {
         Alert.alert(
-          'Success',
-          'Verification submitted successfully. Your documents are under review.',
-          [{ text: 'OK', onPress: () => loadVerificationStatus() }]
+          "Success",
+          "Verification submitted successfully. Your documents are under review.",
+          [{ text: "OK", onPress: () => loadVerificationStatus() }],
         );
       } else {
-        Alert.alert('Error', response.error?.message || 'Failed to submit verification');
+        Alert.alert(
+          "Error",
+          response.error?.message || "Failed to submit verification",
+        );
       }
     } catch (error) {
-      console.error('Verification submission error:', error);
-      Alert.alert('Error', error.message || 'Failed to submit verification');
+      console.error("Verification submission error:", error);
+      Alert.alert("Error", error.message || "Failed to submit verification");
     } finally {
       setLoading(false);
     }
@@ -148,11 +162,11 @@ export const VerificationScreen = ({ navigation, route }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'APPROVED':
+      case "APPROVED":
         return colors.success;
-      case 'REJECTED':
+      case "REJECTED":
         return colors.error;
-      case 'PENDING':
+      case "PENDING":
         return colors.warning;
       default:
         return colors.textSecondary;
@@ -161,32 +175,53 @@ export const VerificationScreen = ({ navigation, route }) => {
 
   const getStatusMessage = (status) => {
     switch (status) {
-      case 'APPROVED':
-        return 'Your verification has been approved!';
-      case 'REJECTED':
-        return verificationStatus?.rejectionReason || 'Your verification was rejected. Please review and resubmit.';
-      case 'PENDING':
-        return 'Your verification is under review. Please wait for admin approval.';
+      case "APPROVED":
+        return "Your verification has been approved!";
+      case "REJECTED":
+        return (
+          verificationStatus?.rejectionReason ||
+          "Your verification was rejected. Please review and resubmit."
+        );
+      case "PENDING":
+        return "Your verification is under review. Please wait for admin approval.";
       default:
-        return 'Please submit your verification documents.';
+        return "Please submit your verification documents.";
     }
   };
 
-  const canEdit = !verificationStatus || verificationStatus.status === 'REJECTED';
+  const canEdit =
+    !verificationStatus || verificationStatus.status === "REJECTED";
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      >
         <Text style={styles.title}>Identity Verification</Text>
-        
+
         {verificationStatus && (
-          <View style={[styles.statusCard, { borderColor: getStatusColor(verificationStatus.status) }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(verificationStatus.status) }]}>
+          <View
+            style={[
+              styles.statusCard,
+              { borderColor: getStatusColor(verificationStatus.status) },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(verificationStatus.status) },
+              ]}
+            >
               Status: {verificationStatus.status}
             </Text>
-            <Text style={styles.statusMessage}>{getStatusMessage(verificationStatus.status)}</Text>
+            <Text style={styles.statusMessage}>
+              {getStatusMessage(verificationStatus.status)}
+            </Text>
             {verificationStatus.riskScore && (
-              <Text style={styles.scoreText}>Risk Score: {verificationStatus.riskScore.toFixed(2)}</Text>
+              <Text style={styles.scoreText}>
+                Risk Score: {verificationStatus.riskScore.toFixed(2)}
+              </Text>
             )}
           </View>
         )}
@@ -197,26 +232,52 @@ export const VerificationScreen = ({ navigation, route }) => {
               <Text style={styles.sectionTitle}>Document Type</Text>
               <View style={styles.radioGroup}>
                 <TouchableOpacity
-                  style={[styles.radioButton, documentType === 'DRIVERS_LICENSE' && styles.radioButtonActive]}
-                  onPress={() => setDocumentType('DRIVERS_LICENSE')}
+                  style={[
+                    styles.radioButton,
+                    documentType === "DRIVERS_LICENSE" &&
+                      styles.radioButtonActive,
+                  ]}
+                  onPress={() => setDocumentType("DRIVERS_LICENSE")}
                 >
-                  <Text style={[styles.radioText, documentType === 'DRIVERS_LICENSE' && styles.radioTextActive]}>
+                  <Text
+                    style={[
+                      styles.radioText,
+                      documentType === "DRIVERS_LICENSE" &&
+                        styles.radioTextActive,
+                    ]}
+                  >
                     Driver's License
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.radioButton, documentType === 'PASSPORT' && styles.radioButtonActive]}
-                  onPress={() => setDocumentType('PASSPORT')}
+                  style={[
+                    styles.radioButton,
+                    documentType === "PASSPORT" && styles.radioButtonActive,
+                  ]}
+                  onPress={() => setDocumentType("PASSPORT")}
                 >
-                  <Text style={[styles.radioText, documentType === 'PASSPORT' && styles.radioTextActive]}>
+                  <Text
+                    style={[
+                      styles.radioText,
+                      documentType === "PASSPORT" && styles.radioTextActive,
+                    ]}
+                  >
                     Passport
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.radioButton, documentType === 'NATIONAL_ID' && styles.radioButtonActive]}
-                  onPress={() => setDocumentType('NATIONAL_ID')}
+                  style={[
+                    styles.radioButton,
+                    documentType === "NATIONAL_ID" && styles.radioButtonActive,
+                  ]}
+                  onPress={() => setDocumentType("NATIONAL_ID")}
                 >
-                  <Text style={[styles.radioText, documentType === 'NATIONAL_ID' && styles.radioTextActive]}>
+                  <Text
+                    style={[
+                      styles.radioText,
+                      documentType === "NATIONAL_ID" && styles.radioTextActive,
+                    ]}
+                  >
                     National ID
                   </Text>
                 </TouchableOpacity>
@@ -231,7 +292,7 @@ export const VerificationScreen = ({ navigation, route }) => {
               />
             </View>
 
-            {documentType !== 'PASSPORT' && (
+            {documentType !== "PASSPORT" && (
               <View style={styles.section}>
                 <RegistrationPhotoButton
                   label="Back of Document"
@@ -248,12 +309,16 @@ export const VerificationScreen = ({ navigation, route }) => {
                 preview={selfieImage}
               />
               <Text style={styles.helpText}>
-                Take a clear selfie to verify your identity matches your document
+                Take a clear selfie to verify your identity matches your
+                document
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                loading && styles.submitButtonDisabled,
+              ]}
               onPress={handleSubmit}
               disabled={loading}
             >
@@ -283,7 +348,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     marginBottom: 20,
   },
@@ -296,7 +361,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   statusMessage: {
@@ -313,13 +378,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 12,
   },
   radioGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   radioButton: {
@@ -340,19 +405,19 @@ const styles = StyleSheet.create({
   },
   radioTextActive: {
     color: colors.textLight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   helpText: {
     fontSize: 12,
     color: colors.textTertiary,
     marginTop: 8,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   submitButton: {
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
   },
   submitButtonDisabled: {
@@ -361,7 +426,6 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: colors.textLight,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
-

@@ -306,6 +306,17 @@ export default function Verifications() {
                     </TableCell>
                     <TableCell>
                       {verification.documentType || "Unknown"}
+                      {verification.itemType === "unverified_user" && (
+                        <Typography
+                          component="span"
+                          display="block"
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ mt: 0.25 }}
+                        >
+                          User must submit ID from app (Profile → Verification)
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Chip
