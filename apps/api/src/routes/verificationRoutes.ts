@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import multer from 'multer';
-import { VerificationController } from '../controllers/verificationController';
-import { authenticateToken, requireAdmin } from '../middleware/authMiddleware';
-import { validateRequest } from '../middleware/validationMiddleware';
+import { Router } from "express";
+import multer from "multer";
+import { VerificationController } from "../controllers/verificationController";
+import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
+import { validateRequest } from "../middleware/validationMiddleware";
 
 const router = Router();
 let verificationController: VerificationController;
@@ -10,7 +10,7 @@ let verificationController: VerificationController;
 try {
   verificationController = new VerificationController();
 } catch (_error) {
-  console.error('Verification routes error:', _error);
+  console.error("Verification routes error:", _error);
   throw _error;
 }
 
@@ -22,24 +22,32 @@ try {
 // local multer upload config
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 3 }
+  limits: { fileSize: 10 * 1024 * 1024, files: 3 },
 });
 
 router.post(
-  '/submit',
+  "/submit",
   authenticateToken,
   upload.fields([
-    { name: 'frontImage', maxCount: 1 },
-    { name: 'backImage', maxCount: 1 },
-    { name: 'selfieImage', maxCount: 1 },
+    { name: "frontImage", maxCount: 1 },
+    { name: "backImage", maxCount: 1 },
+    { name: "selfieImage", maxCount: 1 },
   ]),
   validateRequest({
     body: {
-      documentType: { type: 'string', enum: ['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT'], required: true },
-      userType: { type: 'string', enum: ['CUSTOMER', 'DRIVER'], required: true },
+      documentType: {
+        type: "string",
+        enum: ["DRIVERS_LICENSE", "NATIONAL_ID", "PASSPORT"],
+        required: true,
+      },
+      userType: {
+        type: "string",
+        enum: ["CUSTOMER", "DRIVER"],
+        required: true,
+      },
     },
   }),
-  verificationController.submitVerification
+  verificationController.submitVerification,
 );
 
 /**
@@ -48,9 +56,20 @@ router.post(
  * @access Private
  */
 router.get(
-  '/status',
+  "/status",
   authenticateToken,
-  verificationController.getVerificationStatus
+  verificationController.getVerificationStatus,
+);
+
+/**
+ * @route GET /api/verification/my-status
+ * @desc Get current authenticated user's verification status
+ * @access Private
+ */
+router.get(
+  "/my-status",
+  authenticateToken,
+  verificationController.getMyVerificationStatus,
 );
 
 /**
@@ -59,9 +78,9 @@ router.get(
  * @access Private
  */
 router.get(
-  '/:id',
+  "/:id",
   authenticateToken,
-  verificationController.getVerificationById
+  verificationController.getVerificationById,
 );
 
 /**
@@ -70,9 +89,9 @@ router.get(
  * @access Private (Admin)
  */
 router.get(
-  '/admin/metrics',
+  "/admin/metrics",
   authenticateToken,
-  verificationController.getVerificationMetrics
+  verificationController.getVerificationMetrics,
 );
 
 /**
@@ -81,16 +100,20 @@ router.get(
  * @access Private (Admin)
  */
 router.post(
-  '/admin/:id/review',
+  "/admin/:id/review",
   authenticateToken,
   requireAdmin,
   validateRequest({
     body: {
-      decision: { type: 'string', enum: ['APPROVED', 'REJECTED'], required: true },
-      rejectionReason: { type: 'string', required: false },
+      decision: {
+        type: "string",
+        enum: ["APPROVED", "REJECTED"],
+        required: true,
+      },
+      rejectionReason: { type: "string", required: false },
     },
   }),
-  verificationController.reviewVerification
+  verificationController.reviewVerification,
 );
 
 /**
@@ -99,14 +122,18 @@ router.post(
  * @access Private (Development)
  */
 router.post(
-  '/test/document-authenticity',
+  "/test/document-authenticity",
   validateRequest({
     body: {
-      imageBase64: { type: 'string', required: true },
-      documentType: { type: 'string', enum: ['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT'], required: true },
+      imageBase64: { type: "string", required: true },
+      documentType: {
+        type: "string",
+        enum: ["DRIVERS_LICENSE", "NATIONAL_ID", "PASSPORT"],
+        required: true,
+      },
     },
   }),
-  verificationController.testDocumentAuthenticity
+  verificationController.testDocumentAuthenticity,
 );
 
 /**
@@ -115,16 +142,20 @@ router.post(
  * @access Private (Development)
  */
 router.post(
-  '/test/facial-recognition',
+  "/test/facial-recognition",
   validateRequest({
     body: {
-      documentImageBase64: { type: 'string', required: true },
-      selfieImageBase64: { type: 'string', required: true },
-      userId: { type: 'string', required: true },
-      documentType: { type: 'string', enum: ['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT'], required: true },
+      documentImageBase64: { type: "string", required: true },
+      selfieImageBase64: { type: "string", required: true },
+      userId: { type: "string", required: true },
+      documentType: {
+        type: "string",
+        enum: ["DRIVERS_LICENSE", "NATIONAL_ID", "PASSPORT"],
+        required: true,
+      },
     },
   }),
-  verificationController.testFacialRecognition
+  verificationController.testFacialRecognition,
 );
 
 /**
@@ -133,14 +164,18 @@ router.post(
  * @access Private (Development)
  */
 router.post(
-  '/test/ocr-extraction',
+  "/test/ocr-extraction",
   validateRequest({
     body: {
-      imageBase64: { type: 'string', required: true },
-      documentType: { type: 'string', enum: ['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT'], required: true },
+      imageBase64: { type: "string", required: true },
+      documentType: {
+        type: "string",
+        enum: ["DRIVERS_LICENSE", "NATIONAL_ID", "PASSPORT"],
+        required: true,
+      },
     },
   }),
-  verificationController.testOCRExtraction
+  verificationController.testOCRExtraction,
 );
 
 export default router;

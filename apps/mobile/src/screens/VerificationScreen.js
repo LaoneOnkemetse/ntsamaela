@@ -49,6 +49,16 @@ export const VerificationScreen = () => {
         }
       }
     } catch (error) {
+      // If no verification exists yet, this is expected and not an error
+      if (
+        error?.message &&
+        (error.message.toLowerCase().includes("verification not found") ||
+          error.message
+            .toLowerCase()
+            .includes("no verification found for this user"))
+      ) {
+        return;
+      }
       console.error("Failed to load verification status:", error);
     }
   };
