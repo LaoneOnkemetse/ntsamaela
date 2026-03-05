@@ -9,6 +9,7 @@ const verificationService = {
 };
 import { AuthenticatedRequest } from "@shared/types";
 import cloudStorageService from "../services/cloudStorageService";
+import { AppError } from "../utils/AppError";
 
 // Type for multer file
 type MulterFile = {
@@ -103,6 +104,17 @@ export class VerificationController {
       });
     } catch (_error: any) {
       console.error("Error submitting verification:", _error);
+
+      if (_error instanceof AppError) {
+        return res.status(_error.statusCode || 400).json({
+          success: false,
+          error: {
+            code: _error.code || "VERIFICATION_SUBMISSION_ERROR",
+            message: _error.message || "Failed to submit verification",
+          },
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: {
