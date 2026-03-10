@@ -163,8 +163,12 @@ export const VerificationScreen = () => {
         );
       }
     } catch (error) {
-      console.error("Verification submission error:", error);
-      Alert.alert("Error", error.message || "Failed to submit verification");
+      const msg =
+        error?.message ||
+        error?.error?.message ||
+        "Failed to submit verification";
+      console.error("Verification submission error:", msg, error);
+      Alert.alert("Verification failed", msg);
     } finally {
       setLoading(false);
     }

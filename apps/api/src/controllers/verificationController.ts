@@ -102,8 +102,9 @@ export class VerificationController {
         data: verification,
         message: "Verification submitted successfully",
       });
-    } catch (_error: any) {
-      console.error("Error submitting verification:", _error);
+    } catch (_error: unknown) {
+      const err = _error as Error & { statusCode?: number; code?: string };
+      console.error("Error submitting verification:", err?.message ?? _error);
 
       if (_error instanceof AppError) {
         return res.status(_error.statusCode || 400).json({
@@ -115,11 +116,15 @@ export class VerificationController {
         });
       }
 
+      const message =
+        typeof err?.message === "string"
+          ? err.message
+          : "Failed to submit verification";
       res.status(500).json({
         success: false,
         error: {
           code: "VERIFICATION_SUBMISSION_ERROR",
-          message: "Failed to submit verification",
+          message,
         },
       });
     }
