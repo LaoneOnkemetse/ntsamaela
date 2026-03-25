@@ -1,6 +1,6 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { AppError } from '../utils/AppError';
-import crypto from 'crypto';
+import { v2 as cloudinary } from "cloudinary";
+import { AppError } from "../utils/AppError";
+import crypto from "crypto";
 
 // Type for multer file
 type MulterFile = {
@@ -25,6 +25,7 @@ interface ImageValidationResult {
 
 class CloudinaryUploadService {
   private isConfigured: boolean;
+  private missingConfig: string[];
 
   constructor() {
     // Configure Cloudinary
@@ -32,7 +33,12 @@ class CloudinaryUploadService {
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-    if (cloudName && apiKey && apiSecret) {
+    this.missingConfig = [];
+    if (!cloudName) this.missingConfig.push("CLOUDINARY_CLOUD_NAME");
+    if (!apiKey) this.missingConfig.push("CLOUDINARY_API_KEY");
+    if (!apiSecret) this.missingConfig.push("CLOUDINARY_API_SECRET");
+
+    if (this.missingConfig.length === 0) {
       cloudinary.config({
         cloud_name: cloudName,
         api_key: apiKey,
@@ -40,15 +46,17 @@ class CloudinaryUploadService {
         secure: true, // Use HTTPS
       });
       this.isConfigured = true;
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Cloudinary configured successfully');
+      if (process.env.NODE_ENV === "development") {
+        console.log("✅ Cloudinary configured successfully");
       }
     } else {
       this.isConfigured = false;
       // Cloudinary is optional - only log in development
       // In production, it will fail gracefully when upload is attempted
-      if (process.env.NODE_ENV === 'development') {
-        console.log('ℹ️  Cloudinary not configured. File uploads will return errors. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to enable.');
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          "ℹ️  Cloudinary not configured. File uploads will return errors. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to enable.",
+        );
       }
     }
   }
@@ -59,7 +67,11 @@ class CloudinaryUploadService {
     packageId?: string,
   ): Promise<UploadResult> {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        `Cloudinary is not configured (missing: ${this.missingConfig.join(", ")})`,
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -67,8 +79,8 @@ class CloudinaryUploadService {
       const validation = this.validateImage(file);
       if (!validation.isValid) {
         throw new AppError(
-          `Invalid image: ${validation.errors.join(', ')}`,
-          'INVALID_IMAGE',
+          `Invalid image: ${validation.errors.join(", ")}`,
+          "INVALID_IMAGE",
           400,
         );
       }
@@ -77,8 +89,8 @@ class CloudinaryUploadService {
       const isContentValid = await this.validateImageContent(file.buffer);
       if (!isContentValid) {
         throw new AppError(
-          'Invalid image content detected',
-          'INVALID_IMAGE_CONTENT',
+          "Invalid image content detected",
+          "INVALID_IMAGE_CONTENT",
           400,
         );
       }
@@ -86,27 +98,24 @@ class CloudinaryUploadService {
       // Generate unique filename
       const fileExtension = this.getFileExtension(file.originalname);
       const timestamp = Date.now();
-      const randomString = crypto.randomBytes(16).toString('hex');
-      const publicId = `${userId}/${packageId || 'temp'}/${timestamp}-${randomString}`;
+      const randomString = crypto.randomBytes(16).toString("hex");
+      const publicId = `${userId}/${packageId || "temp"}/${timestamp}-${randomString}`;
 
       // Upload to Cloudinary
       const result = await new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             public_id: publicId,
-            folder: 'ntsamaela/packages',
-            resource_type: 'image',
+            folder: "ntsamaela/packages",
+            resource_type: "image",
             format: fileExtension,
             overwrite: false,
             invalidate: true,
-            transformation: [
-              { quality: 'auto' },
-              { fetch_format: 'auto' },
-            ],
+            transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
             // Use context instead of metadata (Cloudinary doesn't support arbitrary metadata)
             context: {
               userId: userId,
-              packageId: packageId || 'temp',
+              packageId: packageId || "temp",
               uploadedAt: new Date().toISOString(),
               originalName: file.originalname,
             },
@@ -114,7 +123,7 @@ class CloudinaryUploadService {
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
-          }
+          },
         );
 
         uploadStream.end(file.buffer);
@@ -123,17 +132,17 @@ class CloudinaryUploadService {
       return {
         url: result.secure_url,
         key: result.public_id,
-        bucket: 'ntsamaela/packages',
+        bucket: "ntsamaela/packages",
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
       // Log the actual error for debugging
-      console.error('Cloudinary upload error:', _error);
+      console.error("Cloudinary upload error:", _error);
       throw new AppError(
-        `Failed to upload image: ${_error.message || 'Unknown error'}`,
-        'UPLOAD_ERROR',
+        `Failed to upload image: ${_error.message || "Unknown error"}`,
+        "UPLOAD_ERROR",
         500,
       );
     }
@@ -144,7 +153,11 @@ class CloudinaryUploadService {
     userId: string,
   ): Promise<UploadResult> {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        `Cloudinary is not configured (missing: ${this.missingConfig.join(", ")})`,
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -152,8 +165,8 @@ class CloudinaryUploadService {
       const validation = this.validateImage(file);
       if (!validation.isValid) {
         throw new AppError(
-          `Invalid image: ${validation.errors.join(', ')}`,
-          'INVALID_IMAGE',
+          `Invalid image: ${validation.errors.join(", ")}`,
+          "INVALID_IMAGE",
           400,
         );
       }
@@ -162,8 +175,8 @@ class CloudinaryUploadService {
       const isContentValid = await this.validateImageContent(file.buffer);
       if (!isContentValid) {
         throw new AppError(
-          'Invalid image content detected',
-          'INVALID_IMAGE_CONTENT',
+          "Invalid image content detected",
+          "INVALID_IMAGE_CONTENT",
           400,
         );
       }
@@ -171,7 +184,7 @@ class CloudinaryUploadService {
       // Generate unique filename
       const fileExtension = this.getFileExtension(file.originalname);
       const timestamp = Date.now();
-      const randomString = crypto.randomBytes(16).toString('hex');
+      const randomString = crypto.randomBytes(16).toString("hex");
       const publicId = `${userId}/${timestamp}-${randomString}`;
 
       // Upload to Cloudinary with automatic face detection and cropping
@@ -179,28 +192,28 @@ class CloudinaryUploadService {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             public_id: publicId,
-            folder: 'ntsamaela/profiles',
-            resource_type: 'image',
+            folder: "ntsamaela/profiles",
+            resource_type: "image",
             format: fileExtension,
             overwrite: false,
             invalidate: true,
             transformation: [
-              { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-              { quality: 'auto' },
-              { fetch_format: 'auto' },
+              { width: 400, height: 400, crop: "fill", gravity: "face" },
+              { quality: "auto" },
+              { fetch_format: "auto" },
             ],
             // Use context instead of metadata
             context: {
               userId: userId,
               uploadedAt: new Date().toISOString(),
               originalName: file.originalname,
-              type: 'profile-picture',
+              type: "profile-picture",
             },
           },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
-          }
+          },
         );
 
         uploadStream.end(file.buffer);
@@ -209,15 +222,15 @@ class CloudinaryUploadService {
       return {
         url: result.secure_url,
         key: result.public_id,
-        bucket: 'ntsamaela/profiles',
+        bucket: "ntsamaela/profiles",
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
       throw new AppError(
-        `Failed to upload profile picture: ${_error.message || 'Unknown error'}`,
-        'UPLOAD_ERROR',
+        `Failed to upload profile picture: ${_error.message || "Unknown error"}`,
+        "UPLOAD_ERROR",
         500,
       );
     }
@@ -225,7 +238,11 @@ class CloudinaryUploadService {
 
   async deleteImage(publicId: string): Promise<void> {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Cloudinary is not configured",
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -237,16 +254,23 @@ class CloudinaryUploadService {
       });
     } catch (_error: any) {
       throw new AppError(
-        `Failed to delete image: ${_error.message || 'Unknown error'}`,
-        'DELETE_ERROR',
+        `Failed to delete image: ${_error.message || "Unknown error"}`,
+        "DELETE_ERROR",
         500,
       );
     }
   }
 
-  async getSignedUrl(publicId: string, expiresIn: number = 3600): Promise<string> {
+  async getSignedUrl(
+    publicId: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Cloudinary is not configured",
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -258,14 +282,15 @@ class CloudinaryUploadService {
       const url = cloudinary.url(id, {
         secure: true,
         sign_url: expiresIn > 0,
-        expires_at: expiresIn > 0 ? Math.floor(Date.now() / 1000) + expiresIn : undefined,
+        expires_at:
+          expiresIn > 0 ? Math.floor(Date.now() / 1000) + expiresIn : undefined,
       });
 
       return url;
     } catch (_error: any) {
       throw new AppError(
-        `Failed to generate signed URL: ${_error.message || 'Unknown error'}`,
-        'SIGNED_URL_ERROR',
+        `Failed to generate signed URL: ${_error.message || "Unknown error"}`,
+        "SIGNED_URL_ERROR",
         500,
       );
     }
@@ -276,21 +301,25 @@ class CloudinaryUploadService {
    */
   async uploadFile(
     file: MulterFile,
-    folder: string = 'uploads',
+    folder: string = "uploads",
     options: {
-      resourceType?: 'image' | 'video' | 'raw' | 'auto';
+      resourceType?: "image" | "video" | "raw" | "auto";
       transformation?: any[];
       metadata?: Record<string, string>;
-    } = {}
+    } = {},
   ): Promise<UploadResult> {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Cloudinary is not configured",
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
       const fileExtension = this.getFileExtension(file.originalname);
       const timestamp = Date.now();
-      const randomString = crypto.randomBytes(16).toString('hex');
+      const randomString = crypto.randomBytes(16).toString("hex");
       const publicId = `${timestamp}-${randomString}`;
 
       const result = await new Promise<any>((resolve, reject) => {
@@ -298,24 +327,29 @@ class CloudinaryUploadService {
           {
             public_id: publicId,
             folder: `ntsamaela/${folder}`,
-            resource_type: options.resourceType || 'auto',
+            resource_type: options.resourceType || "auto",
             format: fileExtension,
             overwrite: false,
             invalidate: true,
-            transformation: options.transformation || [{ quality: 'auto' }],
+            transformation: options.transformation || [{ quality: "auto" }],
             // Use context instead of metadata
             context: {
               uploadedAt: new Date().toISOString(),
               originalName: file.originalname,
-              ...(options.metadata ? Object.fromEntries(
-                Object.entries(options.metadata).map(([k, v]) => [k, String(v)])
-              ) : {}),
+              ...(options.metadata
+                ? Object.fromEntries(
+                    Object.entries(options.metadata).map(([k, v]) => [
+                      k,
+                      String(v),
+                    ]),
+                  )
+                : {}),
             },
           },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
-          }
+          },
         );
 
         uploadStream.end(file.buffer);
@@ -328,8 +362,8 @@ class CloudinaryUploadService {
       };
     } catch (_error: any) {
       throw new AppError(
-        `Failed to upload file: ${_error.message || 'Unknown error'}`,
-        'UPLOAD_ERROR',
+        `Failed to upload file: ${_error.message || "Unknown error"}`,
+        "UPLOAD_ERROR",
         500,
       );
     }
@@ -341,37 +375,39 @@ class CloudinaryUploadService {
     // Check file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      errors.push('File size exceeds 10MB limit');
+      errors.push("File size exceeds 10MB limit");
     }
 
     // Check file type
     const allowedMimeTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
     ];
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      errors.push('Invalid file type. Only JPEG, PNG, and WebP are allowed');
+      errors.push("Invalid file type. Only JPEG, PNG, and WebP are allowed");
     }
 
     // Check file extension
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    const fileExtension = this.getFileExtension(file.originalname).toLowerCase();
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    const fileExtension = this.getFileExtension(
+      file.originalname,
+    ).toLowerCase();
 
     if (!allowedExtensions.includes(`.${fileExtension}`)) {
-      errors.push('Invalid file extension');
+      errors.push("Invalid file extension");
     }
 
     // Check for suspicious file names
     if (this.isSuspiciousFileName(file.originalname)) {
-      errors.push('Suspicious file name detected');
+      errors.push("Suspicious file name detected");
     }
 
     // Basic buffer validation
     if (!file.buffer || file.buffer.length === 0) {
-      errors.push('Empty file buffer');
+      errors.push("Empty file buffer");
     }
 
     return {
@@ -381,7 +417,7 @@ class CloudinaryUploadService {
   }
 
   private getFileExtension(filename: string): string {
-    return filename.split('.').pop() || '';
+    return filename.split(".").pop() || "";
   }
 
   private isSuspiciousFileName(filename: string): boolean {
@@ -455,7 +491,11 @@ class CloudinaryUploadService {
    */
   getTransformedImageUrl(publicId: string, transformations: any): string {
     if (!this.isConfigured) {
-      throw new AppError('Cloudinary is not configured', 'CLOUDINARY_NOT_CONFIGURED', 500);
+      throw new AppError(
+        "Cloudinary is not configured",
+        "CLOUDINARY_NOT_CONFIGURED",
+        500,
+      );
     }
 
     try {
@@ -471,8 +511,8 @@ class CloudinaryUploadService {
       return url;
     } catch (_error: any) {
       throw new AppError(
-        `Failed to generate transformed image URL: ${_error.message || 'Unknown error'}`,
-        'TRANSFORMED_URL_ERROR',
+        `Failed to generate transformed image URL: ${_error.message || "Unknown error"}`,
+        "TRANSFORMED_URL_ERROR",
         500,
       );
     }
@@ -480,4 +520,3 @@ class CloudinaryUploadService {
 }
 
 export default new CloudinaryUploadService();
-
