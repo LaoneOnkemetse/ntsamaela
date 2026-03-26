@@ -38,12 +38,32 @@ class ApiService {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutMs =
+        typeof options.timeoutMs === "number"
+          ? options.timeoutMs
+          : options.isFormData
+            ? 60000
+            : 15000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const response = await fetch(url, {
-        ...config,
-        signal: controller.signal,
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          ...config,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        clearTimeout(timeoutId);
+        const isAbort =
+          error?.name === "AbortError" ||
+          (typeof error?.message === "string" &&
+            error.message.toLowerCase().includes("abort"));
+        const message = isAbort
+          ? `Request timed out after ${timeoutMs}ms`
+          : "Network request failed";
+        console.error("API request failed:", { url, endpoint, message, error });
+        throw new Error(message);
+      }
 
       clearTimeout(timeoutId);
 
@@ -77,7 +97,8 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error("API request failed:", error);
+      // Keep the existing behavior, but include URL for easier diagnosis
+      console.error("API request failed:", { url, endpoint, error });
       throw error;
     }
   }
