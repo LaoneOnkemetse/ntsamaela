@@ -64,7 +64,7 @@ export const VerificationScreen = () => {
   };
 
   const handleTakeFrontPhoto = async () => {
-    const image = await takePhoto();
+    const image = await takePhoto("back");
     if (image) setFrontImage(image);
   };
 
@@ -78,7 +78,7 @@ export const VerificationScreen = () => {
   };
 
   const handleTakeBackPhoto = async () => {
-    const image = await takePhoto();
+    const image = await takePhoto("back");
     if (image) setBackImage(image);
   };
 
@@ -92,7 +92,7 @@ export const VerificationScreen = () => {
   };
 
   const handleTakeSelfie = async () => {
-    const image = await takePhoto();
+    const image = await takePhoto("front");
     if (image) setSelfieImage(image);
   };
 

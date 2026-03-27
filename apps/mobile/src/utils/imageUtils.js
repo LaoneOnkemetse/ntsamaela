@@ -18,7 +18,7 @@ export const requestMediaLibraryPermission = async () => {
   return true;
 };
 
-export const takePhoto = async () => {
+export const takePhoto = async (cameraType = "back") => {
   const hasPermission = await requestCameraPermission();
   if (!hasPermission) {
     Alert.alert(
@@ -30,6 +30,10 @@ export const takePhoto = async () => {
 
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    cameraType:
+      cameraType === "front"
+        ? ImagePicker.CameraType.front
+        : ImagePicker.CameraType.back,
     allowsEditing: true,
     aspect: [4, 3],
     quality: 0.8,

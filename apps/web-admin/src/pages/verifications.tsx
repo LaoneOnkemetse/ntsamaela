@@ -67,7 +67,7 @@ export default function Verifications() {
       try {
         const params: any = {
           limit: 100,
-          sortBy: "submittedAt",
+          sortBy: "createdAt",
           sortOrder: "desc",
         };
         if (searchQuery) params.search = searchQuery;

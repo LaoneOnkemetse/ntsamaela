@@ -39,7 +39,7 @@ export const RegisterCustomerScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const takeSelfie = async () => {
-    const image = await takePhoto();
+    const image = await takePhoto("front");
     if (image) setSelfie(image);
   };
 
@@ -272,7 +272,7 @@ export const RegisterCustomerScreen = () => {
               onPress={() =>
                 showPhotoActionSheet(
                   async () => {
-                    const img = await takePhoto();
+                    const img = await takePhoto("back");
                     if (img) setIdFront(img);
                   },
                   async () => {
@@ -288,7 +288,7 @@ export const RegisterCustomerScreen = () => {
               onPress={() =>
                 showPhotoActionSheet(
                   async () => {
-                    const img = await takePhoto();
+                    const img = await takePhoto("back");
                     if (img) setIdBack(img);
                   },
                   async () => {
@@ -307,7 +307,7 @@ export const RegisterCustomerScreen = () => {
               onPress={() =>
                 showPhotoActionSheet(
                   async () => {
-                    const img = await takePhoto();
+                    const img = await takePhoto("back");
                     if (img) setPassportFront(img);
                   },
                   async () => {
@@ -323,7 +323,7 @@ export const RegisterCustomerScreen = () => {
               onPress={() =>
                 showPhotoActionSheet(
                   async () => {
-                    const img = await takePhoto();
+                    const img = await takePhoto("back");
                     if (img) setPassportBack(img);
                   },
                   async () => {
