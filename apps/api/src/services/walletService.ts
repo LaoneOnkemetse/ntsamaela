@@ -1,5 +1,5 @@
-import { getPrismaClient } from '@database/index';
-import { TransactionType, TransactionStatus, UserType } from '@shared/types';
+import { getPrismaClient } from "@database/index";
+import { TransactionType, TransactionStatus, UserType } from "@shared/types";
 
 export interface WalletBalance {
   userId: string;
@@ -29,7 +29,7 @@ export interface CommissionReservation {
   tripId: string;
   amount: number;
   percentage: number;
-  status: 'PENDING' | 'CONFIRMED' | 'RELEASED' | 'CANCELLED';
+  status: "PENDING" | "CONFIRMED" | "RELEASED" | "CANCELLED";
   createdAt: Date;
   expiresAt: Date;
 }
@@ -37,7 +37,7 @@ export interface CommissionReservation {
 export interface RechargeRequest {
   userId: string;
   amount: number;
-  paymentMethod: 'CARD' | 'BANK_TRANSFER' | 'MOBILE_MONEY';
+  paymentMethod: "CARD" | "BANK_TRANSFER" | "MOBILE_MONEY";
   paymentReference?: string;
   description?: string;
 }
@@ -50,24 +50,71 @@ export interface LowBalanceNotification {
   notifiedAt: Date;
 }
 
+export interface CommissionBreakdown {
+  totalCommissions: number;
+  reservedCommissions: number;
+  availableCommissions: number;
+}
+
 export class WalletService {
   private get prisma() {
     try {
       const client = getPrismaClient();
       if (!client) {
-        throw new Error('Prisma client is null');
+        throw new Error("Prisma client is null");
       }
       return client;
     } catch (_error) {
-      console.error('Failed to get Prisma client:', _error);
-      throw new Error('Database connection not available');
+      console.error("Failed to get Prisma client:", _error);
+      throw new Error("Database connection not available");
     }
   }
 
-  private readonly COMMISSION_PERCENTAGE = 0.30; // 30%
+  private readonly COMMISSION_PERCENTAGE = 0.3; // 30%
   private readonly LOW_BALANCE_THRESHOLD = {
-    DRIVER: 100.00
+    DRIVER: 100.0,
   };
+
+  /**
+   * Get commission breakdown for driver
+   */
+  async getCommissionBreakdown(userId: string): Promise<CommissionBreakdown> {
+    const driver = await this.prisma.driver.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!driver) {
+      return {
+        totalCommissions: 0,
+        reservedCommissions: 0,
+        availableCommissions: 0,
+      };
+    }
+
+    const rows = await this.prisma.commissionReservation.findMany({
+      where: {
+        driverId: driver.id,
+        status: { in: ["PENDING", "CONFIRMED", "RELEASED"] },
+      },
+      select: { status: true, amount: true },
+    });
+
+    let total = 0;
+    let reserved = 0;
+    for (const r of rows) {
+      total += r.amount || 0;
+      if (r.status === "PENDING") reserved += r.amount || 0;
+    }
+
+    const available = Math.max(0, total - reserved);
+
+    return {
+      totalCommissions: total,
+      reservedCommissions: reserved,
+      availableCommissions: available,
+    };
+  }
 
   /**
    * Get wallet balance for a driver
@@ -78,9 +125,9 @@ export class WalletService {
         where: { userId },
         include: {
           user: {
-            select: { userType: true }
-          }
-        }
+            select: { userType: true },
+          },
+        },
       });
 
       if (!wallet) {
@@ -94,25 +141,30 @@ export class WalletService {
         reservedBalance: wallet.reservedBalance,
         totalBalance: wallet.availableBalance + wallet.reservedBalance,
         currency: wallet.currency,
-        lastUpdated: wallet.updatedAt
+        lastUpdated: wallet.updatedAt,
       };
     } catch (_error) {
-      throw new Error(`Failed to get wallet balance: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get wallet balance: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Create a new wallet for a user
    */
-  async createWallet(userId: string, initialBalance: number = 0): Promise<WalletBalance> {
+  async createWallet(
+    userId: string,
+    initialBalance: number = 0,
+  ): Promise<WalletBalance> {
     try {
       const wallet = await this.prisma.wallet.create({
         data: {
           userId,
           availableBalance: initialBalance,
           reservedBalance: 0,
-          currency: 'USD'
-        }
+          currency: "USD",
+        },
       });
 
       return {
@@ -121,10 +173,12 @@ export class WalletService {
         reservedBalance: wallet.reservedBalance,
         totalBalance: wallet.availableBalance + wallet.reservedBalance,
         currency: wallet.currency,
-        lastUpdated: wallet.updatedAt
+        lastUpdated: wallet.updatedAt,
       };
     } catch (_error) {
-      throw new Error(`Failed to create wallet: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create wallet: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -132,14 +186,15 @@ export class WalletService {
    * Add funds to wallet (recharge)
    */
   async rechargeWallet(rechargeRequest: RechargeRequest): Promise<Transaction> {
-    const { userId, amount, paymentMethod, paymentReference, description } = rechargeRequest;
+    const { userId, amount, paymentMethod, paymentReference, description } =
+      rechargeRequest;
 
     if (amount <= 0) {
-      throw new Error('Recharge amount must be greater than zero');
+      throw new Error("Recharge amount must be greater than zero");
     }
 
     if (amount > 10000) {
-      throw new Error('Recharge amount cannot exceed $10,000');
+      throw new Error("Recharge amount cannot exceed $10,000");
     }
 
     try {
@@ -149,16 +204,16 @@ export class WalletService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            type: 'RECHARGE',
+            type: "RECHARGE",
             amount,
-            status: 'PENDING',
+            status: "PENDING",
             description: description || `Wallet recharge via ${paymentMethod}`,
             reference: paymentReference,
             metadata: {
               paymentMethod,
-              originalAmount: amount
-            }
-          }
+              originalAmount: amount,
+            },
+          },
         });
 
         // Update wallet balance
@@ -166,23 +221,23 @@ export class WalletService {
           where: { userId },
           update: {
             availableBalance: {
-              increment: amount
-            }
+              increment: amount,
+            },
           },
           create: {
             userId,
             availableBalance: amount,
             reservedBalance: 0,
-            currency: 'USD'
-          }
+            currency: "USD",
+          },
         });
 
         // Update transaction status
         const updatedTransaction = await tx.transaction.update({
           where: { id: transaction.id },
           data: {
-            status: 'COMPLETED'
-          }
+            status: "COMPLETED",
+          },
         });
 
         return updatedTransaction;
@@ -199,51 +254,58 @@ export class WalletService {
         status: result.status as TransactionStatus,
         description: result.description,
         reference: result.reference || undefined,
-        metadata: result.metadata as Record<string, any> || undefined,
+        metadata: (result.metadata as Record<string, any>) || undefined,
         createdAt: result.createdAt,
-        updatedAt: result.updatedAt
+        updatedAt: result.updatedAt,
       };
     } catch (_error) {
-      throw new Error(`Failed to recharge wallet: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to recharge wallet: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Deduct funds from wallet
    */
-  async deductFunds(userId: string, amount: number, description: string, reference?: string): Promise<Transaction> {
+  async deductFunds(
+    userId: string,
+    amount: number,
+    description: string,
+    reference?: string,
+  ): Promise<Transaction> {
     if (amount <= 0) {
-      throw new Error('Deduction amount must be greater than zero');
+      throw new Error("Deduction amount must be greater than zero");
     }
 
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
         // Check if user has sufficient balance
         const wallet = await tx.wallet.findUnique({
-          where: { userId }
+          where: { userId },
         });
 
         if (!wallet) {
-          throw new Error('Wallet not found');
+          throw new Error("Wallet not found");
         }
 
         if (wallet.availableBalance < amount) {
-          throw new Error('Insufficient funds');
+          throw new Error("Insufficient funds");
         }
 
         // Create transaction record
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            type: 'DEBIT',
+            type: "DEBIT",
             amount: -amount,
-            status: 'PENDING',
+            status: "PENDING",
             description,
             reference,
             metadata: {
-              originalAmount: amount
-            }
-          }
+              originalAmount: amount,
+            },
+          },
         });
 
         // Update wallet balance
@@ -251,17 +313,17 @@ export class WalletService {
           where: { userId },
           data: {
             availableBalance: {
-              decrement: amount
-            }
-          }
+              decrement: amount,
+            },
+          },
         });
 
         // Update transaction status
         const updatedTransaction = await tx.transaction.update({
           where: { id: transaction.id },
           data: {
-            status: 'COMPLETED'
-          }
+            status: "COMPLETED",
+          },
         });
 
         return updatedTransaction;
@@ -278,34 +340,40 @@ export class WalletService {
         status: result.status as TransactionStatus,
         description: result.description,
         reference: result.reference || undefined,
-        metadata: result.metadata as Record<string, any> || undefined,
+        metadata: (result.metadata as Record<string, any>) || undefined,
         createdAt: result.createdAt,
-        updatedAt: result.updatedAt
+        updatedAt: result.updatedAt,
       };
     } catch (_error) {
-      throw new Error(`Failed to deduct funds: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to deduct funds: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Reserve funds for commission
    */
-  async reserveCommission(driverId: string, tripId: string, tripAmount: number): Promise<CommissionReservation> {
+  async reserveCommission(
+    driverId: string,
+    tripId: string,
+    tripAmount: number,
+  ): Promise<CommissionReservation> {
     const commissionAmount = this.calculateCommission(tripAmount);
 
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
         // Check if driver has sufficient balance
         const wallet = await tx.wallet.findUnique({
-          where: { userId: driverId }
+          where: { userId: driverId },
         });
 
         if (!wallet) {
-          throw new Error('Driver wallet not found');
+          throw new Error("Driver wallet not found");
         }
 
         if (wallet.availableBalance < commissionAmount) {
-          throw new Error('Insufficient funds for commission reservation');
+          throw new Error("Insufficient funds for commission reservation");
         }
 
         // Create commission reservation
@@ -315,9 +383,9 @@ export class WalletService {
             tripId,
             amount: commissionAmount,
             percentage: this.COMMISSION_PERCENTAGE,
-            status: 'PENDING',
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-          }
+            status: "PENDING",
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
         });
 
         // Reserve funds in wallet
@@ -325,29 +393,29 @@ export class WalletService {
           where: { userId: driverId },
           data: {
             availableBalance: {
-              decrement: commissionAmount
+              decrement: commissionAmount,
             },
             reservedBalance: {
-              increment: commissionAmount
-            }
-          }
+              increment: commissionAmount,
+            },
+          },
         });
 
         // Create transaction record
         await tx.transaction.create({
           data: {
             userId: driverId,
-            type: 'COMMISSION_RESERVATION',
+            type: "COMMISSION_RESERVATION",
             amount: -commissionAmount,
-            status: 'COMPLETED',
+            status: "COMPLETED",
             description: `Commission reservation for trip ${tripId}`,
             reference: tripId,
             metadata: {
               tripId,
               commissionPercentage: this.COMMISSION_PERCENTAGE,
-              reservationId: reservation.id
-            }
-          }
+              reservationId: reservation.id,
+            },
+          },
         });
 
         return reservation;
@@ -359,72 +427,83 @@ export class WalletService {
         tripId: result.tripId,
         amount: result.amount,
         percentage: result.percentage,
-        status: result.status as 'PENDING' | 'CONFIRMED' | 'RELEASED' | 'CANCELLED',
+        status: result.status as
+          | "PENDING"
+          | "CONFIRMED"
+          | "RELEASED"
+          | "CANCELLED",
         createdAt: result.createdAt,
-        expiresAt: result.expiresAt
+        expiresAt: result.expiresAt,
       };
     } catch (_error) {
-      throw new Error(`Failed to reserve commission: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to reserve commission: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Release reserved commission
    */
-  async releaseCommission(reservationId: string, status: 'CONFIRMED' | 'CANCELLED'): Promise<void> {
+  async releaseCommission(
+    reservationId: string,
+    status: "CONFIRMED" | "CANCELLED",
+  ): Promise<void> {
     try {
       await this.prisma.$transaction(async (tx: any) => {
         const reservation = await tx.commissionReservation.findUnique({
-          where: { id: reservationId }
+          where: { id: reservationId },
         });
 
         if (!reservation) {
-          throw new Error('Commission reservation not found');
+          throw new Error("Commission reservation not found");
         }
 
-        if (reservation.status !== 'PENDING') {
-          throw new Error('Commission reservation is not in pending status');
+        if (reservation.status !== "PENDING") {
+          throw new Error("Commission reservation is not in pending status");
         }
 
         // Update reservation status
         await tx.commissionReservation.update({
           where: { id: reservationId },
-          data: { status }
+          data: { status },
         });
 
-        if (status === 'CANCELLED') {
+        if (status === "CANCELLED") {
           // Release reserved funds back to available balance
           await tx.wallet.update({
             where: { userId: reservation.driverId },
             data: {
               availableBalance: {
-                increment: reservation.amount
+                increment: reservation.amount,
               },
               reservedBalance: {
-                decrement: reservation.amount
-              }
-            }
+                decrement: reservation.amount,
+              },
+            },
           });
 
           // Create transaction record for refund
           await tx.transaction.create({
             data: {
               userId: reservation.driverId,
-              type: 'COMMISSION_REFUND',
+              type: "COMMISSION_REFUND",
               amount: reservation.amount,
-              status: 'COMPLETED',
+              status: "COMPLETED",
               description: `Commission refund for cancelled trip ${reservation.tripId}`,
               reference: reservation.tripId,
               metadata: {
                 tripId: reservation.tripId,
-                reservationId: reservation.id
-              }
-            }
+                reservationId: reservation.id,
+              },
+            },
           });
         }
       });
     } catch (_error) {
-      throw new Error(`Failed to release commission: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to release commission: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -433,7 +512,7 @@ export class WalletService {
    */
   calculateCommission(tripAmount: number): number {
     if (tripAmount <= 0) {
-      throw new Error('Trip amount must be greater than zero');
+      throw new Error("Trip amount must be greater than zero");
     }
     return Math.floor(tripAmount * this.COMMISSION_PERCENTAGE * 100) / 100; // Floor to 2 decimal places
   }
@@ -441,13 +520,17 @@ export class WalletService {
   /**
    * Get transaction history
    */
-  async getTransactionHistory(userId: string, limit: number = 50, offset: number = 0): Promise<Transaction[]> {
+  async getTransactionHistory(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<Transaction[]> {
     try {
       const transactions = await this.prisma.transaction.findMany({
         where: { userId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: limit,
-        skip: offset
+        skip: offset,
       });
 
       return transactions.map((tx: any) => ({
@@ -458,12 +541,14 @@ export class WalletService {
         status: tx.status as TransactionStatus,
         description: tx.description,
         reference: tx.reference || undefined,
-        metadata: tx.metadata as Record<string, any> || undefined,
+        metadata: (tx.metadata as Record<string, any>) || undefined,
         createdAt: tx.createdAt,
-        updatedAt: tx.updatedAt
+        updatedAt: tx.updatedAt,
       }));
     } catch (_error) {
-      throw new Error(`Failed to get transaction history: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get transaction history: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -476,9 +561,9 @@ export class WalletService {
         where: { userId },
         include: {
           user: {
-            select: { userType: true }
-          }
-        }
+            select: { userType: true },
+          },
+        },
       });
 
       if (!wallet || !wallet.user) {
@@ -486,22 +571,23 @@ export class WalletService {
       }
 
       // Only check low balance for drivers
-      if (wallet.user.userType !== 'DRIVER') {
+      if (wallet.user.userType !== "DRIVER") {
         return;
       }
-      
+
       const threshold = this.LOW_BALANCE_THRESHOLD.DRIVER;
-      
+
       if (wallet.availableBalance <= threshold) {
         // Check if we've already notified recently (within last 24 hours)
-        const recentNotification = await this.prisma.lowBalanceNotification.findFirst({
-          where: {
-            userId,
-            notifiedAt: {
-              gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-            }
-          }
-        });
+        const recentNotification =
+          await this.prisma.lowBalanceNotification.findFirst({
+            where: {
+              userId,
+              notifiedAt: {
+                gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+              },
+            },
+          });
 
         if (!recentNotification) {
           // Create notification record
@@ -510,28 +596,32 @@ export class WalletService {
               userId,
               currentBalance: wallet.availableBalance,
               threshold,
-              userType: wallet.user.userType as UserType
-            }
+              userType: wallet.user.userType as UserType,
+            },
           });
 
           // Here you would integrate with your notification service
           // For now, we'll just log it
-          console.log(`Low balance notification sent to user ${userId}: Balance $${wallet.availableBalance} is below threshold $${threshold}`);
+          console.log(
+            `Low balance notification sent to user ${userId}: Balance $${wallet.availableBalance} is below threshold $${threshold}`,
+          );
         }
       }
     } catch (_error) {
-      console.error('Failed to check low balance notification:', _error);
+      console.error("Failed to check low balance notification:", _error);
     }
   }
 
   /**
    * Get low balance notifications
    */
-  async getLowBalanceNotifications(userId: string): Promise<LowBalanceNotification[]> {
+  async getLowBalanceNotifications(
+    userId: string,
+  ): Promise<LowBalanceNotification[]> {
     try {
       const notifications = await this.prisma.lowBalanceNotification.findMany({
         where: { userId },
-        orderBy: { notifiedAt: 'desc' }
+        orderBy: { notifiedAt: "desc" },
       });
 
       return notifications.map((notification: any) => ({
@@ -539,10 +629,12 @@ export class WalletService {
         currentBalance: notification.currentBalance,
         threshold: notification.threshold,
         userType: notification.userType as UserType,
-        notifiedAt: notification.notifiedAt
+        notifiedAt: notification.notifiedAt,
       }));
     } catch (_error) {
-      throw new Error(`Failed to get low balance notifications: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get low balance notifications: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -551,32 +643,38 @@ export class WalletService {
    */
   async processExpiredReservations(): Promise<number> {
     try {
-      const expiredReservations = await this.prisma.commissionReservation.findMany({
-        where: {
-          status: 'PENDING',
-          expiresAt: {
-            lt: new Date()
-          }
-        }
-      });
+      const expiredReservations =
+        await this.prisma.commissionReservation.findMany({
+          where: {
+            status: "PENDING",
+            expiresAt: {
+              lt: new Date(),
+            },
+          },
+        });
 
       let processedCount = 0;
 
       for (const reservation of expiredReservations) {
         try {
-          await this.releaseCommission(reservation.id, 'CANCELLED');
+          await this.releaseCommission(reservation.id, "CANCELLED");
           processedCount++;
         } catch (_error) {
           // Log error in test environment but don't output to console
-          if (process.env.NODE_ENV !== 'test') {
-            console.error(`Failed to process expired reservation ${reservation.id}:`, _error);
+          if (process.env.NODE_ENV !== "test") {
+            console.error(
+              `Failed to process expired reservation ${reservation.id}:`,
+              _error,
+            );
           }
         }
       }
 
       return processedCount;
     } catch (_error) {
-      throw new Error(`Failed to process expired reservations: ${_error instanceof Error ? _error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to process expired reservations: ${_error instanceof Error ? _error.message : "Unknown error"}`,
+      );
     }
   }
 }

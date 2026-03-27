@@ -20,6 +20,18 @@ router.get(
 );
 
 /**
+ * @route GET /api/wallet/commission-breakdown
+ * @desc Get driver commission breakdown
+ * @access Private (Driver only)
+ */
+router.get(
+  "/commission-breakdown",
+  authenticateToken,
+  requireUserType(["DRIVER"]),
+  walletController.getCommissionBreakdown,
+);
+
+/**
  * @route POST /api/wallet/recharge
  * @desc Recharge wallet
  * @access Private
