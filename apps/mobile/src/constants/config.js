@@ -10,8 +10,16 @@ const normalizeBaseUrl = (value) => {
   return `https://${raw}`;
 };
 
-const getApiBase = () =>
-  normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL) || RAILWAY_API_URL;
+const stripApiSuffix = (url) => {
+  const u = (url || "").toString().trim().replace(/\/+$/, "");
+  // If someone sets EXPO_PUBLIC_API_URL to ".../api", avoid generating ".../api/api/..."
+  return u.toLowerCase().endsWith("/api") ? u.slice(0, -4) : u;
+};
+
+const getApiBase = () => {
+  const fromEnv = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL);
+  return stripApiSuffix(fromEnv) || RAILWAY_API_URL;
+};
 
 export const API_CONFIG = {
   get BASE_URL() {
@@ -22,8 +30,8 @@ export const API_CONFIG = {
 
 // Socket.IO - same as API (normalize too).
 const getSocketUrl = () =>
-  normalizeBaseUrl(process.env.EXPO_PUBLIC_SOCKET_URL) ||
-  normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL) ||
+  stripApiSuffix(normalizeBaseUrl(process.env.EXPO_PUBLIC_SOCKET_URL)) ||
+  stripApiSuffix(normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL)) ||
   RAILWAY_API_URL;
 
 export const SOCKET_CONFIG = {
