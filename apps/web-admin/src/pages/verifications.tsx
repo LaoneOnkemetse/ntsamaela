@@ -92,6 +92,9 @@ export default function Verifications() {
       queryClient.invalidateQueries({ queryKey: ["verifications"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       toast.success("Verification approved successfully");
+      // If the admin was filtering PENDING, the item will disappear after review.
+      // Switch to All so the admin can still see the reviewed record.
+      setStatusFilter("all");
       setReviewDialogOpen(false);
       setSelectedVerification(null);
     },
@@ -110,6 +113,7 @@ export default function Verifications() {
       queryClient.invalidateQueries({ queryKey: ["verifications"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       toast.success("Verification rejected successfully");
+      setStatusFilter("all");
       setReviewDialogOpen(false);
       setSelectedVerification(null);
       setRejectionReason("");
@@ -388,6 +392,54 @@ export default function Verifications() {
                   ? new Date(selectedVerification.submittedAt).toLocaleString()
                   : "N/A"}
               </Typography>
+
+              {/* Document previews */}
+              {Array.isArray(selectedVerification.documents) &&
+              selectedVerification.documents.length > 0 ? (
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {selectedVerification.documents.map((doc: any) => (
+                    <Grid item xs={12} sm={6} md={4} key={doc.id || doc.url}>
+                      <Card variant="outlined" sx={{ height: "100%" }}>
+                        <Box
+                          component="img"
+                          src={doc.url}
+                          alt={doc.type || "Document"}
+                          sx={{
+                            width: "100%",
+                            height: 220,
+                            objectFit: "cover",
+                            backgroundColor: "#0B1220",
+                          }}
+                        />
+                        <CardContent sx={{ py: 1.25 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {doc.type || "DOCUMENT"}
+                          </Typography>
+                          <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => window.open(doc.url, "_blank")}
+                            >
+                              Open
+                            </Button>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : selectedVerification.itemType === "unverified_user" ? (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  This user has not uploaded documents yet. Ask them to submit
+                  verification from the app (Profile → Verification).
+                </Alert>
+              ) : (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  No documents found for this verification.
+                </Alert>
+              )}
+
               {selectedVerification.status === "PENDING" && (
                 <TextField
                   fullWidth
