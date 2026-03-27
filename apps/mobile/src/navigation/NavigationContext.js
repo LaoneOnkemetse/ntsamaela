@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import apiService from "../services/apiService";
 import socketService from "../services/socketService";
@@ -46,6 +46,90 @@ export const NavigationProvider = ({ children }) => {
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [isActiveDriver, setIsActiveDriver] = useState(false);
   const [activeDrivers, setActiveDrivers] = useState([]);
+
+  const refreshSession = async (token) => {
+    if (!token) return;
+    try {
+      apiService.setToken(token);
+      const [fullProfile, walletBalance] = await Promise.all([
+        fetchUserProfile(token),
+        fetchWalletBalance(token),
+      ]);
+
+      if (fullProfile) {
+        setUserProfile((prev) => ({
+          ...prev,
+          firstName: fullProfile.firstName ?? prev.firstName,
+          lastName: fullProfile.lastName ?? prev.lastName,
+          phone: fullProfile.phone ?? prev.phone,
+          profilePhoto: fullProfile.profilePictureUrl ?? prev.profilePhoto,
+          email: fullProfile.email ?? prev.email,
+          userId: fullProfile.id ?? prev.userId,
+          isVerified: Boolean(fullProfile.identityVerified),
+        }));
+      }
+
+      if (typeof walletBalance === "number") {
+        if ((userType || "").toLowerCase() === "customer") {
+          setCustomerWallet(walletBalance);
+        } else if ((userType || "").toLowerCase() === "driver") {
+          setDriverWallet(walletBalance);
+        }
+      }
+    } catch (e) {
+      // Soft-fail: we don't log out on transient refresh issues.
+      console.warn("Session refresh failed:", e?.message || e);
+    }
+  };
+
+  const refreshMyPackages = async (token) => {
+    if (!token) return;
+    try {
+      apiService.setToken(token);
+      const customerId = userProfile?.userId;
+      const resp = await apiService.getPackages(
+        customerId
+          ? { customerId, limit: 100, sortBy: "createdAt", sortOrder: "desc" }
+          : { limit: 100 },
+      );
+      const raw = resp?.data ?? resp;
+      const items = Array.isArray(raw)
+        ? raw
+        : (raw?.packages ?? raw?.data ?? []);
+      if (Array.isArray(items)) {
+        setMyPackages(items);
+      }
+    } catch (e) {
+      console.warn("Failed to refresh packages:", e?.message || e);
+    }
+  };
+
+  // Keep verification / identityVerified in sync automatically.
+  useEffect(() => {
+    if (!isAuthenticated || !authToken) return;
+
+    // When not verified, poll more frequently so unlock feels instant after admin approval.
+    const fastPoll = !userProfile?.isVerified;
+    const intervalMs = fastPoll ? 10000 : 60000;
+
+    // Kick once immediately.
+    refreshSession(authToken);
+    refreshMyPackages(authToken);
+
+    const interval = setInterval(() => {
+      refreshSession(authToken);
+      refreshMyPackages(authToken);
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isAuthenticated,
+    authToken,
+    userProfile?.isVerified,
+    userType,
+    userProfile?.userId,
+  ]);
 
   const toggleActiveDriverStatus = (status) => {
     setIsActiveDriver(status);

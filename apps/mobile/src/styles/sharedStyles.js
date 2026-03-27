@@ -1,5 +1,5 @@
-import { StyleSheet } from 'react-native';
-import { colors } from '../constants/colors';
+import { StyleSheet } from "react-native";
+import { colors } from "../constants/colors";
 
 // Shared styles used across multiple screens
 export const sharedStyles = StyleSheet.create({
@@ -8,12 +8,12 @@ export const sharedStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  
+
   // Header
   headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     backgroundColor: colors.cardBg,
     borderBottomWidth: 1,
@@ -22,22 +22,22 @@ export const sharedStyles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   backButtonText: {
     fontSize: 24,
     color: colors.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  
+
   // Forms
   formContainer: {
     flex: 1,
@@ -50,7 +50,7 @@ export const sharedStyles = StyleSheet.create({
     marginBottom: 16,
   },
   nameRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 12,
   },
   input: {
@@ -64,14 +64,14 @@ export const sharedStyles = StyleSheet.create({
     marginBottom: 12,
   },
   passwordInputWrapper: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 12,
   },
   passwordInput: {
     paddingRight: 50,
   },
   passwordIcon: {
-    position: 'absolute',
+    position: "absolute",
     right: 12,
     top: 12,
     padding: 4,
@@ -83,7 +83,7 @@ export const sharedStyles = StyleSheet.create({
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
   },
   primaryButtonDisabled: {
@@ -92,9 +92,9 @@ export const sharedStyles = StyleSheet.create({
   primaryButtonText: {
     color: colors.textLight,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  
+
   // Documents section
   documentsSection: {
     marginTop: 20,
@@ -102,7 +102,7 @@ export const sharedStyles = StyleSheet.create({
   },
   documentsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     marginBottom: 8,
   },
@@ -116,19 +116,19 @@ export const sharedStyles = StyleSheet.create({
     color: colors.textTertiary,
     marginTop: 8,
     marginBottom: 8,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 8,
   },
-  
+
   // Terms
   termsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginTop: 16,
     marginBottom: 16,
   },
@@ -147,17 +147,17 @@ export const sharedStyles = StyleSheet.create({
   },
   termsLink: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  
+
   // Login specific
   loginContainer: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   logoSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 48,
   },
   logoCircle: {
@@ -165,8 +165,8 @@ export const sharedStyles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
@@ -176,12 +176,12 @@ export const sharedStyles = StyleSheet.create({
   },
   logoN: {
     fontSize: 48,
-    fontWeight: '900',
+    fontWeight: "900",
     color: colors.cardBg,
   },
   logoText: {
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: "800",
     color: colors.secondary,
     letterSpacing: 1,
     marginBottom: 8,
@@ -189,13 +189,13 @@ export const sharedStyles = StyleSheet.create({
   slogan: {
     fontSize: 16,
     color: colors.botswanaBlack,
-    fontStyle: 'italic',
-    fontWeight: '400',
+    fontStyle: "italic",
+    fontWeight: "400",
     letterSpacing: 0.5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   toggleContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: colors.cardBg,
     borderRadius: 12,
     padding: 4,
@@ -205,26 +205,26 @@ export const sharedStyles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   toggleButtonActive: {
     backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   toggleTextActive: {
     color: colors.textLight,
   },
   phoneInputContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 12,
   },
   countryCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.cardBgLight,
     borderWidth: 1,
     borderColor: colors.border,
@@ -246,9 +246,10 @@ export const sharedStyles = StyleSheet.create({
     flex: 1,
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
+    marginBottom: 0,
   },
   forgotButton: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginTop: 8,
     marginBottom: 16,
   },
@@ -256,24 +257,24 @@ export const sharedStyles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
   },
-  
+
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: colors.cardBg,
     borderRadius: 12,
     padding: 24,
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.textPrimary,
     marginBottom: 16,
   },
@@ -281,10 +282,10 @@ export const sharedStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     marginTop: 16,
   },
@@ -292,36 +293,36 @@ export const sharedStyles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalCancelButton: {
     backgroundColor: colors.border,
   },
   modalCancelButtonText: {
     color: colors.textPrimary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   modalButtonSubmit: {
     backgroundColor: colors.primary,
   },
   modalButtonTextSubmit: {
     color: colors.textLight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   countryCodeList: {
     maxHeight: 300,
     marginBottom: 16,
   },
   countryCodeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
     backgroundColor: colors.cardBgLight,
   },
   countryCodeItemActive: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: colors.primary + "20",
   },
   countryCodeFlag: {
     fontSize: 24,
@@ -335,23 +336,22 @@ export const sharedStyles = StyleSheet.create({
   countryCodeNumber: {
     fontSize: 16,
     color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   roleChoiceButton: {
     backgroundColor: colors.cardBgLight,
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 2,
     borderColor: colors.border,
   },
   roleChoiceText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
   },
   roleModalSpacing: {
     height: 16,
   },
 });
-

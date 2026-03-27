@@ -752,6 +752,34 @@ export class AdminService {
           suspendedAt: true,
           createdAt: true,
           updatedAt: true,
+          verification: {
+            select: {
+              id: true,
+              status: true,
+              documentType: true,
+              frontImageUrl: true,
+              backImageUrl: true,
+              selfieImageUrl: true,
+              rejectionReason: true,
+              createdAt: true,
+              reviewedAt: true,
+              reviewedBy: true,
+            },
+          },
+          customerPackages: {
+            take: 20,
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              description: true,
+              status: true,
+              priceOffered: true,
+              pickupAddress: true,
+              deliveryAddress: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
 

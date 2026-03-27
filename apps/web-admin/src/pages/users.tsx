@@ -30,6 +30,7 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  Divider,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -50,6 +51,7 @@ import {
   deleteUser,
   suspendUser,
   unsuspendUser,
+  getUserById,
 } from "../services/api";
 import toast from "react-hot-toast";
 
@@ -64,6 +66,7 @@ export default function Users() {
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     firstName: "",
     lastName: "",
@@ -77,6 +80,20 @@ export default function Users() {
     lastName: "",
     phone: "",
     userType: "CUSTOMER" as "CUSTOMER" | "DRIVER",
+  });
+
+  const {
+    data: selectedUserDetails,
+    isLoading: isLoadingUserDetails,
+    error: userDetailsError,
+  } = useQuery({
+    queryKey: ["adminUserDetails", selectedUser?.id],
+    queryFn: async () => {
+      if (!selectedUser?.id) return null;
+      return await getUserById(selectedUser.id);
+    },
+    enabled: viewDialogOpen && Boolean(selectedUser?.id),
+    retry: 1,
   });
 
   // Fetch users
@@ -339,7 +356,13 @@ export default function Users() {
                         sx={{ display: "flex", alignItems: "center", gap: 1 }}
                       >
                         <Person />
-                        <Typography>
+                        <Typography
+                          sx={{ cursor: "pointer", fontWeight: 600 }}
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setViewDialogOpen(true);
+                          }}
+                        >
                           {user.firstName} {user.lastName}
                         </Typography>
                       </Box>
@@ -438,6 +461,149 @@ export default function Users() {
           Delete
         </MenuItem>
       </Menu>
+
+      {/* User Details Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>User Details</DialogTitle>
+        <DialogContent>
+          {isLoadingUserDetails ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : userDetailsError ? (
+            <Alert severity="error">
+              {userDetailsError instanceof Error
+                ? userDetailsError.message
+                : "Failed to load user details"}
+            </Alert>
+          ) : (
+            <>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {selectedUserDetails?.firstName} {selectedUserDetails?.lastName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {selectedUserDetails?.email} •{" "}
+                {selectedUserDetails?.phone || "N/A"}
+              </Typography>
+              <Chip
+                size="small"
+                label={selectedUserDetails?.userType || "CUSTOMER"}
+                sx={{ mb: 2 }}
+              />
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Verification
+              </Typography>
+              {selectedUserDetails?.verification ? (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Status:{" "}
+                    <strong>{selectedUserDetails.verification.status}</strong>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Document:{" "}
+                    <strong>
+                      {selectedUserDetails.verification.documentType}
+                    </strong>
+                  </Typography>
+                  {selectedUserDetails.verification.rejectionReason && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      {selectedUserDetails.verification.rejectionReason}
+                    </Alert>
+                  )}
+
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {[
+                      {
+                        label: "Front",
+                        url: selectedUserDetails.verification.frontImageUrl,
+                      },
+                      {
+                        label: "Back",
+                        url: selectedUserDetails.verification.backImageUrl,
+                      },
+                      {
+                        label: "Selfie",
+                        url: selectedUserDetails.verification.selfieImageUrl,
+                      },
+                    ]
+                      .filter((x) => Boolean(x.url))
+                      .map((doc) => (
+                        <Grid item xs={12} sm={6} md={4} key={doc.label}>
+                          <Box
+                            component="img"
+                            src={doc.url}
+                            alt={doc.label}
+                            sx={{
+                              width: "100%",
+                              height: 220,
+                              objectFit: "cover",
+                              borderRadius: 2,
+                              border: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ mt: 1 }}
+                            onClick={() => window.open(doc.url, "_blank")}
+                          >
+                            Open {doc.label}
+                          </Button>
+                        </Grid>
+                      ))}
+                  </Grid>
+                </Box>
+              ) : (
+                <Alert severity="info">No verification record found.</Alert>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Recent Packages
+              </Typography>
+              {Array.isArray(selectedUserDetails?.customerPackages) &&
+              selectedUserDetails.customerPackages.length > 0 ? (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {selectedUserDetails.customerPackages
+                    .slice(0, 10)
+                    .map((p: any) => (
+                      <Card key={p.id} variant="outlined">
+                        <CardContent sx={{ py: 1.5 }}>
+                          <Typography sx={{ fontWeight: 600 }}>
+                            {p.description}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {p.pickupAddress} → {p.deliveryAddress}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {p.status} • P {p.priceOffered}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </Box>
+              ) : (
+                <Typography color="text.secondary">
+                  No packages found.
+                </Typography>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit User Dialog */}
       <Dialog
