@@ -14,8 +14,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import apiService from "../services/apiService";
+import { useNavigation } from "../navigation/NavigationContext";
 
 export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
+  const { userType } = useNavigation();
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -30,11 +32,14 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
   const loadWalletData = async () => {
     setLoading(true);
     try {
+      const isDriver = (userType || "").toString().toLowerCase() === "driver";
       const [balanceRes, transactionsRes, commissionRes] =
         await Promise.allSettled([
           apiService.getWalletBalance(),
           apiService.getTransactions({ limit: 50 }),
-          apiService.getCommissionBreakdown().catch(() => null),
+          isDriver
+            ? apiService.getCommissionBreakdown().catch(() => null)
+            : null,
         ]);
 
       const balanceValue =
@@ -67,6 +72,8 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
 
       if (commissionValue?.success && commissionValue.data) {
         setCommissionBreakdown(commissionValue.data);
+      } else {
+        setCommissionBreakdown(null);
       }
     } catch (error) {
       console.error("Failed to load wallet data:", error);

@@ -31,6 +31,14 @@ router.get(
   walletController.getCommissionBreakdown,
 );
 
+// Backward compatible typo route (some clients used "commision")
+router.get(
+  "/commision-breakdown",
+  authenticateToken,
+  requireUserType(["DRIVER"]),
+  walletController.getCommissionBreakdown,
+);
+
 /**
  * @route POST /api/wallet/recharge
  * @desc Recharge wallet
