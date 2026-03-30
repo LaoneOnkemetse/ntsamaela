@@ -7,7 +7,8 @@ export class DriverController {
   async createDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const { carRegistration, vehicleType, vehicleCapacity } = req.body;
+      const { carRegistration, carDescription, vehicleType, vehicleCapacity } =
+        req.body;
       const file = req.file;
 
       // Get Prisma client
@@ -49,6 +50,8 @@ export class DriverController {
         data: {
           userId,
           licensePlate: carRegistration,
+          carDescription: carDescription,
+          carPhotoUrl: carPhotoUrl,
           vehicleType: vehicleType || "CAR",
           vehicleCapacity: vehicleCapacity || "MEDIUM",
           active: true,
@@ -59,10 +62,7 @@ export class DriverController {
 
       res.status(201).json({
         success: true,
-        data: {
-          ...driverProfile,
-          carPhotoUrl,
-        },
+        data: driverProfile,
         message: "Driver profile created successfully",
       });
     } catch (_error: any) {
@@ -135,7 +135,8 @@ export class DriverController {
   async updateDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const { carRegistration, vehicleType, vehicleCapacity } = req.body;
+      const { carRegistration, carDescription, vehicleType, vehicleCapacity } =
+        req.body;
       const file = req.file;
 
       // Get Prisma client
@@ -161,7 +162,7 @@ export class DriverController {
         });
       }
 
-      let carPhotoUrl = existingDriver.licensePlate; // Keep existing if no new photo
+      let carPhotoUrl = existingDriver.carPhotoUrl; // Keep existing if no new photo
       if (file) {
         const uploadResult = await cloudStorageService.uploadPackageImage(
           file,
@@ -175,6 +176,10 @@ export class DriverController {
         where: { userId },
         data: {
           licensePlate: carRegistration,
+          ...(typeof carDescription === "string" && carDescription
+            ? { carDescription }
+            : {}),
+          carPhotoUrl,
           vehicleType: vehicleType || existingDriver.vehicleType,
           vehicleCapacity: vehicleCapacity || existingDriver.vehicleCapacity,
         },
@@ -182,10 +187,7 @@ export class DriverController {
 
       res.status(200).json({
         success: true,
-        data: {
-          ...updatedDriver,
-          carPhotoUrl,
-        },
+        data: updatedDriver,
         message: "Driver profile updated successfully",
       });
     } catch (_error: any) {

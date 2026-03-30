@@ -81,6 +81,13 @@ export const RegisterDriverScreen = () => {
       );
       return;
     }
+    if (!carPhoto) {
+      Alert.alert(
+        "Car Photo Required",
+        "Please add a clear photo of your car so admins and customers can review your profile.",
+      );
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -106,6 +113,25 @@ export const RegisterDriverScreen = () => {
       });
 
       if (response.success) {
+        const token = response?.data?.token;
+        if (token) {
+          apiService.setToken(token);
+
+          const formData = new FormData();
+          formData.append("carRegistration", carRegistration);
+          formData.append("carDescription", carDescription);
+          formData.append("vehicleType", "CAR");
+          formData.append("vehicleCapacity", "MEDIUM");
+          formData.append("carPhoto", {
+            uri: carPhoto.uri,
+            name: "car-photo.jpg",
+            type: carPhoto.type || "image/jpeg",
+          });
+
+          // Auth service creates the driver record during registration; this updates details + uploads car photo.
+          await apiService.updateDriverProfile(formData);
+        }
+
         Alert.alert(
           "Success",
           "Account created successfully! Please check your phone for the verification code.",
@@ -121,7 +147,8 @@ export const RegisterDriverScreen = () => {
       console.error("Registration error:", error);
       Alert.alert(
         "Error",
-        "Failed to create account. Please check your connection and try again.",
+        error?.message ||
+          "Failed to create account. Please check your connection and try again.",
       );
     } finally {
       setIsLoading(false);
@@ -281,11 +308,11 @@ export const RegisterDriverScreen = () => {
             />
 
             <RegistrationPhotoButton
-              label="Car Photo (Optional)"
+              label="Car Photo *"
               onPress={() =>
                 showPhotoActionSheet(
                   async () => {
-                    const img = await takePhoto();
+                    const img = await takePhoto("back");
                     if (img) setCarPhoto(img);
                   },
                   async () => {

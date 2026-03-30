@@ -166,7 +166,8 @@ export const RegisterCustomerScreen = () => {
       console.error("Registration error:", error);
       Alert.alert(
         "Error",
-        "Failed to create account. Please check your connection and try again.",
+        error?.message ||
+          "Failed to create account. Please check your connection and try again.",
       );
     } finally {
       setIsLoading(false);

@@ -43,7 +43,7 @@ export const NavigationProvider = ({ children }) => {
   const [myPackages, setMyPackages] = useState([]);
   const [availablePackages, setAvailablePackages] = useState([]);
   const [myBids, setMyBids] = useState([]);
-  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [upcomingTrips, setUpcomingTrips] = useState([]); // TODO: replace with API-driven trips for customer browsing
   const [isActiveDriver, setIsActiveDriver] = useState(false);
   const [activeDrivers, setActiveDrivers] = useState([]);
 
@@ -133,37 +133,6 @@ export const NavigationProvider = ({ children }) => {
 
   const toggleActiveDriverStatus = (status) => {
     setIsActiveDriver(status);
-    if (status) {
-      const currentDriverProfile = {
-        id: 999,
-        driver: `${userProfile.firstName} ${userProfile.lastName}`,
-        rating: userProfile.rating,
-        location: "Current Location",
-        vehicle: "My Vehicle",
-        totalDeliveries: userProfile.totalDeliveries,
-        earnings: `P ${userProfile.totalEarnings}`,
-      };
-      setActiveDrivers((prev) => {
-        const exists = prev.some((d) => d.id === 999);
-        return exists ? prev : [...prev, currentDriverProfile];
-      });
-    } else {
-      setActiveDrivers((prev) => prev.filter((d) => d.id !== 999));
-    }
-  };
-
-  const addTrip = (tripData) => {
-    const newTrip = {
-      id: `TRIP-${upcomingTrips.length + 1}`,
-      driver: `${userProfile.firstName} ${userProfile.lastName}`,
-      rating: userProfile.rating,
-      from: tripData.from.name,
-      to: tripData.to.name,
-      date: `${tripData.date}, ${tripData.time}`,
-      spacesLeft: 3,
-      price: "P 100",
-    };
-    setUpcomingTrips((prev) => [...prev, newTrip]);
   };
 
   const navigate = (screenName, replace = false, params = {}) => {
@@ -440,7 +409,6 @@ export const NavigationProvider = ({ children }) => {
         setNotifications,
         upcomingTrips,
         setUpcomingTrips,
-        addTrip,
         isActiveDriver,
         toggleActiveDriverStatus,
         activeDrivers,

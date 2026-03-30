@@ -160,6 +160,43 @@ class ApiService {
     return this.request("/api/wallet/commission-breakdown");
   }
 
+  // Driver
+  async updateDriverProfile(formData) {
+    return this.request("/api/driver/profile", {
+      method: "PUT",
+      isFormData: true,
+      body: formData,
+      timeoutMs: 60000,
+    });
+  }
+
+  async getDriverProfile() {
+    return this.request("/api/driver/profile");
+  }
+
+  async getAllDrivers(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    return this.request(`/api/driver/all?${queryParams}`);
+  }
+
+  // Trips
+  async createTrip(tripData) {
+    return this.request("/api/trips", {
+      method: "POST",
+      body: JSON.stringify(tripData),
+    });
+  }
+
+  async getMyTrips(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    return this.request(`/api/trips/my-trips?${queryParams}`);
+  }
+
+  async getAvailableTrips(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    return this.request(`/api/trips/available?${queryParams}`);
+  }
+
   // Chat
   async getChatRooms() {
     return this.request("/api/chat/rooms");
@@ -244,13 +281,6 @@ class ApiService {
   }
 
   // Trips
-  async createTrip(tripData) {
-    return this.request("/api/trips", {
-      method: "POST",
-      body: JSON.stringify(tripData),
-    });
-  }
-
   async getTrips(filters = {}) {
     const queryParams = new URLSearchParams(filters).toString();
     return this.request(`/api/trips?${queryParams}`);

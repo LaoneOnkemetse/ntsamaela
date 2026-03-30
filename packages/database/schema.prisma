@@ -69,6 +69,8 @@ model Driver {
   licensePlate    String?
   vehicleType     String?
   vehicleCapacity String?
+  carDescription  String?
+  carPhotoUrl     String?
   rating          Float         @default(0)
   totalDeliveries Int           @default(0)
   active          Boolean       @default(true)

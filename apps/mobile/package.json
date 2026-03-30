@@ -20,6 +20,7 @@
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json}\""
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "^9.1.0",
     "expo": "^54.0.21",
     "expo-camera": "^17.0.8",
     "expo-image-picker": "^17.0.8",
