@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { app, server, PORT } from "./app";
+import { server, PORT } from "./app";
 import { getPrismaClient } from "@database/index";
 import bcrypt from "bcryptjs";
 
@@ -12,7 +12,11 @@ if (process.env.NODE_ENV !== "production") {
 // All middleware and routes are already configured in app.ts
 // Prisma is already initialized in app.ts
 
-// Ensure admin user exists on startup
+/**
+ * Ensure admin user exists when ADMIN_EMAIL + ADMIN_PASSWORD are set via env.
+ * Does not use hardcoded credentials. Does not reset password on every boot
+ * unless ADMIN_SYNC_PASSWORD=true.
+ */
 async function ensureAdminUser() {
   try {
     const prisma = getPrismaClient();
@@ -23,45 +27,69 @@ async function ensureAdminUser() {
       return;
     }
 
-    const ADMIN_EMAIL = "Plutonium94@ntsamaela.com";
-    const ADMIN_PASSWORD = "pLuto@.*123hash";
-    const ADMIN_FIRST_NAME = "Plutonium";
-    const ADMIN_LAST_NAME = "Administrator";
-    const ADMIN_PHONE = "+26771234567";
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim();
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    const ADMIN_FIRST_NAME = process.env.ADMIN_FIRST_NAME?.trim() || "Admin";
+    const ADMIN_LAST_NAME =
+      process.env.ADMIN_LAST_NAME?.trim() || "Administrator";
+    const ADMIN_PHONE = process.env.ADMIN_PHONE?.trim() || "+26770000000";
+    const syncPassword = process.env.ADMIN_SYNC_PASSWORD === "true";
 
-    console.log("🔐 Ensuring permanent admin user exists...");
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      const msg =
+        "ADMIN_EMAIL and ADMIN_PASSWORD not set — skipping admin user seed";
+      if (process.env.NODE_ENV === "production") {
+        console.warn(`⚠️  ${msg}`);
+      } else {
+        console.log(`ℹ️  ${msg}`);
+      }
+      return;
+    }
 
-    // Check if user already exists
+    if (ADMIN_PASSWORD.length < 8) {
+      console.warn(
+        "⚠️  ADMIN_PASSWORD must be at least 8 characters — skipping admin seed",
+      );
+      return;
+    }
+
+    console.log("🔐 Ensuring admin user exists...");
+
     const existingUser = await prisma.user.findUnique({
       where: { email: ADMIN_EMAIL },
     });
 
+    const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+
     if (existingUser) {
-      // User exists - ensure profile fields and password match the configured admin credentials
-      const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+      const updateData: Record<string, unknown> = {
+        firstName: ADMIN_FIRST_NAME,
+        lastName: ADMIN_LAST_NAME,
+        phone: ADMIN_PHONE,
+        userType: "ADMIN",
+        identityVerified: true,
+        emailVerified: true,
+      };
+
+      if (syncPassword) {
+        updateData.passwordHash = passwordHash;
+      }
+
       await prisma.user.update({
         where: { email: ADMIN_EMAIL },
-        data: {
-          firstName: ADMIN_FIRST_NAME,
-          lastName: ADMIN_LAST_NAME,
-          phone: ADMIN_PHONE,
-          userType: "ADMIN",
-          identityVerified: true,
-          emailVerified: true,
-          passwordHash,
-        },
+        data: updateData,
       });
+
       console.log(
-        "✅ Admin user updated with configured password:",
-        ADMIN_EMAIL,
+        syncPassword
+          ? `✅ Admin user updated (password synced): ${ADMIN_EMAIL}`
+          : `✅ Admin user profile synced: ${ADMIN_EMAIL}`,
       );
     } else {
-      // User doesn't exist - create with hashed password
-      const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
-      const newUser = await prisma.user.create({
+      await prisma.user.create({
         data: {
           email: ADMIN_EMAIL,
-          passwordHash: passwordHash,
+          passwordHash,
           firstName: ADMIN_FIRST_NAME,
           lastName: ADMIN_LAST_NAME,
           phone: ADMIN_PHONE,
@@ -70,7 +98,7 @@ async function ensureAdminUser() {
           emailVerified: true,
         },
       });
-      console.log("✅ Admin user created with ID:", newUser.id);
+      console.log(`✅ Admin user created: ${ADMIN_EMAIL}`);
     }
   } catch (error) {
     console.error("⚠️  Failed to ensure admin user:", error);
@@ -84,10 +112,13 @@ process.on("uncaughtException", (error: Error) => {
   process.exit(1);
 });
 
-process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
-  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
-  process.exit(1);
-});
+process.on(
+  "unhandledRejection",
+  (reason: unknown, promise: Promise<unknown>) => {
+    console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+    process.exit(1);
+  },
+);
 
 // Start server first so the process stays up and health checks pass; then ensure admin in background
 try {
@@ -127,5 +158,3 @@ try {
   console.error("❌ Failed to start server:", error);
   process.exit(1);
 }
-
-export default app;

@@ -17,7 +17,7 @@ dotenv.config();
 if (!process.env.DATABASE_URL) {
   if (process.env.NODE_ENV === "production") {
     console.error(
-      "❌ DATABASE_URL is required in production. Set DATABASE_URL in Railway (or your host) to your Postgres connection string."
+      "❌ DATABASE_URL is required in production. Set DATABASE_URL in Railway (or your host) to your Postgres connection string.",
     );
   } else {
     process.env.DATABASE_URL =
@@ -41,12 +41,12 @@ if (!process.env.ADMIN_JWT_SECRET) {
 if (process.env.NODE_ENV === "production") {
   if (process.env.JWT_SECRET === DEFAULT_JWT_SECRET) {
     console.warn(
-      "⚠️  JWT_SECRET is unset in production. Set JWT_SECRET in Railway (or your host) to a strong random string so admin/auth tokens work consistently."
+      "⚠️  JWT_SECRET is unset in production. Set JWT_SECRET in Railway (or your host) to a strong random string so admin/auth tokens work consistently.",
     );
   }
   if (process.env.ADMIN_JWT_SECRET === DEFAULT_ADMIN_JWT_SECRET) {
     console.warn(
-      "⚠️  ADMIN_JWT_SECRET is unset in production. Set ADMIN_JWT_SECRET in Railway if you use admin-specific login."
+      "⚠️  ADMIN_JWT_SECRET is unset in production. Set ADMIN_JWT_SECRET in Railway if you use admin-specific login.",
     );
   }
 }
@@ -61,7 +61,7 @@ const PORT: number = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 // Trust proxy for rate limiting behind Railway/proxy
 // Set to 1 to trust only Railway's proxy (not all proxies)
 // This prevents rate limiting bypass while still working behind Railway's proxy
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // Initialize Real-time Service (only if server is provided)
 if (server) {
@@ -73,7 +73,8 @@ app.use(helmet());
 
 // CORS configuration - production defaults (Railway). Env vars override.
 const PRODUCTION_WEB = "https://ntsamaelaweb-production.up.railway.app";
-const PRODUCTION_WEB_ADMIN = "https://ntsamaelaweb-admin-production.up.railway.app";
+const PRODUCTION_WEB_ADMIN =
+  "https://ntsamaelaweb-admin-production.up.railway.app";
 const allowedOrigins = [
   process.env.CORS_ORIGIN,
   process.env.FRONTEND_URL,
@@ -92,27 +93,27 @@ app.use(
       if (!origin) {
         return callback(null, true);
       }
-      
+
       // Check if origin matches any allowed pattern
-      const isAllowed = allowedOrigins.some(allowed => {
-        if (typeof allowed === 'string') {
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (typeof allowed === "string") {
           return origin === allowed;
         } else if (allowed instanceof RegExp) {
           return allowed.test(origin);
         }
         return false;
       });
-      
+
       if (isAllowed) {
         callback(null, true);
       } else {
         console.warn(`⚠️ CORS blocked origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
@@ -258,6 +259,7 @@ import analyticsRoutes from "./routes/analyticsRoutes";
 import performanceRoutes from "./routes/performanceRoutes";
 import realtimeRoutes from "./routes/realtime";
 import webhookRoutes from "./routes/webhookRoutes";
+import driverRoutes from "./routes/driver";
 
 // Cloud services initialized:
 // - Google Cloud Vision API (for OCR and face detection)
@@ -281,8 +283,13 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api/webhooks", webhookRoutes);
-// simpleRoutes should come LAST to only handle routes not covered by real routes
-app.use("/api", simpleRoutes);
+app.use("/api/driver", driverRoutes);
+// Legacy mock routes — development only (disabled in production)
+if (process.env.NODE_ENV !== "production") {
+  app.use("/api", simpleRoutes);
+} else {
+  console.log("ℹ️  Legacy simpleRoutes disabled in production");
+}
 
 // API root endpoint - provide helpful information
 app.get("/api", (req, res) => {
@@ -307,6 +314,7 @@ app.get("/api", (req, res) => {
       performance: "/api/performance",
       realtime: "/api/realtime",
       webhooks: "/api/webhooks",
+      driver: "/api/driver",
     },
     health: "/health",
   });
@@ -327,9 +335,7 @@ try {
   console.error("Failed to initialize Firebase:", error);
   // Don't crash the app, but log the error
   if (process.env.NODE_ENV === "production") {
-    console.error(
-      "Firebase is recommended for production push notifications.",
-    );
+    console.error("Firebase is recommended for production push notifications.");
   }
 }
 
