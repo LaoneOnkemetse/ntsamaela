@@ -43,6 +43,7 @@ import {
   getVerifications,
   approveVerification,
   rejectVerification,
+  getUserById,
 } from "../services/api";
 import toast from "react-hot-toast";
 
@@ -54,6 +55,19 @@ export default function Verifications() {
   const [selectedVerification, setSelectedVerification] = useState<any>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  const reviewUserId =
+    selectedVerification?.userId || selectedVerification?.user?.id;
+
+  const { data: reviewUserDetails } = useQuery({
+    queryKey: ["verificationReviewUser", reviewUserId],
+    queryFn: async () => {
+      if (!reviewUserId) return null;
+      return await getUserById(reviewUserId);
+    },
+    enabled: reviewDialogOpen && Boolean(reviewUserId),
+    retry: 1,
+  });
 
   // Fetch verifications
   const {
@@ -439,6 +453,53 @@ export default function Verifications() {
                   No documents found for this verification.
                 </Alert>
               )}
+
+              {reviewUserDetails?.userType === "DRIVER" &&
+                reviewUserDetails?.driver && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Driver vehicle
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {reviewUserDetails.driver.licensePlate || "—"} •{" "}
+                      {reviewUserDetails.driver.carDescription || "—"}
+                    </Typography>
+                    {reviewUserDetails.driver.carPhotoUrl ? (
+                      <Box sx={{ mt: 1 }}>
+                        <Box
+                          component="img"
+                          src={reviewUserDetails.driver.carPhotoUrl}
+                          alt="Car"
+                          sx={{
+                            width: "100%",
+                            height: 220,
+                            objectFit: "cover",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        />
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          sx={{ mt: 1 }}
+                          onClick={() =>
+                            window.open(
+                              reviewUserDetails.driver.carPhotoUrl,
+                              "_blank",
+                            )
+                          }
+                        >
+                          Open car photo
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Alert severity="warning" sx={{ mt: 1 }}>
+                        No car photo uploaded for this driver.
+                      </Alert>
+                    )}
+                  </Box>
+                )}
 
               {selectedVerification.status === "PENDING" && (
                 <TextField

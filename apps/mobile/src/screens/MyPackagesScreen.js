@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -13,11 +15,15 @@ import { sharedStyles } from "../styles/sharedStyles";
 import { packageStyles } from "../styles/packageStyles";
 import { useNavigation } from "../navigation/NavigationContext";
 import { getStatusColor } from "../utils/packageUtils";
+import apiService from "../services/apiService";
 
 export const MyPackagesScreen = () => {
-  const { goBack, myPackages } = useNavigation();
+  const { goBack, myPackages, authToken, refreshMyPackages } = useNavigation();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showBidsModal, setShowBidsModal] = useState(false);
+  const [packageBids, setPackageBids] = useState([]);
+  const [bidsLoading, setBidsLoading] = useState(false);
+  const [acceptingBidId, setAcceptingBidId] = useState(null);
 
   const normalized = Array.isArray(myPackages) ? myPackages : [];
   const pendingPackages = normalized.filter(
@@ -32,9 +38,68 @@ export const MyPackagesScreen = () => {
     (p) => (p.status || "").toString().toUpperCase() === "DELIVERED",
   );
 
+  const loadBidsForPackage = useCallback(
+    async (packageId) => {
+      if (!packageId || !authToken) return;
+      setBidsLoading(true);
+      try {
+        apiService.setToken(authToken);
+        const resp = await apiService.getBidsByPackage(packageId);
+        const bids = resp?.data ?? [];
+        setPackageBids(Array.isArray(bids) ? bids : []);
+      } catch (e) {
+        setPackageBids([]);
+        console.warn("Failed to load bids:", e?.message || e);
+      } finally {
+        setBidsLoading(false);
+      }
+    },
+    [authToken],
+  );
+
+  useEffect(() => {
+    if (showBidsModal && selectedPackage?.id) {
+      loadBidsForPackage(selectedPackage.id);
+    } else {
+      setPackageBids([]);
+    }
+  }, [showBidsModal, selectedPackage?.id, loadBidsForPackage]);
+
   const handleViewBids = (pkg) => {
     setSelectedPackage(pkg);
     setShowBidsModal(true);
+  };
+
+  const handleAcceptBid = (bid) => {
+    Alert.alert("Accept bid", `Accept driver bid of P ${bid.amount}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Accept",
+        onPress: async () => {
+          setAcceptingBidId(bid.id);
+          try {
+            apiService.setToken(authToken);
+            const resp = await apiService.acceptBid(bid.id);
+            if (resp?.success === false) {
+              Alert.alert(
+                "Failed",
+                resp?.error?.message || "Could not accept bid",
+              );
+              return;
+            }
+            Alert.alert("Success", "Bid accepted. Package is now assigned.");
+            setShowBidsModal(false);
+            if (authToken) {
+              await refreshMyPackages(authToken);
+            }
+          } catch (e) {
+            Alert.alert("Failed", e?.message || "Could not accept bid");
+          } finally {
+            setAcceptingBidId(null);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -238,6 +303,52 @@ export const MyPackagesScreen = () => {
             <Text style={sharedStyles.modalSubtitle}>
               Offer: P {selectedPackage?.priceOffered}
             </Text>
+
+            {bidsLoading ? (
+              <ActivityIndicator style={{ marginVertical: 16 }} />
+            ) : packageBids.length === 0 ? (
+              <Text style={sharedStyles.modalSubtitle}>
+                No bids yet. Drivers can bid from Available Packages.
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 280, marginTop: 12 }}>
+                {packageBids.map((bid) => {
+                  const driverName = bid.driver?.user
+                    ? `${bid.driver.user.firstName || ""} ${bid.driver.user.lastName || ""}`.trim()
+                    : "Driver";
+                  const status = (bid.status || "PENDING").toString();
+                  return (
+                    <View
+                      key={bid.id}
+                      style={{
+                        padding: 12,
+                        marginBottom: 8,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: "#333",
+                      }}
+                    >
+                      <Text style={sharedStyles.modalSubtitle}>
+                        {driverName} • P {bid.amount} • {status}
+                      </Text>
+                      {status === "PENDING" && (
+                        <TouchableOpacity
+                          style={[sharedStyles.modalButton, { marginTop: 8 }]}
+                          disabled={acceptingBidId === bid.id}
+                          onPress={() => handleAcceptBid(bid)}
+                        >
+                          <Text style={sharedStyles.modalButtonText}>
+                            {acceptingBidId === bid.id
+                              ? "Accepting..."
+                              : "Accept bid"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
 
             <TouchableOpacity
               style={[sharedStyles.modalButton, sharedStyles.modalCancelButton]}

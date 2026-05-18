@@ -174,6 +174,13 @@ class ApiService {
     return this.request("/api/driver/profile");
   }
 
+  async updateDriverActiveStatus(active) {
+    return this.request("/api/driver/active", {
+      method: "PATCH",
+      body: JSON.stringify({ active }),
+    });
+  }
+
   async getAllDrivers(filters = {}) {
     const queryParams = new URLSearchParams(filters).toString();
     return this.request(`/api/driver/all?${queryParams}`);
@@ -264,15 +271,25 @@ class ApiService {
   }
 
   async acceptBid(bidId) {
-    return this.request(`/api/bids/${bidId}/accept`, {
-      method: "PUT",
+    return this.request("/api/bids/accept", {
+      method: "POST",
+      body: JSON.stringify({ bidId }),
     });
   }
 
   async submitCounterBid(packageId, amount) {
-    return this.request(`/api/bids/${packageId}/counter`, {
-      method: "POST",
-      body: JSON.stringify({ amount, message: `Counter offer: P${amount}` }),
+    return this.createBid({
+      packageId,
+      amount: parseFloat(amount),
+      message: `Counter offer: P${amount}`,
+    });
+  }
+
+  async placeBidOnPackage(packageId, amount, message = "") {
+    return this.createBid({
+      packageId,
+      amount: parseFloat(amount),
+      message: message || `Bid: P${amount}`,
     });
   }
 

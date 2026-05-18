@@ -76,9 +76,63 @@ export const NavigationProvider = ({ children }) => {
           setDriverWallet(walletBalance);
         }
       }
+
+      if ((userType || "").toLowerCase() === "driver") {
+        try {
+          const driverResp = await apiService.getDriverProfile();
+          const driver = driverResp?.data ?? driverResp;
+          if (driver && typeof driver.active === "boolean") {
+            setIsActiveDriver(driver.active);
+          }
+        } catch (driverErr) {
+          console.warn(
+            "Failed to refresh driver profile:",
+            driverErr?.message || driverErr,
+          );
+        }
+      }
     } catch (e) {
       // Soft-fail: we don't log out on transient refresh issues.
       console.warn("Session refresh failed:", e?.message || e);
+    }
+  };
+
+  const refreshAvailablePackages = async (token) => {
+    if (!token) return;
+    try {
+      apiService.setToken(token);
+      const resp = await apiService.getPackages({
+        status: "PENDING",
+        limit: 50,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+      const raw = resp?.data ?? resp;
+      const items = Array.isArray(raw)
+        ? raw
+        : (raw?.packages ?? raw?.data ?? []);
+      if (!Array.isArray(items)) {
+        setAvailablePackages([]);
+        return;
+      }
+      const mapped = items.map((p) => ({
+        id: p.id,
+        description: p.description,
+        price: p.priceOffered,
+        customer: p.customer
+          ? `${p.customer.firstName || ""} ${p.customer.lastName || ""}`.trim()
+          : "Customer",
+        pickup: p.pickupAddress,
+        delivery: p.deliveryAddress,
+        weight: p.weight ? `${p.weight} kg` : "—",
+        distance: "—",
+        photo: p.imageUrl || null,
+        raw: p,
+      }));
+      setAvailablePackages(mapped);
+    } catch (e) {
+      console.warn("Failed to refresh available packages:", e?.message || e);
+      setAvailablePackages([]);
     }
   };
 
@@ -115,10 +169,16 @@ export const NavigationProvider = ({ children }) => {
     // Kick once immediately.
     refreshSession(authToken);
     refreshMyPackages(authToken);
+    if ((userType || "").toLowerCase() === "driver") {
+      refreshAvailablePackages(authToken);
+    }
 
     const interval = setInterval(() => {
       refreshSession(authToken);
       refreshMyPackages(authToken);
+      if ((userType || "").toLowerCase() === "driver") {
+        refreshAvailablePackages(authToken);
+      }
     }, intervalMs);
 
     return () => clearInterval(interval);
@@ -131,8 +191,28 @@ export const NavigationProvider = ({ children }) => {
     userProfile?.userId,
   ]);
 
-  const toggleActiveDriverStatus = (status) => {
+  const toggleActiveDriverStatus = async (status) => {
+    const previous = isActiveDriver;
     setIsActiveDriver(status);
+    if (!authToken) return { success: true };
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.updateDriverActiveStatus(status);
+      if (resp?.success === false) {
+        setIsActiveDriver(previous);
+        return {
+          success: false,
+          message: resp?.error?.message || "Failed to update active status",
+        };
+      }
+      return { success: true };
+    } catch (e) {
+      setIsActiveDriver(previous);
+      return {
+        success: false,
+        message: e?.message || "Failed to update active status",
+      };
+    }
   };
 
   const navigate = (screenName, replace = false, params = {}) => {
@@ -401,8 +481,10 @@ export const NavigationProvider = ({ children }) => {
         setDriverWallet,
         myPackages,
         setMyPackages,
+        refreshMyPackages,
         availablePackages,
         setAvailablePackages,
+        refreshAvailablePackages,
         myBids,
         setMyBids,
         notifications,

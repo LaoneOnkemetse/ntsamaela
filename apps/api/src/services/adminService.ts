@@ -780,6 +780,19 @@ export class AdminService {
               updatedAt: true,
             },
           },
+          driver: {
+            select: {
+              id: true,
+              licensePlate: true,
+              vehicleType: true,
+              vehicleCapacity: true,
+              carDescription: true,
+              carPhotoUrl: true,
+              rating: true,
+              totalDeliveries: true,
+              active: true,
+            },
+          },
         },
       });
 

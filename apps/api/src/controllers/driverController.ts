@@ -132,6 +132,67 @@ export class DriverController {
     }
   }
 
+  async updateActiveStatus(req: AuthenticatedRequest, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const { active } = req.body;
+
+      if (typeof active !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "active must be a boolean",
+          },
+        });
+      }
+
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
+
+      const existingDriver = await prisma.driver.findUnique({
+        where: { userId },
+      });
+
+      if (!existingDriver) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: "DRIVER_PROFILE_NOT_FOUND",
+            message: "Driver profile not found",
+          },
+        });
+      }
+
+      const updatedDriver = await prisma.driver.update({
+        where: { userId },
+        data: { active },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: updatedDriver,
+        message: active
+          ? "You are now visible to customers"
+          : "You are now hidden from customers",
+      });
+    } catch (_error: any) {
+      console.error("Error updating driver active status:", _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "DRIVER_ACTIVE_UPDATE_ERROR",
+          message: "Failed to update active status",
+        },
+      });
+    }
+  }
+
   async updateDriverProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;

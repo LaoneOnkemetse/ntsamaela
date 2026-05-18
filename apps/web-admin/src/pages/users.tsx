@@ -566,6 +566,76 @@ export default function Users() {
                 <Alert severity="info">No verification record found.</Alert>
               )}
 
+              {selectedUserDetails?.userType === "DRIVER" && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                    Vehicle (Driver)
+                  </Typography>
+                  {selectedUserDetails?.driver ? (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Registration:{" "}
+                        <strong>
+                          {selectedUserDetails.driver.licensePlate || "—"}
+                        </strong>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Description:{" "}
+                        <strong>
+                          {selectedUserDetails.driver.carDescription || "—"}
+                        </strong>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Active:{" "}
+                        <strong>
+                          {selectedUserDetails.driver.active ? "Yes" : "No"}
+                        </strong>
+                      </Typography>
+                      {selectedUserDetails.driver.carPhotoUrl ? (
+                        <Box sx={{ mt: 2 }}>
+                          <Box
+                            component="img"
+                            src={selectedUserDetails.driver.carPhotoUrl}
+                            alt="Car"
+                            sx={{
+                              width: "100%",
+                              maxWidth: 480,
+                              height: 260,
+                              objectFit: "cover",
+                              borderRadius: 2,
+                              border: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ mt: 1 }}
+                            onClick={() =>
+                              window.open(
+                                selectedUserDetails.driver.carPhotoUrl,
+                                "_blank",
+                              )
+                            }
+                          >
+                            Open car photo
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                          No car photo uploaded.
+                        </Alert>
+                      )}
+                    </Box>
+                  ) : (
+                    <Alert severity="info">
+                      No driver vehicle profile on record yet.
+                    </Alert>
+                  )}
+                </>
+              )}
+
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
