@@ -1,3 +1,5 @@
+import { dpoPaymentService } from "./dpoPaymentService";
+
 export interface PaymentResponse {
   success: boolean;
   transactionId?: string;
@@ -17,7 +19,7 @@ export interface PaymentStatus {
 
 /**
  * Payment Service
- * Supports multiple providers: Stripe, Paystack, or mock for development
+ * Supports multiple providers: Stripe, Paystack, DPO, or mock for development
  */
 class PaymentService {
   private provider: string;
@@ -64,6 +66,13 @@ class PaymentService {
           );
         case "paystack":
           return await this.processViaPaystack(
+            amount,
+            currency,
+            paymentMethod,
+            metadata,
+          );
+        case "dpo":
+          return await this.processViaDpo(
             amount,
             currency,
             paymentMethod,
@@ -196,6 +205,52 @@ class PaymentService {
       req.write(postData);
       req.end();
     });
+  }
+
+  private async processViaDpo(
+    amount: number,
+    currency: string,
+    _paymentMethod: string,
+    metadata?: any,
+  ): Promise<PaymentResponse> {
+    const companyRef =
+      metadata?.companyRef ||
+      `NTS-PAY-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const apiBase =
+      process.env.API_PUBLIC_URL ||
+      process.env.FRONTEND_URL ||
+      "http://localhost:3000";
+    const backUrl =
+      process.env.DPO_CALLBACK_URL || `${apiBase}/api/webhooks/dpo`;
+    const redirectUrl =
+      process.env.DPO_REDIRECT_URL || `${apiBase}/api/wallet/recharge/return`;
+
+    const result = await dpoPaymentService.createToken({
+      amount,
+      currency: currency || dpoPaymentService.getDefaultCurrency(),
+      companyRef,
+      redirectUrl,
+      backUrl,
+      serviceDescription: metadata?.description || "Ntsamaela payment",
+      customerFirstName: metadata?.firstName,
+      customerLastName: metadata?.lastName,
+      customerEmail: metadata?.email,
+    });
+
+    if (!result.success || !result.transToken) {
+      return {
+        success: false,
+        error: result.error || result.resultExplanation || "DPO payment failed",
+      };
+    }
+
+    return {
+      success: true,
+      transactionId: result.transToken,
+      reference: companyRef,
+      message: result.resultExplanation || "Payment initialized",
+      paymentUrl: dpoPaymentService.getCheckoutUrl(result.transToken),
+    };
   }
 
   private async processViaMock(
@@ -351,6 +406,8 @@ class PaymentService {
           return await this.getStatusViaStripe(transactionId);
         case "paystack":
           return await this.getStatusViaPaystack(transactionId);
+        case "dpo":
+          return await this.getStatusViaDpo(transactionId);
         case "mock":
         default:
           return await this.getStatusViaMock(transactionId);
@@ -463,6 +520,26 @@ class PaymentService {
 
       req.end();
     });
+  }
+
+  private async getStatusViaDpo(transactionId: string): Promise<PaymentStatus> {
+    const verification = await dpoPaymentService.verifyToken(transactionId);
+    let status: "pending" | "completed" | "failed" | "refunded" = "pending";
+    if (verification.paid) {
+      status = "completed";
+    } else if (
+      verification.result &&
+      ["901", "904"].includes(verification.result)
+    ) {
+      status = "failed";
+    }
+
+    return {
+      status,
+      transactionId,
+      amount: verification.transactionAmount,
+      currency: verification.transactionCurrency,
+    };
   }
 
   private async getStatusViaMock(

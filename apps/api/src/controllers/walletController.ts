@@ -1,6 +1,7 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import WalletService, { RechargeRequest } from "../services/walletService";
 import { AuthenticatedRequest } from "@shared/types";
+import { getPrismaClient } from "@database/index";
 
 export class WalletController {
   private walletService: WalletService | null = null;
@@ -72,7 +73,6 @@ export class WalletController {
 
       const { amount, paymentMethod, paymentReference, description } = req.body;
 
-      // Validate required fields
       if (!amount || amount <= 0) {
         res.status(400).json({
           success: false,
@@ -84,10 +84,8 @@ export class WalletController {
         return;
       }
 
-      if (
-        !paymentMethod ||
-        !["CARD", "BANK_TRANSFER", "MOBILE_MONEY"].includes(paymentMethod)
-      ) {
+      const allowedMethods = ["CARD", "BANK_TRANSFER", "MOBILE_MONEY", "DPO"];
+      if (!paymentMethod || !allowedMethods.includes(paymentMethod)) {
         res.status(400).json({
           success: false,
           error: {
@@ -105,6 +103,43 @@ export class WalletController {
         paymentReference,
         description,
       };
+
+      const provider = (process.env.PAYMENT_PROVIDER || "mock").toLowerCase();
+
+      if (provider === "dpo") {
+        const prisma = getPrismaClient();
+        const user = prisma
+          ? await prisma.user.findUnique({
+              where: { id: userId },
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            })
+          : null;
+
+        const initiation = await this.getWalletService().initiateDpoRecharge(
+          rechargeRequest,
+          {
+            firstName: user?.firstName || undefined,
+            lastName: user?.lastName || undefined,
+            email: user?.email || undefined,
+          },
+        );
+
+        res.status(200).json({
+          success: true,
+          data: {
+            transaction: initiation.transaction,
+            paymentUrl: initiation.paymentUrl,
+            transToken: initiation.transToken,
+            companyRef: initiation.companyRef,
+            message: "Redirect to DPO to complete payment",
+          },
+        });
+        return;
+      }
 
       const transaction =
         await this.getWalletService().rechargeWallet(rechargeRequest);
@@ -127,6 +162,104 @@ export class WalletController {
               : "Failed to recharge wallet",
         },
       });
+    }
+  };
+
+  /**
+   * Confirm a pending DPO wallet recharge (poll after customer returns).
+   */
+  confirmRecharge = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: { code: "UNAUTHORIZED", message: "User not authenticated" },
+        });
+        return;
+      }
+
+      const companyRef = req.query.companyRef as string | undefined;
+      const transactionToken = req.query.transactionToken as string | undefined;
+
+      const result = await this.getWalletService().confirmDpoRecharge(
+        companyRef,
+        transactionToken,
+      );
+
+      if (result.transaction && result.transaction.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: { code: "FORBIDDEN", message: "Not your transaction" },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: result.completed || result.alreadyCompleted,
+        data: result,
+      });
+    } catch (_error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "CONFIRM_RECHARGE_ERROR",
+          message:
+            _error instanceof Error
+              ? _error.message
+              : "Failed to confirm recharge",
+        },
+      });
+    }
+  };
+
+  /**
+   * Browser return URL after DPO hosted checkout (public).
+   */
+  rechargeReturn = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const companyRef =
+        (req.query.CompanyRef as string) ||
+        (req.query.companyRef as string) ||
+        undefined;
+      const transactionToken =
+        (req.query.TransactionToken as string) ||
+        (req.query.transactionToken as string) ||
+        undefined;
+
+      let message = "Payment received. You can return to the Ntsamaela app.";
+      if (companyRef || transactionToken) {
+        const result = await this.getWalletService().confirmDpoRecharge(
+          companyRef,
+          transactionToken,
+        );
+        message = result.message;
+      }
+
+      res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ntsamaela Payment</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 48px auto; padding: 0 16px; color: #1a1a1a; }
+    h1 { font-size: 1.25rem; }
+    p { line-height: 1.5; color: #444; }
+  </style>
+</head>
+<body>
+  <h1>Payment status</h1>
+  <p>${message.replace(/</g, "&lt;")}</p>
+  <p>Close this page and refresh your wallet in the app.</p>
+</body>
+</html>`);
+    } catch (_error) {
+      res.status(200).send(`<!DOCTYPE html>
+<html lang="en"><body><p>Payment received. Return to the app and refresh your wallet.</p></body></html>`);
     }
   };
 

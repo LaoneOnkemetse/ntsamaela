@@ -149,11 +149,21 @@ class ApiService {
     return this.request(`/api/wallet/transactions?${queryParams}`);
   }
 
-  async rechargeWallet(amount, paymentMethod) {
+  async rechargeWallet(amount, paymentMethod = "DPO") {
     return this.request("/api/wallet/recharge", {
       method: "POST",
       body: JSON.stringify({ amount, paymentMethod }),
     });
+  }
+
+  async confirmWalletRecharge({ companyRef, transactionToken } = {}) {
+    const params = new URLSearchParams();
+    if (companyRef) params.set("companyRef", companyRef);
+    if (transactionToken) params.set("transactionToken", transactionToken);
+    const query = params.toString();
+    return this.request(
+      `/api/wallet/recharge/confirm${query ? `?${query}` : ""}`,
+    );
   }
 
   async getCommissionBreakdown() {

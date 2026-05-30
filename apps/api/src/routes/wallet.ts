@@ -47,13 +47,13 @@ router.get(
 router.post(
   "/recharge",
   authenticateToken,
-  requireUserType(["DRIVER"]),
+  requireUserType(["DRIVER", "CUSTOMER"]),
   validateRequest({
     body: {
       amount: { type: "number", required: true, min: 0.01, max: 10000 },
       paymentMethod: {
         type: "string",
-        enum: ["CARD", "BANK_TRANSFER", "MOBILE_MONEY"],
+        enum: ["CARD", "BANK_TRANSFER", "MOBILE_MONEY", "DPO"],
         required: true,
       },
       paymentReference: { type: "string", required: false },
@@ -62,6 +62,25 @@ router.post(
   }),
   walletController.rechargeWallet,
 );
+
+/**
+ * @route GET /api/wallet/recharge/confirm
+ * @desc Confirm a pending DPO recharge
+ * @access Private
+ */
+router.get(
+  "/recharge/confirm",
+  authenticateToken,
+  requireUserType(["DRIVER", "CUSTOMER"]),
+  walletController.confirmRecharge,
+);
+
+/**
+ * @route GET /api/wallet/recharge/return
+ * @desc Browser redirect after DPO checkout
+ * @access Public
+ */
+router.get("/recharge/return", walletController.rechargeReturn);
 
 /**
  * @route GET /api/wallet/transactions

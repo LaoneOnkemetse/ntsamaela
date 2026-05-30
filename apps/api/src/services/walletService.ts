@@ -1,5 +1,6 @@
 import { getPrismaClient } from "@database/index";
 import { TransactionType, TransactionStatus, UserType } from "@shared/types";
+import { dpoPaymentService } from "./dpoPaymentService";
 
 export interface WalletBalance {
   userId: string;
@@ -37,9 +38,23 @@ export interface CommissionReservation {
 export interface RechargeRequest {
   userId: string;
   amount: number;
-  paymentMethod: "CARD" | "BANK_TRANSFER" | "MOBILE_MONEY";
+  paymentMethod: "CARD" | "BANK_TRANSFER" | "MOBILE_MONEY" | "DPO";
   paymentReference?: string;
   description?: string;
+}
+
+export interface RechargeInitiationResult {
+  transaction: Transaction;
+  paymentUrl?: string;
+  transToken?: string;
+  companyRef: string;
+}
+
+export interface RechargeConfirmationResult {
+  completed: boolean;
+  alreadyCompleted: boolean;
+  transaction?: Transaction;
+  message: string;
 }
 
 export interface LowBalanceNotification {
@@ -74,6 +89,46 @@ export class WalletService {
   private readonly LOW_BALANCE_THRESHOLD = {
     DRIVER: 100.0,
   };
+
+  private parseMetadata(raw: unknown): Record<string, any> {
+    if (!raw) return {};
+    if (typeof raw === "object") return raw as Record<string, any>;
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  private stringifyMetadata(data: Record<string, any>): string {
+    return JSON.stringify(data);
+  }
+
+  private mapTransaction(record: any): Transaction {
+    return {
+      id: record.id,
+      userId: record.userId,
+      type: record.type as TransactionType,
+      amount: record.amount,
+      status: record.status as TransactionStatus,
+      description: record.description,
+      reference: record.reference || undefined,
+      metadata: this.parseMetadata(record.metadata),
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
+  }
+
+  private getPaymentProvider(): string {
+    return (process.env.PAYMENT_PROVIDER || "mock").toLowerCase();
+  }
+
+  private buildCompanyRef(transactionId: string): string {
+    return `NTS-${transactionId}`;
+  }
 
   /**
    * Get commission breakdown for driver
@@ -183,7 +238,251 @@ export class WalletService {
   }
 
   /**
-   * Add funds to wallet (recharge)
+   * Initiate a DPO-hosted wallet recharge (PENDING until webhook/verify confirms).
+   */
+  async initiateDpoRecharge(
+    rechargeRequest: RechargeRequest,
+    customer: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    },
+  ): Promise<RechargeInitiationResult> {
+    const { userId, amount, paymentMethod, description } = rechargeRequest;
+
+    if (amount <= 0) {
+      throw new Error("Recharge amount must be greater than zero");
+    }
+    if (amount > 10000) {
+      throw new Error("Recharge amount cannot exceed $10,000");
+    }
+
+    const currency = dpoPaymentService.getDefaultCurrency();
+    const apiBase =
+      process.env.API_PUBLIC_URL ||
+      process.env.FRONTEND_URL ||
+      "http://localhost:3000";
+    const backUrl =
+      process.env.DPO_CALLBACK_URL || `${apiBase}/api/webhooks/dpo`;
+    const redirectUrl =
+      process.env.DPO_REDIRECT_URL || `${apiBase}/api/wallet/recharge/return`;
+
+    const pending = await this.prisma.transaction.create({
+      data: {
+        userId,
+        type: "RECHARGE",
+        amount,
+        status: "PENDING",
+        description:
+          description || `Wallet recharge via ${paymentMethod} (DPO)`,
+        metadata: this.stringifyMetadata({
+          paymentMethod,
+          provider: "DPO",
+          currency,
+          originalAmount: amount,
+        }),
+      },
+    });
+
+    const companyRef = this.buildCompanyRef(pending.id);
+
+    const dpoResult = await dpoPaymentService.createToken({
+      amount,
+      currency,
+      companyRef,
+      redirectUrl,
+      backUrl,
+      serviceDescription: "Ntsamaela wallet top-up",
+      customerFirstName: customer.firstName,
+      customerLastName: customer.lastName,
+      customerEmail: customer.email,
+    });
+
+    if (!dpoResult.success || !dpoResult.transToken) {
+      await this.prisma.transaction.update({
+        where: { id: pending.id },
+        data: {
+          status: "FAILED",
+          metadata: this.stringifyMetadata({
+            ...this.parseMetadata(pending.metadata),
+            dpoError: dpoResult.error || dpoResult.resultExplanation,
+            dpoResult: dpoResult.result,
+          }),
+        },
+      });
+      throw new Error(dpoResult.error || "Failed to initialize DPO payment");
+    }
+
+    const updated = await this.prisma.transaction.update({
+      where: { id: pending.id },
+      data: {
+        reference: dpoResult.transToken,
+        metadata: this.stringifyMetadata({
+          ...this.parseMetadata(pending.metadata),
+          companyRef,
+          dpoTransRef: dpoResult.transRef,
+          dpoTransToken: dpoResult.transToken,
+        }),
+      },
+    });
+
+    return {
+      transaction: this.mapTransaction(updated),
+      paymentUrl: dpoPaymentService.getCheckoutUrl(dpoResult.transToken),
+      transToken: dpoResult.transToken,
+      companyRef,
+    };
+  }
+
+  /**
+   * Confirm a DPO recharge after verifyToken or BackURL callback.
+   */
+  async confirmDpoRecharge(
+    companyRef?: string,
+    transactionToken?: string,
+  ): Promise<RechargeConfirmationResult> {
+    if (!companyRef && !transactionToken) {
+      throw new Error("companyRef or transactionToken is required");
+    }
+
+    let dbTransaction = null;
+
+    if (companyRef) {
+      const transactionId = companyRef.startsWith("NTS-")
+        ? companyRef.slice(4)
+        : null;
+
+      if (transactionId) {
+        dbTransaction = await this.prisma.transaction.findUnique({
+          where: { id: transactionId },
+        });
+      }
+
+      if (!dbTransaction) {
+        const pending = await this.prisma.transaction.findMany({
+          where: { status: "PENDING", type: "RECHARGE" },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        });
+        dbTransaction =
+          pending.find((tx: { metadata: unknown }) => {
+            const meta = this.parseMetadata(tx.metadata);
+            return meta.companyRef === companyRef;
+          }) || null;
+      }
+    }
+
+    if (!dbTransaction && transactionToken) {
+      dbTransaction = await this.prisma.transaction.findFirst({
+        where: { reference: transactionToken },
+      });
+    }
+
+    if (!dbTransaction) {
+      return {
+        completed: false,
+        alreadyCompleted: false,
+        message: "Recharge transaction not found",
+      };
+    }
+
+    if (dbTransaction.status === "COMPLETED") {
+      return {
+        completed: true,
+        alreadyCompleted: true,
+        transaction: this.mapTransaction(dbTransaction),
+        message: "Recharge already completed",
+      };
+    }
+
+    if (dbTransaction.status !== "PENDING") {
+      return {
+        completed: false,
+        alreadyCompleted: false,
+        transaction: this.mapTransaction(dbTransaction),
+        message: `Recharge is ${dbTransaction.status}`,
+      };
+    }
+
+    const token =
+      transactionToken ||
+      dbTransaction.reference ||
+      this.parseMetadata(dbTransaction.metadata).dpoTransToken;
+
+    if (!token) {
+      throw new Error("Missing DPO transaction token");
+    }
+
+    const verification = await dpoPaymentService.verifyToken(token);
+
+    if (!verification.success) {
+      throw new Error(verification.error || "DPO verification failed");
+    }
+
+    if (!verification.paid) {
+      return {
+        completed: false,
+        alreadyCompleted: false,
+        transaction: this.mapTransaction(dbTransaction),
+        message:
+          verification.resultExplanation ||
+          `Payment not completed (status ${verification.result})`,
+      };
+    }
+
+    const result = await this.prisma.$transaction(async (tx: any) => {
+      const current = await tx.transaction.findUnique({
+        where: { id: dbTransaction!.id },
+      });
+
+      if (!current || current.status === "COMPLETED") {
+        return current;
+      }
+
+      await tx.wallet.upsert({
+        where: { userId: current.userId },
+        update: {
+          availableBalance: { increment: current.amount },
+          currency:
+            verification.transactionCurrency ||
+            dpoPaymentService.getDefaultCurrency(),
+        },
+        create: {
+          userId: current.userId,
+          availableBalance: current.amount,
+          reservedBalance: 0,
+          currency:
+            verification.transactionCurrency ||
+            dpoPaymentService.getDefaultCurrency(),
+        },
+      });
+
+      return tx.transaction.update({
+        where: { id: current.id },
+        data: {
+          status: "COMPLETED",
+          metadata: this.stringifyMetadata({
+            ...this.parseMetadata(current.metadata),
+            dpoVerifyResult: verification.result,
+            dpoVerifyExplanation: verification.resultExplanation,
+            verifiedAt: new Date().toISOString(),
+          }),
+        },
+      });
+    });
+
+    await this.checkLowBalanceNotification(result.userId);
+
+    return {
+      completed: true,
+      alreadyCompleted: false,
+      transaction: this.mapTransaction(result),
+      message: "Wallet recharged successfully",
+    };
+  }
+
+  /**
+   * Add funds to wallet (recharge) — mock/immediate credit only.
    */
   async rechargeWallet(rechargeRequest: RechargeRequest): Promise<Transaction> {
     const { userId, amount, paymentMethod, paymentReference, description } =

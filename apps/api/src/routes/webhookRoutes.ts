@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import crypto from "crypto";
 import { getPrismaClient } from "@database/index";
 import { notificationService } from "../services/notificationService";
+import WalletService from "../services/walletService";
 
 const router = express.Router();
 
@@ -859,5 +860,53 @@ async function handleRefundCreated(refund: any, prisma: any): Promise<void> {
     throw error;
   }
 }
+
+const walletService = new WalletService();
+
+async function handleDpoCallback(req: Request, res: Response) {
+  try {
+    const companyRef =
+      (req.query.CompanyRef as string) ||
+      (req.query.companyRef as string) ||
+      (req.body?.CompanyRef as string) ||
+      (req.body?.companyRef as string);
+    const transactionToken =
+      (req.query.TransactionToken as string) ||
+      (req.query.transactionToken as string) ||
+      (req.body?.TransactionToken as string) ||
+      (req.body?.transactionToken as string);
+
+    console.log("DPO webhook received:", {
+      companyRef,
+      transactionToken: transactionToken ? "[present]" : undefined,
+      method: req.method,
+    });
+
+    if (companyRef || transactionToken) {
+      const result = await walletService.confirmDpoRecharge(
+        companyRef,
+        transactionToken,
+      );
+      console.log("DPO webhook confirm result:", {
+        companyRef,
+        completed: result.completed,
+        alreadyCompleted: result.alreadyCompleted,
+        message: result.message,
+      });
+    }
+
+    res.status(200).send("OK");
+  } catch (error: any) {
+    console.error("DPO webhook error:", error);
+    res.status(200).send("OK");
+  }
+}
+
+/**
+ * DPO Pay BackURL / callback
+ * GET|POST /api/webhooks/dpo
+ */
+router.get("/dpo", handleDpoCallback);
+router.post("/dpo", handleDpoCallback);
 
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   Linking,
+  AppState,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
@@ -24,10 +25,7 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
   const [commissionBreakdown, setCommissionBreakdown] = useState(null);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState("");
-
-  useEffect(() => {
-    loadWalletData();
-  }, []);
+  const [pendingRecharge, setPendingRecharge] = useState(null);
 
   const loadWalletData = async () => {
     setLoading(true);
@@ -83,6 +81,37 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
     }
   };
 
+  const confirmPendingRecharge = useCallback(async () => {
+    if (!pendingRecharge) return;
+    try {
+      const resp = await apiService.confirmWalletRecharge({
+        companyRef: pendingRecharge.companyRef,
+        transactionToken: pendingRecharge.transToken,
+      });
+      const data = resp?.data ?? resp;
+      if (data?.completed || data?.alreadyCompleted) {
+        setPendingRecharge(null);
+        Alert.alert("Success", "Wallet recharged successfully");
+        await loadWalletData();
+      }
+    } catch (e) {
+      console.warn("Confirm recharge:", e?.message || e);
+    }
+  }, [pendingRecharge]);
+
+  useEffect(() => {
+    loadWalletData();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && pendingRecharge) {
+        confirmPendingRecharge();
+      }
+    });
+    return () => sub.remove();
+  }, [pendingRecharge, confirmPendingRecharge]);
+
   const handleRecharge = async () => {
     const amount = parseFloat(rechargeAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -92,17 +121,23 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
 
     setLoading(true);
     try {
-      const response = await apiService.rechargeWallet(amount, "PAYSTACK");
+      const response = await apiService.rechargeWallet(amount, "DPO");
 
       if (response.success) {
-        if (response.data?.paymentUrl) {
-          // Open payment URL in browser
-          const canOpen = await Linking.canOpenURL(response.data.paymentUrl);
+        const paymentUrl = response.data?.paymentUrl || response.paymentUrl;
+        const companyRef = response.data?.companyRef || response.companyRef;
+        const transToken = response.data?.transToken || response.transToken;
+
+        if (paymentUrl) {
+          if (companyRef || transToken) {
+            setPendingRecharge({ companyRef, transToken });
+          }
+          const canOpen = await Linking.canOpenURL(paymentUrl);
           if (canOpen) {
-            await Linking.openURL(response.data.paymentUrl);
+            await Linking.openURL(paymentUrl);
             Alert.alert(
-              "Payment",
-              "Redirecting to payment gateway. Please complete the payment and return to the app.",
+              "DPO Payment",
+              "Complete payment in your browser, then return to the app. Your wallet will update automatically.",
               [{ text: "OK", onPress: () => setShowRechargeModal(false) }],
             );
           } else {
