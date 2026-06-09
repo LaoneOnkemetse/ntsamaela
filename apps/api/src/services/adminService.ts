@@ -664,7 +664,7 @@ export class AdminService {
   // User Management Methods
   async getUsers(filters: AdminFilterOptions) {
     try {
-      const where: any = { userType: { not: "ADMIN" } };
+      const where: any = {};
 
       if (filters.userType) {
         where.userType = filters.userType;
@@ -823,11 +823,30 @@ export class AdminService {
       if (!existing) {
         throw new Error("User not found");
       }
+
+      if (updates.email !== undefined && updates.email !== existing.email) {
+        const emailTaken = await prisma.user.findUnique({
+          where: { email: updates.email.trim() },
+        });
+        if (emailTaken && emailTaken.id !== id) {
+          throw new Error("Another user already uses this email");
+        }
+      }
+
+      if (updates.phone !== undefined && updates.phone !== existing.phone) {
+        const phoneTaken = await prisma.user.findUnique({
+          where: { phone: updates.phone.trim() },
+        });
+        if (phoneTaken && phoneTaken.id !== id) {
+          throw new Error("Another user already uses this phone number");
+        }
+      }
+
       const data: Record<string, unknown> = { updatedAt: new Date() };
       if (updates.firstName !== undefined) data.firstName = updates.firstName;
       if (updates.lastName !== undefined) data.lastName = updates.lastName;
-      if (updates.email !== undefined) data.email = updates.email;
-      if (updates.phone !== undefined) data.phone = updates.phone;
+      if (updates.email !== undefined) data.email = updates.email.trim();
+      if (updates.phone !== undefined) data.phone = updates.phone.trim();
       const user = await prisma.user.update({
         where: { id },
         data,
@@ -846,8 +865,95 @@ export class AdminService {
       return user;
     } catch (error: any) {
       if (error.message === "User not found") throw error;
+      if (error.code === "P2002") {
+        throw new Error("Email or phone number is already in use");
+      }
+      if (
+        error.message?.includes("already uses") ||
+        error.message?.includes("already in use")
+      ) {
+        throw error;
+      }
       console.error("Error updating user profile:", error);
       throw new Error("Failed to update profile");
+    }
+  }
+
+  async createUser(data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    userType: "CUSTOMER" | "DRIVER";
+  }) {
+    try {
+      const prisma = this.getPrisma();
+      const email = data.email.trim();
+      const phone = data.phone.trim();
+
+      if (!email || !phone || !data.password || data.password.length < 6) {
+        throw new Error(
+          "Email, phone, and password (min 6 chars) are required",
+        );
+      }
+
+      if (!["CUSTOMER", "DRIVER"].includes(data.userType)) {
+        throw new Error("userType must be CUSTOMER or DRIVER");
+      }
+
+      const existingEmail = await prisma.user.findUnique({ where: { email } });
+      if (existingEmail) {
+        throw new Error("A user with this email already exists");
+      }
+
+      const existingPhone = await prisma.user.findUnique({ where: { phone } });
+      if (existingPhone) {
+        throw new Error("A user with this phone number already exists");
+      }
+
+      const passwordHash = await bcrypt.hash(data.password, 12);
+      const user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName: data.firstName || "User",
+          lastName: data.lastName || "",
+          phone,
+          userType: data.userType,
+          identityVerified: false,
+          emailVerified: true,
+          phoneVerified: true,
+        },
+      });
+
+      await prisma.wallet.create({
+        data: { userId: user.id, availableBalance: 0, reservedBalance: 0 },
+      });
+
+      if (data.userType === "DRIVER") {
+        await prisma.driver.create({
+          data: { userId: user.id, active: true },
+        });
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        userType: user.userType,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      };
+    } catch (error: any) {
+      if (error.code === "P2002") {
+        throw new Error("Email or phone number is already in use");
+      }
+      if (error.message) throw error;
+      console.error("Error creating user:", error);
+      throw new Error("Failed to create user");
     }
   }
 

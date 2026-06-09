@@ -48,6 +48,7 @@ router.post(
 
 // --- User Management ---
 router.get("/users", adminController.getUsers.bind(adminController));
+router.post("/users", adminController.createUser.bind(adminController));
 router.get("/users/:id", adminController.getUser.bind(adminController));
 router.put(
   "/users/:id",

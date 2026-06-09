@@ -259,6 +259,49 @@ export class AdminController {
     }
   }
 
+  async createUser(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { email, password, firstName, lastName, phone, userType } =
+        req.body || {};
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: { message: "Email is required" },
+        });
+      }
+      if (!password || typeof password !== "string" || password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: { message: "Password is required (min 6 characters)" },
+        });
+      }
+      if (!phone || typeof phone !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: { message: "Phone is required" },
+        });
+      }
+      const type =
+        userType === "DRIVER"
+          ? "DRIVER"
+          : ("CUSTOMER" as "CUSTOMER" | "DRIVER");
+      const user = await this.adminService.createUser({
+        email,
+        password,
+        firstName: firstName || "User",
+        lastName: lastName || "",
+        phone,
+        userType: type,
+      });
+      res.status(201).json({ success: true, data: user });
+    } catch (_error: any) {
+      res.status(400).json({
+        success: false,
+        error: { message: _error.message || "Failed to create user" },
+      });
+    }
+  }
+
   async updateUserProfile(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
