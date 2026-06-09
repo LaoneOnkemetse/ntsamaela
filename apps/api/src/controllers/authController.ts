@@ -97,22 +97,36 @@ export class AuthController {
     }
   }
 
+  private normalizeLoginPhone(phone: string): string {
+    let normalizedPhone = phone.trim();
+    if (!normalizedPhone.startsWith("+")) {
+      if (normalizedPhone.startsWith("267")) {
+        normalizedPhone = "+" + normalizedPhone;
+      } else if (normalizedPhone.length === 8) {
+        normalizedPhone = "+267" + normalizedPhone;
+      } else {
+        normalizedPhone = "+" + normalizedPhone;
+      }
+    }
+    return normalizedPhone;
+  }
+
   /**
-   * One-time admin password reset. Only works when ADMIN_RESET_SECRET is set.
+   * Emergency password reset. Only works when ADMIN_RESET_SECRET is set.
    * POST /api/auth/admin-reset-password
-   * Body: { email, newPassword, secret }
-   * Set ADMIN_RESET_SECRET on Railway, call once, then remove the env var.
+   * Body: { email?, phone?, newPassword, secret }
+   * Provide email (admin bootstrap) OR phone (any registered user).
    */
   async adminResetPassword(
     req: Request<
       {},
       {},
-      { email: string; newPassword: string; secret: string }
+      { email?: string; phone?: string; newPassword: string; secret: string }
     >,
     res: Response,
   ) {
     try {
-      const { email, newPassword, secret } = req.body;
+      const { email, phone, newPassword, secret } = req.body;
       const resetSecret = process.env.ADMIN_RESET_SECRET;
       if (!resetSecret || resetSecret.length < 16) {
         return res.status(501).json({
@@ -130,12 +144,23 @@ export class AuthController {
           error: { code: "INVALID_SECRET", message: "Invalid secret" },
         });
       }
-      if (!email || !newPassword || newPassword.length < 6) {
+      if (!newPassword || newPassword.length < 6) {
         return res.status(400).json({
           success: false,
           error: {
             code: "BAD_REQUEST",
-            message: "email and newPassword (min 6 chars) required",
+            message: "newPassword (min 6 chars) required",
+          },
+        });
+      }
+      const hasEmail = typeof email === "string" && email.trim().length > 0;
+      const hasPhone = typeof phone === "string" && phone.trim().length > 0;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "BAD_REQUEST",
+            message: "email or phone is required",
           },
         });
       }
@@ -146,8 +171,44 @@ export class AuthController {
           error: { code: "DB_UNAVAILABLE", message: "Database unavailable" },
         });
       }
-      const normalizedEmail = email.trim();
       const passwordHash = await bcrypt.hash(newPassword, 12);
+
+      if (hasPhone) {
+        const normalizedPhone = this.normalizeLoginPhone(phone!.trim());
+        let user = await prisma.user.findFirst({
+          where: { phone: normalizedPhone },
+        });
+        if (!user) {
+          user = await prisma.user.findFirst({
+            where: { phone: phone!.trim() },
+          });
+        }
+        if (!user && normalizedPhone.startsWith("+")) {
+          user = await prisma.user.findFirst({
+            where: { phone: normalizedPhone.substring(1) },
+          });
+        }
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            error: {
+              code: "USER_NOT_FOUND",
+              message: "No user found with this phone number",
+            },
+          });
+        }
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash, updatedAt: new Date() },
+        });
+        return res.status(200).json({
+          success: true,
+          message:
+            "Password updated for phone user. Log in with phone and new password.",
+        });
+      }
+
+      const normalizedEmail = email!.trim();
       const user = await prisma.user.findUnique({
         where: { email: normalizedEmail },
         select: { id: true, userType: true },
