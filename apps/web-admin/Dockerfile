@@ -64,26 +64,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# This RUN command can't access builder stage files - remove it
-# We'll check after copying instead
-
-# Copy the built application
-# Try standalone first, then fall back to regular .next
-# Check if standalone exists in builder
-RUN --mount=from=builder,source=/app/apps/web-admin,target=/tmp/web-admin \
-    if [ -d "/tmp/web-admin/.next/standalone" ]; then \
-      echo "✅ Copying standalone output..." && \
-      cp -r /tmp/web-admin/.next/standalone/* /app/ && \
-      mkdir -p /app/apps/web-admin/.next/static && \
-      cp -r /tmp/web-admin/.next/static/* /app/apps/web-admin/.next/static/ 2>/dev/null || true && \
-      echo "✅ Standalone copied"; \
-    else \
-      echo "⚠️ Standalone not found, copying .next directory..." && \
-      mkdir -p /app/apps/web-admin && \
-      cp -r /tmp/web-admin/.next /app/apps/web-admin/.next 2>/dev/null || true && \
-      cp /tmp/web-admin/package.json /app/apps/web-admin/package.json 2>/dev/null || true && \
-      echo "✅ .next directory copied"; \
-    fi
+# Copy the built application from the builder stage
+# (Railway does not support RUN --mount=from=builder without type=cache)
+COPY --from=builder /app/apps/web-admin/.next ./apps/web-admin/.next
+COPY --from=builder /app/apps/web-admin/package.json ./apps/web-admin/package.json
 
 # Copy node_modules for Next.js runtime (needed if not using standalone)
 COPY --from=builder /app/node_modules ./node_modules
