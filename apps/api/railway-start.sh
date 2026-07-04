@@ -75,26 +75,17 @@ else
   echo "💡 Server will continue - check database state manually if needed"
 fi
 
-# Safety net: ensure missing columns exist via direct SQL before Prisma client is generated
+# Safety net: ensure missing columns exist via direct SQL file
 echo "🔧 Applying missing schema changes directly..."
-npx prisma db execute --schema=./packages/database/schema.prisma --stdin <<'ENDSQL' 2>&1 || true
-ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carDescription" TEXT;
-ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carPhotoUrl" TEXT;
-CREATE TABLE IF NOT EXISTS "CommissionReservation" (
-    "id" TEXT NOT NULL,
-    "driverId" TEXT NOT NULL,
-    "tripId" TEXT NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "percentage" DOUBLE PRECISION NOT NULL DEFAULT 30.0,
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "CommissionReservation_pkey" PRIMARY KEY ("id")
-);
-ALTER TABLE "CommissionReservation" DROP CONSTRAINT IF EXISTS "CommissionReservation_driverId_fkey";
-ALTER TABLE "CommissionReservation" ADD CONSTRAINT "CommissionReservation_driverId_fkey" FOREIGN KEY ("driverId") REFERENCES "Driver"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ENDSQL
-echo "✅ Direct schema fixes applied"
+set +e
+npx prisma db execute --schema=./packages/database/schema.prisma --file=./packages/database/fix-schema.sql 2>&1
+DB_FIX_EXIT=$?
+set -e
+if [ $DB_FIX_EXIT -eq 0 ]; then
+  echo "✅ Direct schema fixes applied successfully"
+else
+  echo "⚠️  Schema fix SQL returned non-zero (columns may already exist)"
+fi
 
 echo "🔧 Generating Prisma client..."
 # First, generate using the database package (schema and tooling live here)
