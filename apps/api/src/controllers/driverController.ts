@@ -311,8 +311,7 @@ export class DriverController {
         success: false,
         error: {
           code: "DRIVERS_FETCH_ERROR",
-          message: "Failed to get drivers",
-          details: _error?.message || String(_error),
+          message: _error?.message || "Failed to get drivers",
         },
       });
     }

@@ -13,6 +13,40 @@ if (process.env.NODE_ENV !== "production") {
 // Prisma is already initialized in app.ts
 
 /**
+ * Ensure production DB has all columns the Prisma schema expects.
+ * This fixes drift caused by migrations being marked applied without executing.
+ */
+async function ensureSchemaColumns() {
+  try {
+    const prisma = getPrismaClient();
+    if (!prisma) return;
+
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carDescription" TEXT`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carPhotoUrl" TEXT`,
+    );
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "CommissionReservation" (
+        "id" TEXT NOT NULL,
+        "driverId" TEXT NOT NULL,
+        "tripId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "percentage" DOUBLE PRECISION NOT NULL DEFAULT 30.0,
+        "status" TEXT NOT NULL DEFAULT 'PENDING',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "CommissionReservation_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    console.log("✅ Schema columns verified");
+  } catch (error) {
+    console.error("⚠️  ensureSchemaColumns error (non-fatal):", error);
+  }
+}
+
+/**
  * Ensure admin user exists when ADMIN_EMAIL + ADMIN_PASSWORD are set via env.
  * Does not use hardcoded credentials. Does not reset password on every boot
  * unless ADMIN_SYNC_PASSWORD=true.
@@ -128,10 +162,12 @@ try {
     console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`🔗 API base: http://0.0.0.0:${PORT}/api`);
     console.log(`🔌 Socket.IO enabled for real-time features`);
-    // Run admin seeding in background so DB errors don't block startup
-    ensureAdminUser().catch((err) => {
-      console.error("⚠️  ensureAdminUser failed (non-fatal):", err);
-    });
+    // Ensure DB schema is in sync, then seed admin user
+    ensureSchemaColumns()
+      .then(() => ensureAdminUser())
+      .catch((err) => {
+        console.error("⚠️  startup tasks failed (non-fatal):", err);
+      });
   });
 
   server.on("error", (error: Error & { code?: string; syscall?: string }) => {
