@@ -86,49 +86,75 @@ export const LocationSearchModal = ({
     try {
       setIsLoading(true);
       const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-      if (!apiKey) {
-        setSelectedLocation({
-          name: "Selected Location",
-          address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-          lat: latitude,
-          lng: longitude,
+
+      // Try Google Geocoding first
+      if (apiKey) {
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`,
+          );
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            const result = data.results[0];
+            setSelectedLocation({
+              name: result.formatted_address.split(",")[0],
+              address: result.formatted_address,
+              lat: latitude,
+              lng: longitude,
+            });
+            return;
+          }
+        } catch {
+          // fall through to expo-location
+        }
+      }
+
+      // Fallback: use expo-location reverse geocode
+      try {
+        const [place] = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
         });
-        setIsLoading(false);
-        return;
+        if (place) {
+          const name =
+            place.name ||
+            place.street ||
+            place.city ||
+            place.district ||
+            "Selected Location";
+          const parts = [
+            place.street,
+            place.city,
+            place.region,
+            place.country,
+          ].filter(Boolean);
+          setSelectedLocation({
+            name,
+            address: parts.length > 0 ? parts.join(", ") : name,
+            lat: latitude,
+            lng: longitude,
+          });
+          return;
+        }
+      } catch {
+        // fall through to last resort
       }
 
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`,
-      );
-      const data = await response.json();
-
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
-        const location = {
-          name: result.formatted_address.split(",")[0],
-          address: result.formatted_address,
-          lat: latitude,
-          lng: longitude,
-        };
-        setSelectedLocation(location);
-      } else {
-        const location = {
-          name: "Selected Location",
-          address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-          lat: latitude,
-          lng: longitude,
-        };
-        setSelectedLocation(location);
-      }
-    } catch (error) {
-      console.error("Error reverse geocoding:", error);
-      const location = {
-        name: "Selected Location",
-        address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+      // Last resort — still show a descriptive name
+      setSelectedLocation({
+        name: "Dropped Pin",
+        address: `Lat ${latitude.toFixed(4)}, Lng ${longitude.toFixed(4)}`,
         lat: latitude,
         lng: longitude,
-      };
-      setSelectedLocation(location);
+      });
+    } catch (error) {
+      console.error("Error reverse geocoding:", error);
+      setSelectedLocation({
+        name: "Dropped Pin",
+        address: `Lat ${latitude.toFixed(4)}, Lng ${longitude.toFixed(4)}`,
+        lat: latitude,
+        lng: longitude,
+      });
     } finally {
       setIsLoading(false);
     }

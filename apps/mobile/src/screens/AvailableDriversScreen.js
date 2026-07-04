@@ -50,17 +50,23 @@ export const AvailableDriversScreen = () => {
     try {
       apiService.setToken(authToken);
 
-      // Get customer's current position for distance sorting
+      // Get customer's position quickly for distance sorting
       let customerLat = null;
       let customerLng = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          customerLat = pos.coords.latitude;
-          customerLng = pos.coords.longitude;
+          // Use last known position for instant results, fall back to current
+          let pos = await Location.getLastKnownPositionAsync();
+          if (!pos) {
+            pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Low,
+            });
+          }
+          if (pos) {
+            customerLat = pos.coords.latitude;
+            customerLng = pos.coords.longitude;
+          }
         }
       } catch {
         // location unavailable — distance sorting will be skipped
@@ -82,59 +88,38 @@ export const AvailableDriversScreen = () => {
 
       const driversArr = Array.isArray(driversList) ? driversList : [];
 
-      // Geocode all drivers in parallel for speed
-      const mappedDrivers = await Promise.all(
-        driversArr.map(async (d) => {
-          let locationText = "Location unavailable";
-          if (d.lastLatitude && d.lastLongitude) {
-            try {
-              const [place] = await Location.reverseGeocodeAsync({
-                latitude: d.lastLatitude,
-                longitude: d.lastLongitude,
-              });
-              if (place) {
-                locationText =
-                  place.city ||
-                  place.subregion ||
-                  place.district ||
-                  place.region ||
-                  "Unknown area";
-              }
-            } catch {
-              // geocoding failed, show coords-based fallback
-              locationText = "Location available";
-            }
-          }
+      // Map drivers without geocoding for instant load
+      const mappedDrivers = driversArr.map((d) => {
+        const dist = getDistanceKm(
+          customerLat,
+          customerLng,
+          d.lastLatitude,
+          d.lastLongitude,
+        );
 
-          const dist = getDistanceKm(
-            customerLat,
-            customerLng,
-            d.lastLatitude,
-            d.lastLongitude,
-          );
-
-          return {
-            id: d.id,
-            driver:
-              `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
-              "Driver",
-            rating: d.rating || 0,
-            totalDeliveries: d.totalDeliveries || 0,
-            vehicle: d.vehicleType || "Vehicle",
-            location: locationText,
-            distance: dist,
-            distanceText:
-              dist !== Infinity
-                ? dist < 1
-                  ? `${Math.round(dist * 1000)}m away`
-                  : `${Math.round(dist)}km away`
-                : null,
-            latitude: d.lastLatitude,
-            longitude: d.lastLongitude,
-            photo: d.user?.profilePictureUrl || null,
-          };
-        }),
-      );
+        return {
+          id: d.id,
+          driver:
+            `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
+            "Driver",
+          rating: d.rating || 0,
+          totalDeliveries: d.totalDeliveries || 0,
+          vehicle: d.vehicleType || "Vehicle",
+          location:
+            d.locationName ||
+            (d.lastLatitude ? "Available" : "Location unavailable"),
+          distance: dist,
+          distanceText:
+            dist !== Infinity
+              ? dist < 1
+                ? `${Math.round(dist * 1000)}m away`
+                : `${Math.round(dist)}km away`
+              : null,
+          latitude: d.lastLatitude,
+          longitude: d.lastLongitude,
+          photo: d.user?.profilePictureUrl || null,
+        };
+      });
 
       // Sort by nearest first
       mappedDrivers.sort((a, b) => a.distance - b.distance);

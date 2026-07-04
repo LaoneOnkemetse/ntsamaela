@@ -36,6 +36,9 @@ async function ensureSchemaColumns() {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "lastLocationAt" TIMESTAMP(3)`,
     );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "locationName" TEXT`,
+    );
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "CommissionReservation" (
         "id" TEXT NOT NULL,

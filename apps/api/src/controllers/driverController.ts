@@ -286,12 +286,45 @@ export class DriverController {
         });
       }
 
+      // Resolve location name via Google Geocoding (non-blocking, best-effort)
+      let locationName: string | null = null;
+      try {
+        const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+        if (apiKey) {
+          const geoResp = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}&result_type=locality|sublocality|administrative_area_level_2`,
+          );
+          const geoData = await geoResp.json();
+          if (geoData.results && geoData.results.length > 0) {
+            const components = geoData.results[0].address_components || [];
+            const locality = components.find((c: any) =>
+              c.types.includes("locality"),
+            );
+            const sublocality = components.find((c: any) =>
+              c.types.includes("sublocality"),
+            );
+            const admin2 = components.find((c: any) =>
+              c.types.includes("administrative_area_level_2"),
+            );
+            locationName =
+              locality?.long_name ||
+              sublocality?.long_name ||
+              admin2?.long_name ||
+              geoData.results[0].formatted_address?.split(",")[0] ||
+              null;
+          }
+        }
+      } catch {
+        // geocoding failed, not critical
+      }
+
       await prisma.driver.update({
         where: { userId },
         data: {
           lastLatitude: latitude,
           lastLongitude: longitude,
           lastLocationAt: new Date(),
+          ...(locationName ? { locationName } : {}),
         },
       });
 
@@ -341,6 +374,7 @@ export class DriverController {
           lastLatitude: true,
           lastLongitude: true,
           lastLocationAt: true,
+          locationName: true,
           user: {
             select: {
               id: true,

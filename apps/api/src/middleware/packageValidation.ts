@@ -8,10 +8,10 @@ export const validateCreatePackage = [
     .withMessage("Title must be between 1 and 100 characters"),
 
   body("description")
-    .isString()
-    .trim()
-    .isLength({ min: 1, max: 500 })
-    .withMessage("Description is required (max 500 characters)"),
+    .exists({ checkFalsy: true })
+    .withMessage("Description is required")
+    .isLength({ max: 500 })
+    .withMessage("Description must be 500 characters or less"),
 
   body("pickupAddress")
     .isString()

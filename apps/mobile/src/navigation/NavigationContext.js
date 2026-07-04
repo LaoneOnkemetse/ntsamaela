@@ -5,7 +5,7 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { Alert, AppState } from "react-native";
+import { Alert } from "react-native";
 import * as Location from "expo-location";
 import apiService from "../services/apiService";
 import socketService from "../services/socketService";
@@ -114,13 +114,17 @@ export const NavigationProvider = ({ children }) => {
         sortBy: "createdAt",
         sortOrder: "desc",
       });
+      // Unwrap nested response: resp.data may contain { data: { packages } } or be an array
       const raw = resp?.data ?? resp;
-      const items = Array.isArray(raw)
-        ? raw
-        : (raw?.packages ?? raw?.data ?? []);
-      if (!Array.isArray(items)) {
-        setAvailablePackages([]);
-        return;
+      let items = [];
+      if (Array.isArray(raw)) {
+        items = raw;
+      } else if (Array.isArray(raw?.packages)) {
+        items = raw.packages;
+      } else if (Array.isArray(raw?.data?.packages)) {
+        items = raw.data.packages;
+      } else if (Array.isArray(raw?.data)) {
+        items = raw.data;
       }
       const mapped = items.map((p) => ({
         id: p.id,
@@ -153,13 +157,19 @@ export const NavigationProvider = ({ children }) => {
           ? { customerId, limit: 100, sortBy: "createdAt", sortOrder: "desc" }
           : { limit: 100 },
       );
+      // Unwrap nested response
       const raw = resp?.data ?? resp;
-      const items = Array.isArray(raw)
-        ? raw
-        : (raw?.packages ?? raw?.data ?? []);
-      if (Array.isArray(items)) {
-        setMyPackages(items);
+      let items = [];
+      if (Array.isArray(raw)) {
+        items = raw;
+      } else if (Array.isArray(raw?.packages)) {
+        items = raw.packages;
+      } else if (Array.isArray(raw?.data?.packages)) {
+        items = raw.data.packages;
+      } else if (Array.isArray(raw?.data)) {
+        items = raw.data;
       }
+      setMyPackages(items);
     } catch (e) {
       console.warn("Failed to refresh packages:", e?.message || e);
     }

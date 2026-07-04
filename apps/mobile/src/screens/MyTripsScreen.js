@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "../constants/colors";
 import { sharedStyles } from "../styles/sharedStyles";
 import { packageStyles } from "../styles/packageStyles";
@@ -19,6 +22,12 @@ export const MyTripsScreen = () => {
   const { goBack, authToken } = useNavigation();
   const [loading, setLoading] = useState(false);
   const [trips, setTrips] = useState([]);
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [editCapacity, setEditCapacity] = useState("MEDIUM");
+  const [editDate, setEditDate] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const loadTrips = async () => {
     if (!authToken) return;
@@ -75,6 +84,38 @@ export const MyTripsScreen = () => {
     );
   };
 
+  const handleEditTrip = (trip) => {
+    setEditingTrip(trip);
+    setEditCapacity(trip.availableCapacity || "MEDIUM");
+    setEditDate(new Date(trip.departureTime));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTrip || !editDate) return;
+    if (editDate <= new Date()) {
+      Alert.alert("Invalid Date", "Departure time must be in the future.");
+      return;
+    }
+    setSaving(true);
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.updateTrip(editingTrip.id, {
+        departureTime: editDate.toISOString(),
+        availableCapacity: editCapacity,
+      });
+      if (resp?.success === false) {
+        Alert.alert("Failed", resp?.error?.message || "Could not update trip");
+      } else {
+        setEditingTrip(null);
+        loadTrips();
+      }
+    } catch (e) {
+      Alert.alert("Failed", e?.message || "Could not update trip");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     loadTrips();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,12 +167,22 @@ export const MyTripsScreen = () => {
 
                 {(trip.status || "").toUpperCase() !== "IN_TRANSIT" &&
                   (trip.status || "").toUpperCase() !== "IN_PROGRESS" && (
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteTrip(trip)}
+                    <View
+                      style={{ flexDirection: "row", gap: 10, marginTop: 12 }}
                     >
-                      <Text style={styles.deleteButtonText}>Delete Trip</Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => handleEditTrip(trip)}
+                      >
+                        <Text style={styles.editButtonText}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteTrip(trip)}
+                      >
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
               </View>
             ))
@@ -147,6 +198,182 @@ export const MyTripsScreen = () => {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Edit Trip Modal */}
+      <Modal
+        visible={!!editingTrip}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingTrip(null)}
+      >
+        <View style={sharedStyles.modalOverlay}>
+          <View style={[sharedStyles.modalContent, { maxHeight: "60%" }]}>
+            <Text style={sharedStyles.modalTitle}>Edit Trip</Text>
+            <Text style={sharedStyles.modalSubtitle}>
+              {editingTrip?.startAddress} → {editingTrip?.endAddress}
+            </Text>
+
+            <Text
+              style={{
+                color: colors.textSecondary,
+                marginTop: 16,
+                marginBottom: 6,
+                fontWeight: "600",
+              }}
+            >
+              Departure Date
+            </Text>
+            <TouchableOpacity
+              style={sharedStyles.input}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text
+                style={{
+                  color: editDate ? colors.textPrimary : colors.textTertiary,
+                }}
+              >
+                {editDate ? editDate.toLocaleDateString() : "Select date..."}
+              </Text>
+            </TouchableOpacity>
+
+            <Text
+              style={{
+                color: colors.textSecondary,
+                marginTop: 12,
+                marginBottom: 6,
+                fontWeight: "600",
+              }}
+            >
+              Departure Time
+            </Text>
+            <TouchableOpacity
+              style={sharedStyles.input}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text
+                style={{
+                  color: editDate ? colors.textPrimary : colors.textTertiary,
+                }}
+              >
+                {editDate
+                  ? editDate.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Select time..."}
+              </Text>
+            </TouchableOpacity>
+
+            <Text
+              style={{
+                color: colors.textSecondary,
+                marginTop: 12,
+                marginBottom: 6,
+                fontWeight: "600",
+              }}
+            >
+              Capacity
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {["SMALL", "MEDIUM", "LARGE"].map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor:
+                      editCapacity === c
+                        ? colors.primary + "20"
+                        : colors.cardBg,
+                    borderWidth: 1,
+                    borderColor:
+                      editCapacity === c ? colors.primary : colors.border,
+                    alignItems: "center",
+                  }}
+                  onPress={() => setEditCapacity(c)}
+                >
+                  <Text
+                    style={{
+                      color:
+                        editCapacity === c
+                          ? colors.primary
+                          : colors.textSecondary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {c}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={[sharedStyles.modalButtons, { marginTop: 20 }]}>
+              <TouchableOpacity
+                style={[
+                  sharedStyles.modalButton,
+                  sharedStyles.modalCancelButton,
+                ]}
+                onPress={() => setEditingTrip(null)}
+              >
+                <Text style={sharedStyles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  sharedStyles.modalButton,
+                  sharedStyles.modalButtonSubmit,
+                  saving && { opacity: 0.5 },
+                ]}
+                onPress={handleSaveEdit}
+                disabled={saving}
+              >
+                <Text style={sharedStyles.modalButtonTextSubmit}>
+                  {saving ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={editDate || new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          minimumDate={new Date()}
+          onChange={(_e, selected) => {
+            setShowDatePicker(false);
+            if (selected && editDate) {
+              const next = new Date(editDate);
+              next.setFullYear(
+                selected.getFullYear(),
+                selected.getMonth(),
+                selected.getDate(),
+              );
+              setEditDate(next);
+            } else if (selected) {
+              setEditDate(selected);
+            }
+          }}
+        />
+      )}
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={editDate || new Date()}
+          mode="time"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(_e, selected) => {
+            setShowTimePicker(false);
+            if (selected && editDate) {
+              const next = new Date(editDate);
+              next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+              setEditDate(next);
+            }
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -301,8 +528,22 @@ const styles = {
     fontSize: 14,
     fontWeight: "600",
   },
+  editButton: {
+    flex: 1,
+    backgroundColor: colors.primary + "20",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  editButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   deleteButton: {
-    marginTop: 12,
+    flex: 1,
     backgroundColor: "#FF4444" + "20",
     paddingVertical: 10,
     borderRadius: 8,
