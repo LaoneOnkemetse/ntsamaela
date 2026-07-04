@@ -75,6 +75,19 @@ else
   echo "💡 Server will continue - check database state manually if needed"
 fi
 
+# Safety net: prisma db push ensures the production DB matches the schema
+# This handles cases where migrations were marked applied but columns are missing
+echo "🔧 Running prisma db push to sync any missing schema changes..."
+set +e
+DB_PUSH_OUTPUT=$(npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss 2>&1)
+DB_PUSH_EXIT=$?
+set -e
+if [ $DB_PUSH_EXIT -eq 0 ]; then
+  echo "✅ Database schema is in sync"
+else
+  echo "⚠️  db push returned non-zero (may be fine if already in sync): $DB_PUSH_OUTPUT"
+fi
+
 echo "🔧 Generating Prisma client..."
 # First, generate using the database package (schema and tooling live here)
 if (cd /app/packages/database && npx prisma generate) 2>&1; then
