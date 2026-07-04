@@ -80,57 +80,61 @@ export const AvailableDriversScreen = () => {
         ? driversVal.data
         : (driversVal?.data?.drivers ?? []);
 
-      // Reverse geocode driver locations to get city/town names
-      const mappedDrivers = [];
-      for (const d of Array.isArray(driversList) ? driversList : []) {
-        let locationText = "Location unavailable";
-        if (d.lastLatitude && d.lastLongitude) {
-          try {
-            const [place] = await Location.reverseGeocodeAsync({
-              latitude: d.lastLatitude,
-              longitude: d.lastLongitude,
-            });
-            if (place) {
-              locationText =
-                place.city ||
-                place.subregion ||
-                place.district ||
-                place.region ||
-                "Unknown area";
+      const driversArr = Array.isArray(driversList) ? driversList : [];
+
+      // Geocode all drivers in parallel for speed
+      const mappedDrivers = await Promise.all(
+        driversArr.map(async (d) => {
+          let locationText = "Location unavailable";
+          if (d.lastLatitude && d.lastLongitude) {
+            try {
+              const [place] = await Location.reverseGeocodeAsync({
+                latitude: d.lastLatitude,
+                longitude: d.lastLongitude,
+              });
+              if (place) {
+                locationText =
+                  place.city ||
+                  place.subregion ||
+                  place.district ||
+                  place.region ||
+                  "Unknown area";
+              }
+            } catch {
+              // geocoding failed, show coords-based fallback
+              locationText = "Location available";
             }
-          } catch {
-            locationText = "Location available";
           }
-        }
 
-        const dist = getDistanceKm(
-          customerLat,
-          customerLng,
-          d.lastLatitude,
-          d.lastLongitude,
-        );
+          const dist = getDistanceKm(
+            customerLat,
+            customerLng,
+            d.lastLatitude,
+            d.lastLongitude,
+          );
 
-        mappedDrivers.push({
-          id: d.id,
-          driver:
-            `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
-            "Driver",
-          rating: d.rating || 0,
-          totalDeliveries: d.totalDeliveries || 0,
-          vehicle: d.vehicleType || "Vehicle",
-          location: locationText,
-          distance: dist,
-          distanceText:
-            dist !== Infinity
-              ? dist < 1
-                ? `${Math.round(dist * 1000)}m away`
-                : `${Math.round(dist)}km away`
-              : null,
-          latitude: d.lastLatitude,
-          longitude: d.lastLongitude,
-          photo: d.user?.profilePictureUrl || null,
-        });
-      }
+          return {
+            id: d.id,
+            driver:
+              `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
+              "Driver",
+            rating: d.rating || 0,
+            totalDeliveries: d.totalDeliveries || 0,
+            vehicle: d.vehicleType || "Vehicle",
+            location: locationText,
+            distance: dist,
+            distanceText:
+              dist !== Infinity
+                ? dist < 1
+                  ? `${Math.round(dist * 1000)}m away`
+                  : `${Math.round(dist)}km away`
+                : null,
+            latitude: d.lastLatitude,
+            longitude: d.lastLongitude,
+            photo: d.user?.profilePictureUrl || null,
+          };
+        }),
+      );
 
       // Sort by nearest first
       mappedDrivers.sort((a, b) => a.distance - b.distance);

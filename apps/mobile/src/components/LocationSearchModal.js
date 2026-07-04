@@ -328,10 +328,10 @@ export const LocationSearchModal = ({
             <Text style={sharedStyles.modalTitle}>{title}</Text>
 
             {/* Search Input */}
-            <View style={{ position: "relative", marginBottom: 12 }}>
+            <View style={{ position: "relative", marginBottom: 8 }}>
               <TextInput
                 style={sharedStyles.modalInput}
-                placeholder="Search location or drag map..."
+                placeholder="Search by name, keyword, or plot number..."
                 placeholderTextColor={colors.textTertiary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -342,6 +342,21 @@ export const LocationSearchModal = ({
                 </View>
               )}
             </View>
+
+            {/* Use Current Location Button */}
+            <TouchableOpacity
+              style={styles.useCurrentLocationBtn}
+              onPress={getCurrentLocation}
+              disabled={isLoadingLocation}
+            >
+              {isLoadingLocation ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.useCurrentLocationText}>
+                  📍 Set to my current location
+                </Text>
+              )}
+            </TouchableOpacity>
 
             {/* Search Results */}
             {searchResults.length > 0 && (
@@ -500,6 +515,22 @@ export const LocationSearchModal = ({
 };
 
 const styles = StyleSheet.create({
+  useCurrentLocationBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: colors.primary + "15",
+    borderWidth: 1,
+    borderColor: colors.primary + "40",
+  },
+  useCurrentLocationText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+  },
   locationItem: {
     flexDirection: "row",
     alignItems: "center",

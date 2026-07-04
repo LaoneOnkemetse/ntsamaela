@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,80 +10,154 @@ import {
   Platform,
   Alert,
   StyleSheet,
-} from 'react-native';
-import { colors } from '../constants/colors';
-import { sharedStyles } from '../styles/sharedStyles';
-import { packageStyles } from '../styles/packageStyles';
-import { LocationSearchModal } from './LocationSearchModal';
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { colors } from "../constants/colors";
+import { sharedStyles } from "../styles/sharedStyles";
+import { packageStyles } from "../styles/packageStyles";
+import { LocationSearchModal } from "./LocationSearchModal";
+import { useNavigation } from "../navigation/NavigationContext";
+import apiService from "../services/apiService";
 
 export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
-  const [description, setDescription] = useState('');
+  const { authToken, refreshMyPackages } = useNavigation();
+  const [description, setDescription] = useState("");
   const [pickup, setPickup] = useState(null);
   const [delivery, setDelivery] = useState(null);
-  const [recipientPhone, setRecipientPhone] = useState('');
-  const [weight, setWeight] = useState('');
-  const [price, setPrice] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [weight, setWeight] = useState("");
+  const [price, setPrice] = useState("");
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const driverName = driver?.driver || driver?.name || 'this driver';
+  const driverName = driver?.driver || driver?.name || "this driver";
 
-  const handleSubmit = () => {
-    if (!description || !pickup || !delivery || !recipientPhone || !price) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  const handleSubmit = async () => {
+    const missing = [];
+    if (!description) missing.push("Description");
+    if (!pickup) missing.push("Pickup location");
+    if (!delivery) missing.push("Delivery location");
+    if (!recipientPhone) missing.push("Recipient phone");
+    if (!price) missing.push("Price");
+    if (!deliveryDate) missing.push("Delivery date");
+    if (missing.length > 0) {
+      Alert.alert(
+        "Missing Information",
+        `Please fill in:\n\n• ${missing.join("\n• ")}`,
+      );
       return;
     }
-    
+
     if (!/^[267]\d{7}$/.test(recipientPhone)) {
-      Alert.alert('Error', 'Please enter a valid Botswana phone number (e.g., 71234567)');
+      Alert.alert(
+        "Invalid Phone",
+        "Please enter a valid Botswana phone number (8 digits starting with 2, 6, or 7).",
+      );
       return;
     }
 
-    const platformFee = (parseFloat(price) * 0.3).toFixed(2);
-    const driverEarnings = (parseFloat(price) * 0.7).toFixed(2);
+    if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+      Alert.alert(
+        "Invalid Price",
+        "Please enter a valid price greater than 0.",
+      );
+      return;
+    }
 
-    Alert.alert(
-      'Request Sent',
-      `Package delivery request sent to ${driverName}!\n\nPackage: ${description}\nFrom: ${pickup.name}\nTo: ${delivery.name}\nOffering: P ${price}\n\n${driverName} will receive P ${driverEarnings} (after P ${platformFee} platform fee).\n\nThey can accept, reject, or counter your offer.`,
-      [
-        { text: 'OK', onPress: () => {
-          setDescription('');
-          setPickup(null);
-          setDelivery(null);
-          setRecipientPhone('');
-          setWeight('');
-          setPrice('');
-          onClose();
-        }}
-      ]
-    );
+    setSubmitting(true);
+    try {
+      apiService.setToken(authToken);
+      const response = await apiService.createPackage({
+        description,
+        pickupAddress: pickup.address,
+        pickupLat: pickup.lat,
+        pickupLng: pickup.lng,
+        deliveryAddress: delivery.address,
+        deliveryLat: delivery.lat,
+        deliveryLng: delivery.lng,
+        priceOffered: parseFloat(price),
+        weight: weight ? parseFloat(weight) : null,
+        deliveryDate: new Date(deliveryDate).toISOString(),
+        urgency: "NORMAL",
+        recipientPhone,
+      });
+
+      if (response.success) {
+        if (refreshMyPackages) refreshMyPackages(authToken);
+        Alert.alert(
+          "Package Created",
+          `Package request sent to ${driverName}!\n\nFrom: ${pickup.name}\nTo: ${delivery.name}\nOffering: P ${price}\n\nThe driver can now bid on your package.`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setDescription("");
+                setPickup(null);
+                setDelivery(null);
+                setRecipientPhone("");
+                setWeight("");
+                setPrice("");
+                setDeliveryDate("");
+                onClose();
+              },
+            },
+          ],
+        );
+      } else {
+        const errMsg = response.error?.message || "Failed to create package";
+        const details = response.error?.details;
+        const fullMsg = details
+          ? `${errMsg}\n\n${Array.isArray(details) ? details.map((d) => `• ${d}`).join("\n") : details}`
+          : errMsg;
+        Alert.alert("Package Creation Failed", fullMsg);
+      }
+    } catch (error) {
+      const msg = error?.message || "Unknown error";
+      Alert.alert("Package Creation Failed", msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
-    setDescription('');
+    setDescription("");
     setPickup(null);
     setDelivery(null);
-    setRecipientPhone('');
-    setWeight('');
-    setPrice('');
+    setRecipientPhone("");
+    setWeight("");
+    setPrice("");
+    setDeliveryDate("");
     onClose();
   };
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCancel}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
           <View style={sharedStyles.modalOverlay}>
-            <View style={[sharedStyles.modalContent, { maxHeight: '90%' }]}>
-              <Text style={sharedStyles.modalTitle}>Create Package for {driverName}</Text>
+            <View style={[sharedStyles.modalContent, { maxHeight: "90%" }]}>
+              <Text style={sharedStyles.modalTitle}>
+                Create Package for {driverName}
+              </Text>
               <Text style={sharedStyles.modalSubtitle}>
                 Send a delivery request directly to this driver
               </Text>
 
-              <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={{ width: "100%" }}
+                showsVerticalScrollIndicator={false}
+              >
                 <Text style={packageStyles.fieldLabel}>Description *</Text>
                 <TextInput
                   style={sharedStyles.input}
@@ -102,17 +176,25 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                   <View style={{ flex: 1 }}>
                     {pickup ? (
                       <>
-                        <Text style={packageStyles.locationSelectedName}>{pickup.name}</Text>
-                        <Text style={packageStyles.locationSelectedAddress}>{pickup.address}</Text>
+                        <Text style={packageStyles.locationSelectedName}>
+                          {pickup.name}
+                        </Text>
+                        <Text style={packageStyles.locationSelectedAddress}>
+                          {pickup.address}
+                        </Text>
                       </>
                     ) : (
-                      <Text style={packageStyles.locationPlaceholder}>Select pickup location...</Text>
+                      <Text style={packageStyles.locationPlaceholder}>
+                        Select pickup location...
+                      </Text>
                     )}
                   </View>
                   <Text style={packageStyles.locationArrow}>›</Text>
                 </TouchableOpacity>
 
-                <Text style={packageStyles.fieldLabel}>Delivery Location *</Text>
+                <Text style={packageStyles.fieldLabel}>
+                  Delivery Location *
+                </Text>
                 <TouchableOpacity
                   style={packageStyles.locationButton}
                   onPress={() => setShowDeliveryModal(true)}
@@ -121,17 +203,25 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                   <View style={{ flex: 1 }}>
                     {delivery ? (
                       <>
-                        <Text style={packageStyles.locationSelectedName}>{delivery.name}</Text>
-                        <Text style={packageStyles.locationSelectedAddress}>{delivery.address}</Text>
+                        <Text style={packageStyles.locationSelectedName}>
+                          {delivery.name}
+                        </Text>
+                        <Text style={packageStyles.locationSelectedAddress}>
+                          {delivery.address}
+                        </Text>
                       </>
                     ) : (
-                      <Text style={packageStyles.locationPlaceholder}>Select delivery location...</Text>
+                      <Text style={packageStyles.locationPlaceholder}>
+                        Select delivery location...
+                      </Text>
                     )}
                   </View>
                   <Text style={packageStyles.locationArrow}>›</Text>
                 </TouchableOpacity>
 
-                <Text style={packageStyles.fieldLabel}>Recipient Phone Number *</Text>
+                <Text style={packageStyles.fieldLabel}>
+                  Recipient Phone Number *
+                </Text>
                 <TextInput
                   style={sharedStyles.input}
                   placeholder="e.g., 71234567"
@@ -151,7 +241,9 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                   onChangeText={setWeight}
                 />
 
-                <Text style={packageStyles.fieldLabel}>Offering Price (P) *</Text>
+                <Text style={packageStyles.fieldLabel}>
+                  Offering Price (P) *
+                </Text>
                 <TextInput
                   style={sharedStyles.input}
                   placeholder="e.g., 150"
@@ -161,25 +253,54 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                   keyboardType="numeric"
                 />
 
+                <Text style={packageStyles.fieldLabel}>Delivery Date *</Text>
+                <TouchableOpacity
+                  style={sharedStyles.input}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={{
+                      color: deliveryDate
+                        ? colors.textPrimary
+                        : colors.textTertiary,
+                    }}
+                  >
+                    {deliveryDate || "Tap to select date..."}
+                  </Text>
+                </TouchableOpacity>
+
                 <View style={styles.infoBox}>
                   <Text style={styles.infoText}>
-                    ℹ️ Platform charges 30% fee. Driver will receive 70% of your offered price. They can accept, counter, or reject your offer.
+                    ℹ️ Platform charges 30% fee. Driver will receive 70% of your
+                    offered price. They can accept, counter, or reject your
+                    offer.
                   </Text>
                 </View>
               </ScrollView>
 
               <View style={sharedStyles.modalButtons}>
                 <TouchableOpacity
-                  style={[sharedStyles.modalButton, sharedStyles.modalCancelButton]}
+                  style={[
+                    sharedStyles.modalButton,
+                    sharedStyles.modalCancelButton,
+                  ]}
                   onPress={handleCancel}
                 >
                   <Text style={sharedStyles.modalCancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[sharedStyles.modalButton, sharedStyles.modalButtonSubmit]}
+                  style={[
+                    sharedStyles.modalButton,
+                    sharedStyles.modalButtonSubmit,
+                    submitting && { opacity: 0.5 },
+                  ]}
                   onPress={handleSubmit}
+                  disabled={submitting}
                 >
-                  <Text style={sharedStyles.modalButtonTextSubmit}>Send Request</Text>
+                  <Text style={sharedStyles.modalButtonTextSubmit}>
+                    {submitting ? "Sending..." : "Send Request"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -212,13 +333,35 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
         routeStart={pickup}
         routeEnd={delivery}
       />
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={
+            deliveryDate
+              ? new Date(deliveryDate)
+              : new Date(Date.now() + 24 * 60 * 60 * 1000)
+          }
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          minimumDate={new Date(Date.now() + 60 * 60 * 1000)}
+          onChange={(_event, selected) => {
+            setShowDatePicker(false);
+            if (selected) {
+              const y = selected.getFullYear();
+              const m = String(selected.getMonth() + 1).padStart(2, "0");
+              const d = String(selected.getDate()).padStart(2, "0");
+              setDeliveryDate(`${y}-${m}-${d}`);
+            }
+          }}
+        />
+      )}
     </>
   );
 };
 
 const styles = StyleSheet.create({
   infoBox: {
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.primary + "15",
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
@@ -229,4 +372,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

@@ -222,6 +222,19 @@ class ApiService {
     });
   }
 
+  async updateTrip(tripId, tripData) {
+    return this.request(`/api/trips/${tripId}`, {
+      method: "PUT",
+      body: JSON.stringify(tripData),
+    });
+  }
+
+  async deleteTrip(tripId) {
+    return this.request(`/api/trips/${tripId}`, {
+      method: "DELETE",
+    });
+  }
+
   async getMyTrips(filters = {}) {
     const queryParams = new URLSearchParams(filters).toString();
     return this.request(`/api/trips/my-trips?${queryParams}`);
@@ -270,6 +283,19 @@ class ApiService {
     return this.request("/api/packages", {
       method: "POST",
       body: JSON.stringify(packageData),
+    });
+  }
+
+  async deletePackage(packageId) {
+    return this.request(`/api/packages/${packageId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async updatePackageStatus(packageId, status, notes) {
+    return this.request(`/api/packages/${packageId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status, notes }),
     });
   }
 

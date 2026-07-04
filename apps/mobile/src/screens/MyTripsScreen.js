@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -34,6 +35,44 @@ export const MyTripsScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteTrip = (trip) => {
+    const status = (trip.status || "").toUpperCase();
+    if (status === "IN_TRANSIT" || status === "IN_PROGRESS") {
+      Alert.alert(
+        "Cannot Delete",
+        "You cannot delete a trip that is currently in transit.",
+      );
+      return;
+    }
+    Alert.alert(
+      "Delete Trip",
+      `Delete trip from ${trip.startAddress} to ${trip.endAddress}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              apiService.setToken(authToken);
+              const resp = await apiService.deleteTrip(trip.id);
+              if (resp?.success === false) {
+                Alert.alert(
+                  "Failed",
+                  resp?.error?.message || "Could not delete trip",
+                );
+              } else {
+                loadTrips();
+              }
+            } catch (e) {
+              Alert.alert("Failed", e?.message || "Could not delete trip");
+            }
+          },
+        },
+      ],
+    );
   };
 
   useEffect(() => {
@@ -84,6 +123,16 @@ export const MyTripsScreen = () => {
                 <Text style={styles.tripDate}>
                   🕒 {new Date(trip.departureTime).toLocaleString()}
                 </Text>
+
+                {(trip.status || "").toUpperCase() !== "IN_TRANSIT" &&
+                  (trip.status || "").toUpperCase() !== "IN_PROGRESS" && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteTrip(trip)}
+                    >
+                      <Text style={styles.deleteButtonText}>Delete Trip</Text>
+                    </TouchableOpacity>
+                  )}
               </View>
             ))
           ) : (
@@ -249,6 +298,20 @@ const styles = {
   },
   suggestionAcceptText: {
     color: colors.textLight,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deleteButton: {
+    marginTop: 12,
+    backgroundColor: "#FF4444" + "20",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FF4444",
+  },
+  deleteButtonText: {
+    color: "#FF4444",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -25,6 +25,40 @@ export const MyPackagesScreen = () => {
   const [bidsLoading, setBidsLoading] = useState(false);
   const [acceptingBidId, setAcceptingBidId] = useState(null);
 
+  const handleDeletePackage = (pkg) => {
+    const status = (pkg.status || "").toUpperCase();
+    if (status === "IN_TRANSIT" || status === "IN_PROGRESS") {
+      Alert.alert(
+        "Cannot Delete",
+        "You cannot delete a package that is currently in transit.",
+      );
+      return;
+    }
+    Alert.alert("Delete Package", `Delete package "${pkg.description}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            apiService.setToken(authToken);
+            const resp = await apiService.deletePackage(pkg.id);
+            if (resp?.success === false) {
+              Alert.alert(
+                "Failed",
+                resp?.error?.message || "Could not delete package",
+              );
+            } else {
+              if (refreshMyPackages) refreshMyPackages(authToken);
+            }
+          } catch (e) {
+            Alert.alert("Failed", e?.message || "Could not delete package");
+          }
+        },
+      },
+    ]);
+  };
+
   const normalized = Array.isArray(myPackages) ? myPackages : [];
   const pendingPackages = normalized.filter(
     (p) => (p.status || "").toString().toUpperCase() === "PENDING",
@@ -128,43 +162,63 @@ export const MyPackagesScreen = () => {
                 ⏳ Pending ({pendingPackages.length})
               </Text>
               {pendingPackages.map((pkg) => (
-                <TouchableOpacity
-                  key={pkg.id}
-                  style={packageStyles.packageCard}
-                  onPress={() => handleViewBids(pkg)}
-                >
-                  <View style={packageStyles.packageHeader}>
-                    <Text style={packageStyles.packageId}>{pkg.id}</Text>
-                    <View
-                      style={[
-                        packageStyles.statusBadge,
-                        { backgroundColor: "#FFA500" },
-                      ]}
-                    >
-                      <Text style={packageStyles.statusText}>Pending</Text>
+                <View key={pkg.id} style={packageStyles.packageCard}>
+                  <TouchableOpacity onPress={() => handleViewBids(pkg)}>
+                    <View style={packageStyles.packageHeader}>
+                      <Text style={packageStyles.packageId}>{pkg.id}</Text>
+                      <View
+                        style={[
+                          packageStyles.statusBadge,
+                          { backgroundColor: "#FFA500" },
+                        ]}
+                      >
+                        <Text style={packageStyles.statusText}>Pending</Text>
+                      </View>
                     </View>
-                  </View>
-                  <Text style={packageStyles.packageDesc}>
-                    {pkg.description}
-                  </Text>
-                  <View style={packageStyles.packageRoute}>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.pickupAddress}
+                    <Text style={packageStyles.packageDesc}>
+                      {pkg.description}
                     </Text>
-                    <Text style={packageStyles.packageArrow}>→</Text>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.deliveryAddress}
+                    <View style={packageStyles.packageRoute}>
+                      <Text style={packageStyles.packageLocation}>
+                        📍 {pkg.pickupAddress}
+                      </Text>
+                      <Text style={packageStyles.packageArrow}>→</Text>
+                      <Text style={packageStyles.packageLocation}>
+                        📍 {pkg.deliveryAddress}
+                      </Text>
+                    </View>
+                    <View style={packageStyles.packageFooter}>
+                      <Text style={packageStyles.packageDriver}>
+                        Offer: P {pkg.priceOffered}
+                      </Text>
+                      <Text style={packageStyles.viewBidsText}>
+                        Tap to view bids →
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      marginTop: 10,
+                      backgroundColor: "#FF4444" + "20",
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "#FF4444",
+                    }}
+                    onPress={() => handleDeletePackage(pkg)}
+                  >
+                    <Text
+                      style={{
+                        color: "#FF4444",
+                        fontSize: 14,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Delete Package
                     </Text>
-                  </View>
-                  <View style={packageStyles.packageFooter}>
-                    <Text style={packageStyles.packageDriver}>
-                      Offer: P {pkg.priceOffered}
-                    </Text>
-                    <Text style={packageStyles.viewBidsText}>
-                      Tap to view →
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
               ))}
             </>
           )}
