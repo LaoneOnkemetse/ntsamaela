@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import tripService from '../services/tripService';
 import matchingService from '../services/matchingService';
 import { AppError } from '../utils/errors';
+import { getPrismaClient } from "@database/index";
 import {
   CreateTripRequest,
   UpdateTripRequest,
@@ -14,11 +15,21 @@ import {
 } from '@ntsamaela/shared/types';
 
 class TripController {
+  private async resolveDriverId(userId: string): Promise<string> {
+    const prisma = getPrismaClient();
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      throw new AppError("Driver profile not found. Please complete driver registration first.", "DRIVER_NOT_FOUND", 404);
+    }
+    return driver.id;
+  }
+
   async createTrip(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
+      const driverId = await this.resolveDriverId(req.user!.id);
       const tripData: CreateTripRequest = {
         ...req.body,
-        driverId: req.user?.id
+        driverId,
       };
 
       const trip = await tripService.createTrip(tripData);
@@ -182,11 +193,7 @@ class TripController {
     try {
       const { id } = req.params;
       const updateData: UpdateTripRequest = req.body;
-      const driverId = req.user?.id;
-
-      if (!driverId) {
-        throw new AppError('User ID not found', 'UNAUTHORIZED', 401);
-      }
+      const driverId = await this.resolveDriverId(req.user!.id);
 
       const trip = await tripService.updateTrip(id, updateData, driverId);
 
@@ -213,11 +220,7 @@ class TripController {
   async deleteTrip(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const driverId = req.user?.id;
-
-      if (!driverId) {
-        throw new AppError('User ID not found', 'UNAUTHORIZED', 401);
-      }
+      const driverId = await this.resolveDriverId(req.user!.id);
 
       await tripService.deleteTrip(id, driverId);
 
@@ -242,11 +245,7 @@ class TripController {
 
   async getMyTrips(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const driverId = req.user?.id;
-
-      if (!driverId) {
-        throw new AppError('User ID not found', 'UNAUTHORIZED', 401);
-      }
+      const driverId = await this.resolveDriverId(req.user!.id);
 
       const filters: TripFilters = {
         driverId,

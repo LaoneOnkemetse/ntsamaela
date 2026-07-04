@@ -198,11 +198,12 @@ export const NavigationProvider = ({ children }) => {
     userProfile?.userId,
   ]);
 
-  // Location tracking — send device position to API periodically
+  // Location tracking — send device position to API periodically (drivers and customers)
   const locationWatcher = useRef(null);
 
   useEffect(() => {
     if (!isAuthenticated || !authToken) return;
+    const isDriver = (userType || "").toLowerCase() === "driver";
 
     let cancelled = false;
 
@@ -211,11 +212,11 @@ export const NavigationProvider = ({ children }) => {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") return;
 
-        // Send location immediately
+        // Send location immediately (only drivers send to server)
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        if (!cancelled) {
+        if (!cancelled && isDriver) {
           apiService.setToken(authToken);
           apiService
             .updateDriverLocation(loc.coords.latitude, loc.coords.longitude)
@@ -231,13 +232,15 @@ export const NavigationProvider = ({ children }) => {
           },
           (position) => {
             if (cancelled) return;
-            apiService.setToken(authToken);
-            apiService
-              .updateDriverLocation(
-                position.coords.latitude,
-                position.coords.longitude,
-              )
-              .catch(() => {});
+            if (isDriver) {
+              apiService.setToken(authToken);
+              apiService
+                .updateDriverLocation(
+                  position.coords.latitude,
+                  position.coords.longitude,
+                )
+                .catch(() => {});
+            }
           },
         );
       } catch (e) {
@@ -254,7 +257,7 @@ export const NavigationProvider = ({ children }) => {
         locationWatcher.current = null;
       }
     };
-  }, [isAuthenticated, authToken]);
+  }, [isAuthenticated, authToken, userType]);
 
   const toggleActiveDriverStatus = async (status) => {
     const previous = isActiveDriver;

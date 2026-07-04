@@ -32,7 +32,8 @@ export const AvailablePackagesScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [authToken, refreshAvailablePackages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken]);
 
   useEffect(() => {
     loadPackages();
