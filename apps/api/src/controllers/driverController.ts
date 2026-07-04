@@ -263,6 +263,51 @@ export class DriverController {
     }
   }
 
+  async updateLocation(req: AuthenticatedRequest, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const { latitude, longitude } = req.body;
+
+      if (typeof latitude !== "number" || typeof longitude !== "number") {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "latitude and longitude are required numbers",
+          },
+        });
+      }
+
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
+
+      await prisma.driver.update({
+        where: { userId },
+        data: {
+          lastLatitude: latitude,
+          lastLongitude: longitude,
+          lastLocationAt: new Date(),
+        },
+      });
+
+      res.status(200).json({ success: true });
+    } catch (_error: any) {
+      console.error("Error updating driver location:", _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "LOCATION_UPDATE_ERROR",
+          message: "Failed to update location",
+        },
+      });
+    }
+  }
+
   async getAllDrivers(req: Request, res: Response) {
     try {
       const { limit = 20, offset = 0, verified } = req.query;
@@ -282,7 +327,20 @@ export class DriverController {
 
       const drivers = await prisma.driver.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          userId: true,
+          licensePlate: true,
+          vehicleType: true,
+          vehicleCapacity: true,
+          carDescription: true,
+          carPhotoUrl: true,
+          rating: true,
+          totalDeliveries: true,
+          active: true,
+          lastLatitude: true,
+          lastLongitude: true,
+          lastLocationAt: true,
           user: {
             select: {
               id: true,

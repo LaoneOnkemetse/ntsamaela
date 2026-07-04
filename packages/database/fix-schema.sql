@@ -1,6 +1,9 @@
 -- Ensure missing Driver columns exist
 ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carDescription" TEXT;
 ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carPhotoUrl" TEXT;
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "lastLatitude" DOUBLE PRECISION;
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "lastLongitude" DOUBLE PRECISION;
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "lastLocationAt" TIMESTAMP(3);
 
 -- Ensure CommissionReservation table exists
 CREATE TABLE IF NOT EXISTS "CommissionReservation" (

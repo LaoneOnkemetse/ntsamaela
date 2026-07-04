@@ -82,6 +82,13 @@ router.get(
   driverController.getAllDrivers.bind(driverController),
 );
 
+router.post(
+  "/location",
+  requireAuth,
+  requireUserType(["DRIVER"]),
+  driverController.updateLocation.bind(driverController),
+);
+
 router.patch(
   "/active",
   requireAuth,

@@ -26,10 +26,10 @@ export const cleanupRateLimiting = () => {
   loginAttempts.clear();
 };
 
-// General API rate limiting
+// General API rate limiting — mobile apps make many requests per session
 export const generalRateLimit = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500'),
   message: {
     success: false,
     error: {

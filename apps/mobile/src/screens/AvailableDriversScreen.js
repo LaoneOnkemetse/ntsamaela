@@ -48,17 +48,33 @@ export const AvailableDriversScreen = () => {
         ? driversVal.data
         : (driversVal?.data?.drivers ?? []);
       const mappedDrivers = Array.isArray(driversList)
-        ? driversList.map((d) => ({
-            id: d.id,
-            driver:
-              `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
-              "Driver",
-            rating: d.rating || 0,
-            totalDeliveries: d.totalDeliveries || 0,
-            vehicle: d.vehicleType || "Vehicle",
-            location: "—",
-            photo: d.user?.profilePictureUrl || null,
-          }))
+        ? driversList.map((d) => {
+            let locationText = "Location unavailable";
+            if (d.lastLatitude && d.lastLongitude) {
+              const ago = d.lastLocationAt
+                ? Math.round(
+                    (Date.now() - new Date(d.lastLocationAt).getTime()) / 60000,
+                  )
+                : null;
+              locationText =
+                ago !== null && ago < 60
+                  ? `Live ${ago < 1 ? "now" : `${ago}m ago`}`
+                  : `Last seen ${ago ? `${Math.round(ago / 60)}h ago` : ""}`;
+            }
+            return {
+              id: d.id,
+              driver:
+                `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
+                "Driver",
+              rating: d.rating || 0,
+              totalDeliveries: d.totalDeliveries || 0,
+              vehicle: d.vehicleType || "Vehicle",
+              location: locationText,
+              latitude: d.lastLatitude,
+              longitude: d.lastLongitude,
+              photo: d.user?.profilePictureUrl || null,
+            };
+          })
         : [];
       setActiveDrivers(mappedDrivers);
 

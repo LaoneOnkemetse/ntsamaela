@@ -73,9 +73,20 @@ class ApiService {
         const message =
           (data && (data.error?.message || data.message)) || "Request failed";
 
+        // Rate limited — return a soft error so callers don't retry immediately
+        if (response.status === 429) {
+          return {
+            success: false,
+            data: null,
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message,
+            },
+            statusCode: 429,
+          };
+        }
+
         // For verification status, a 404 "no verification found" is expected
-        // when the user has not submitted documents yet. Treat this as a
-        // soft response instead of throwing so the UI doesn't log an error.
         if (
           response.status === 404 &&
           message &&
@@ -188,6 +199,13 @@ class ApiService {
     return this.request("/api/driver/active", {
       method: "PATCH",
       body: JSON.stringify({ active }),
+    });
+  }
+
+  async updateDriverLocation(latitude, longitude) {
+    return this.request("/api/driver/location", {
+      method: "POST",
+      body: JSON.stringify({ latitude, longitude }),
     });
   }
 

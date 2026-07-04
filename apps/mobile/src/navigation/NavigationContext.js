@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
+import { Alert, AppState } from "react-native";
+import * as Location from "expo-location";
 import apiService from "../services/apiService";
 import socketService from "../services/socketService";
 import { API_CONFIG } from "../constants/config";
@@ -162,9 +169,9 @@ export const NavigationProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated || !authToken) return;
 
-    // When not verified, poll more frequently so unlock feels instant after admin approval.
+    // When not verified, poll slightly faster for status unlock; avoid rate limiting.
     const fastPoll = !userProfile?.isVerified;
-    const intervalMs = fastPoll ? 10000 : 60000;
+    const intervalMs = fastPoll ? 30000 : 120000;
 
     // Kick once immediately.
     refreshSession(authToken);
@@ -190,6 +197,64 @@ export const NavigationProvider = ({ children }) => {
     userType,
     userProfile?.userId,
   ]);
+
+  // Location tracking — send device position to API periodically
+  const locationWatcher = useRef(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !authToken) return;
+
+    let cancelled = false;
+
+    const startLocationTracking = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+
+        // Send location immediately
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!cancelled) {
+          apiService.setToken(authToken);
+          apiService
+            .updateDriverLocation(loc.coords.latitude, loc.coords.longitude)
+            .catch(() => {});
+        }
+
+        // Watch for changes (fires on significant movement)
+        locationWatcher.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 30000,
+            distanceInterval: 50,
+          },
+          (position) => {
+            if (cancelled) return;
+            apiService.setToken(authToken);
+            apiService
+              .updateDriverLocation(
+                position.coords.latitude,
+                position.coords.longitude,
+              )
+              .catch(() => {});
+          },
+        );
+      } catch (e) {
+        console.warn("Location tracking failed:", e?.message);
+      }
+    };
+
+    startLocationTracking();
+
+    return () => {
+      cancelled = true;
+      if (locationWatcher.current) {
+        locationWatcher.current.remove();
+        locationWatcher.current = null;
+      }
+    };
+  }, [isAuthenticated, authToken]);
 
   const toggleActiveDriverStatus = async (status) => {
     const previous = isActiveDriver;

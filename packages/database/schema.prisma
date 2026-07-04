@@ -74,6 +74,9 @@ model Driver {
   rating          Float         @default(0)
   totalDeliveries Int           @default(0)
   active          Boolean       @default(true)
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastLocationAt  DateTime?
   bids            Bid[]
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   trips           Trip[]
