@@ -75,18 +75,26 @@ else
   echo "💡 Server will continue - check database state manually if needed"
 fi
 
-# Safety net: prisma db push ensures the production DB matches the schema
-# This handles cases where migrations were marked applied but columns are missing
-echo "🔧 Running prisma db push to sync any missing schema changes..."
-set +e
-DB_PUSH_OUTPUT=$(npx prisma db push --schema=./packages/database/schema.prisma --accept-data-loss 2>&1)
-DB_PUSH_EXIT=$?
-set -e
-if [ $DB_PUSH_EXIT -eq 0 ]; then
-  echo "✅ Database schema is in sync"
-else
-  echo "⚠️  db push returned non-zero (may be fine if already in sync): $DB_PUSH_OUTPUT"
-fi
+# Safety net: ensure missing columns exist via direct SQL before Prisma client is generated
+echo "🔧 Applying missing schema changes directly..."
+npx prisma db execute --schema=./packages/database/schema.prisma --stdin <<'ENDSQL' 2>&1 || true
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carDescription" TEXT;
+ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "carPhotoUrl" TEXT;
+CREATE TABLE IF NOT EXISTS "CommissionReservation" (
+    "id" TEXT NOT NULL,
+    "driverId" TEXT NOT NULL,
+    "tripId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "percentage" DOUBLE PRECISION NOT NULL DEFAULT 30.0,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "CommissionReservation_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "CommissionReservation" DROP CONSTRAINT IF EXISTS "CommissionReservation_driverId_fkey";
+ALTER TABLE "CommissionReservation" ADD CONSTRAINT "CommissionReservation_driverId_fkey" FOREIGN KEY ("driverId") REFERENCES "Driver"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ENDSQL
+echo "✅ Direct schema fixes applied"
 
 echo "🔧 Generating Prisma client..."
 # First, generate using the database package (schema and tooling live here)
