@@ -265,9 +265,8 @@ export class DriverController {
 
   async getAllDrivers(req: Request, res: Response) {
     try {
-      const { limit = 20, offset = 0, verified = true } = req.query;
+      const { limit = 20, offset = 0, verified } = req.query;
 
-      // Get Prisma client
       const prisma = getPrismaClient();
       if (!prisma) {
         return res.status(503).json({
@@ -276,15 +275,13 @@ export class DriverController {
         });
       }
 
+      const whereClause: any = { active: true };
+      if (verified === "true") {
+        whereClause.user = { identityVerified: true };
+      }
+
       const drivers = await prisma.driver.findMany({
-        where: {
-          active: true,
-          ...(verified === "true" && {
-            user: {
-              identityVerified: true,
-            },
-          }),
-        },
+        where: whereClause,
         include: {
           user: {
             select: {
@@ -292,12 +289,13 @@ export class DriverController {
               firstName: true,
               lastName: true,
               phone: true,
+              profilePictureUrl: true,
               identityVerified: true,
             },
           },
         },
-        take: parseInt(limit as string),
-        skip: parseInt(offset as string),
+        take: parseInt(limit as string) || 20,
+        skip: parseInt(offset as string) || 0,
         orderBy: {
           rating: "desc",
         },
@@ -314,6 +312,7 @@ export class DriverController {
         error: {
           code: "DRIVERS_FETCH_ERROR",
           message: "Failed to get drivers",
+          details: _error?.message || String(_error),
         },
       });
     }
