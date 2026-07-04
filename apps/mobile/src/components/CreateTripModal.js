@@ -39,8 +39,20 @@ export const CreateTripModal = ({ visible, onClose }) => {
   };
 
   const handleCreate = async () => {
-    if (!from || !to || !departureDateTime) {
-      Alert.alert("Error", "Please fill in all fields");
+    const missing = [];
+    if (!from) missing.push("Departure location (From)");
+    if (!to) missing.push("Destination (To)");
+    if (!departureDateTime) missing.push("Date and Time");
+    if (missing.length > 0) {
+      Alert.alert(
+        "Missing Information",
+        `Please fill in the following:\n\n• ${missing.join("\n• ")}`,
+      );
+      return;
+    }
+
+    if (departureDateTime <= new Date()) {
+      Alert.alert("Invalid Date", "Departure time must be in the future.");
       return;
     }
 
@@ -83,10 +95,18 @@ export const CreateTripModal = ({ visible, onClose }) => {
           ],
         );
       } else {
-        Alert.alert("Error", resp?.error?.message || "Failed to create trip");
+        const errMsg = resp?.error?.message || "Failed to create trip";
+        const details = resp?.error?.details;
+        const fullMsg = details
+          ? `${errMsg}\n\n${Array.isArray(details) ? details.map((d) => `• ${d}`).join("\n") : details}`
+          : errMsg;
+        Alert.alert("Trip Creation Failed", fullMsg);
       }
     } catch (e) {
-      Alert.alert("Error", e?.message || "Failed to create trip");
+      Alert.alert(
+        "Error",
+        e?.message || "Failed to create trip. Please check your connection.",
+      );
     }
   };
 

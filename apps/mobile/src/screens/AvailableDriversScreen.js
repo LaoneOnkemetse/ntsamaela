@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
 import { colors } from "../constants/colors";
 import { sharedStyles } from "../styles/sharedStyles";
 import { packageStyles } from "../styles/packageStyles";
@@ -29,11 +30,42 @@ export const AvailableDriversScreen = () => {
     setShowCreatePackageModal(true);
   };
 
+  const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
   const loadDriversAndTrips = async () => {
     if (!authToken) return;
     setLoading(true);
     try {
       apiService.setToken(authToken);
+
+      // Get customer's current position for distance sorting
+      let customerLat = null;
+      let customerLng = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          customerLat = pos.coords.latitude;
+          customerLng = pos.coords.longitude;
+        }
+      } catch {
+        // location unavailable — distance sorting will be skipped
+      }
+
       const [driversResp, tripsResp] = await Promise.allSettled([
         apiService.getAllDrivers({ limit: 50, offset: 0, verified: true }),
         apiService.getAvailableTrips({ limit: 50, offset: 0 }),
@@ -47,35 +79,61 @@ export const AvailableDriversScreen = () => {
       const driversList = Array.isArray(driversVal?.data)
         ? driversVal.data
         : (driversVal?.data?.drivers ?? []);
-      const mappedDrivers = Array.isArray(driversList)
-        ? driversList.map((d) => {
-            let locationText = "Location unavailable";
-            if (d.lastLatitude && d.lastLongitude) {
-              const ago = d.lastLocationAt
-                ? Math.round(
-                    (Date.now() - new Date(d.lastLocationAt).getTime()) / 60000,
-                  )
-                : null;
-              locationText =
-                ago !== null && ago < 60
-                  ? `Live ${ago < 1 ? "now" : `${ago}m ago`}`
-                  : `Last seen ${ago ? `${Math.round(ago / 60)}h ago` : ""}`;
-            }
-            return {
-              id: d.id,
-              driver:
-                `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
-                "Driver",
-              rating: d.rating || 0,
-              totalDeliveries: d.totalDeliveries || 0,
-              vehicle: d.vehicleType || "Vehicle",
-              location: locationText,
+
+      // Reverse geocode driver locations to get city/town names
+      const mappedDrivers = [];
+      for (const d of Array.isArray(driversList) ? driversList : []) {
+        let locationText = "Location unavailable";
+        if (d.lastLatitude && d.lastLongitude) {
+          try {
+            const [place] = await Location.reverseGeocodeAsync({
               latitude: d.lastLatitude,
               longitude: d.lastLongitude,
-              photo: d.user?.profilePictureUrl || null,
-            };
-          })
-        : [];
+            });
+            if (place) {
+              locationText =
+                place.city ||
+                place.subregion ||
+                place.district ||
+                place.region ||
+                "Unknown area";
+            }
+          } catch {
+            locationText = "Location available";
+          }
+        }
+
+        const dist = getDistanceKm(
+          customerLat,
+          customerLng,
+          d.lastLatitude,
+          d.lastLongitude,
+        );
+
+        mappedDrivers.push({
+          id: d.id,
+          driver:
+            `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
+            "Driver",
+          rating: d.rating || 0,
+          totalDeliveries: d.totalDeliveries || 0,
+          vehicle: d.vehicleType || "Vehicle",
+          location: locationText,
+          distance: dist,
+          distanceText:
+            dist !== Infinity
+              ? dist < 1
+                ? `${Math.round(dist * 1000)}m away`
+                : `${Math.round(dist)}km away`
+              : null,
+          latitude: d.lastLatitude,
+          longitude: d.lastLongitude,
+          photo: d.user?.profilePictureUrl || null,
+        });
+      }
+
+      // Sort by nearest first
+      mappedDrivers.sort((a, b) => a.distance - b.distance);
       setActiveDrivers(mappedDrivers);
 
       const tripsList = Array.isArray(tripsVal?.data)
@@ -167,8 +225,13 @@ export const AvailableDriversScreen = () => {
                     </View>
                   </View>
                   <Text style={styles.driverLocation}>
-                    📍 {driver.location || "Current Location"}
+                    📍 {driver.location || "Location unavailable"}
                   </Text>
+                  {driver.distanceText && (
+                    <Text style={styles.driverDistance}>
+                      🧭 {driver.distanceText}
+                    </Text>
+                  )}
                   <Text style={styles.driverVehicle}>
                     🚗 {driver.vehicle || "My Vehicle"}
                   </Text>
@@ -302,6 +365,12 @@ const styles = {
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  driverDistance: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "600",
+    marginTop: 2,
   },
   driverVehicle: {
     fontSize: 14,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,29 +7,31 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  StyleSheet,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
-import { colors } from '../constants/colors';
-import { sharedStyles } from '../styles/sharedStyles';
-import { packageStyles } from '../styles/packageStyles';
-import { useNavigation } from '../navigation/NavigationContext';
-import { LocationSearchModal } from '../components/LocationSearchModal';
-import { takePhoto, selectFromGallery, showPhotoActionSheet } from '../utils/imageUtils';
-import apiService from '../services/apiService';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { colors } from "../constants/colors";
+import { sharedStyles } from "../styles/sharedStyles";
+import { packageStyles } from "../styles/packageStyles";
+import { useNavigation } from "../navigation/NavigationContext";
+import { LocationSearchModal } from "../components/LocationSearchModal";
+import {
+  takePhoto,
+  selectFromGallery,
+  showPhotoActionSheet,
+} from "../utils/imageUtils";
+import apiService from "../services/apiService";
 
 export const CreatePackageScreen = () => {
   const { goBack } = useNavigation();
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [pickup, setPickup] = useState(null);
   const [delivery, setDelivery] = useState(null);
-  const [recipientPhone, setRecipientPhone] = useState('');
-  const [weight, setWeight] = useState('');
-  const [price, setPrice] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
-  const [urgency, setUrgency] = useState('normal');
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [weight, setWeight] = useState("");
+  const [price, setPrice] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [urgency, setUrgency] = useState("normal");
   const [packagePhoto, setPackagePhoto] = useState(null);
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -53,13 +55,13 @@ export const CreatePackageScreen = () => {
 
       const origin = `${pickupLoc.lat},${pickupLoc.lng}`;
       const destination = `${deliveryLoc.lat},${deliveryLoc.lng}`;
-      
+
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&key=${apiKey}&units=metric`
+        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&key=${apiKey}&units=metric`,
       );
       const data = await response.json();
 
-      if (data.status === 'OK' && data.rows[0]?.elements[0]?.status === 'OK') {
+      if (data.status === "OK" && data.rows[0]?.elements[0]?.status === "OK") {
         const element = data.rows[0].elements[0];
         setRouteInfo({
           distance: element.distance.text,
@@ -71,7 +73,7 @@ export const CreatePackageScreen = () => {
         setRouteInfo(null);
       }
     } catch (error) {
-      console.error('Error calculating route:', error);
+      console.error("Error calculating route:", error);
       setRouteInfo(null);
     } finally {
       setIsCalculatingRoute(false);
@@ -96,18 +98,52 @@ export const CreatePackageScreen = () => {
       async () => {
         const image = await selectFromGallery();
         if (image) setPackagePhoto(image.uri);
-      }
+      },
     );
   };
 
   const handleCreate = async () => {
-    if (!description || !pickup || !delivery || !recipientPhone || !price || !deliveryDate) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    const missing = [];
+    if (!description) missing.push("Description");
+    if (!pickup) missing.push("Pickup location");
+    if (!delivery) missing.push("Delivery location");
+    if (!recipientPhone) missing.push("Recipient phone number");
+    if (!price) missing.push("Offering price");
+    if (!deliveryDate) missing.push("Delivery date");
+    if (missing.length > 0) {
+      Alert.alert(
+        "Missing Information",
+        `Please fill in the following:\n\n• ${missing.join("\n• ")}`,
+      );
       return;
     }
-    
+
     if (!/^[267]\d{7}$/.test(recipientPhone)) {
-      Alert.alert('Error', 'Please enter a valid Botswana phone number (e.g., 71234567)');
+      Alert.alert(
+        "Invalid Phone",
+        "Recipient phone must be a valid Botswana number (8 digits starting with 2, 6, or 7).\n\nExample: 71234567",
+      );
+      return;
+    }
+
+    if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+      Alert.alert(
+        "Invalid Price",
+        "Please enter a valid price greater than 0.",
+      );
+      return;
+    }
+
+    const parsedDate = new Date(deliveryDate);
+    if (isNaN(parsedDate.getTime())) {
+      Alert.alert(
+        "Invalid Date",
+        "Please enter a valid date in format YYYY-MM-DD.\n\nExample: 2026-07-10",
+      );
+      return;
+    }
+    if (parsedDate <= new Date()) {
+      Alert.alert("Invalid Date", "Delivery date must be in the future.");
       return;
     }
 
@@ -128,15 +164,25 @@ export const CreatePackageScreen = () => {
       });
 
       if (response.success) {
-        Alert.alert('Success', 'Package created successfully!\n\nDrivers can now bid on your package.', [
-          { text: 'OK', onPress: () => goBack() }
-        ]);
+        Alert.alert(
+          "Success",
+          "Package created successfully!\n\nDrivers can now bid on your package.",
+          [{ text: "OK", onPress: () => goBack() }],
+        );
       } else {
-        Alert.alert('Error', response.error?.message || 'Failed to create package');
+        const errMsg = response.error?.message || "Failed to create package";
+        const details = response.error?.details;
+        const fullMsg = details
+          ? `${errMsg}\n\n${Array.isArray(details) ? details.map((d) => `• ${d}`).join("\n") : details}`
+          : errMsg;
+        Alert.alert("Package Creation Failed", fullMsg);
       }
     } catch (error) {
-      console.error('Create package error:', error);
-      Alert.alert('Error', 'Failed to create package. Please try again.');
+      console.error("Create package error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to create package. Please check your connection and try again.",
+      );
     }
   };
 
@@ -152,15 +198,15 @@ export const CreatePackageScreen = () => {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView 
-          style={sharedStyles.formContainer} 
+        <ScrollView
+          style={sharedStyles.formContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 120 }}
         >
           {/* Package Details Section */}
           <View style={packageStyles.formSection}>
             <Text style={packageStyles.sectionHeader}>📦 Package Details</Text>
-            
+
             <Text style={packageStyles.fieldLabel}>Description *</Text>
             <TextInput
               style={sharedStyles.input}
@@ -180,7 +226,9 @@ export const CreatePackageScreen = () => {
               keyboardType="decimal-pad"
             />
 
-            <Text style={packageStyles.fieldLabel}>Your Offering Price (P) *</Text>
+            <Text style={packageStyles.fieldLabel}>
+              Your Offering Price (P) *
+            </Text>
             <TextInput
               style={sharedStyles.input}
               placeholder="e.g., 150"
@@ -190,7 +238,9 @@ export const CreatePackageScreen = () => {
               keyboardType="decimal-pad"
             />
 
-            <Text style={packageStyles.fieldLabel}>Desired Delivery Date *</Text>
+            <Text style={packageStyles.fieldLabel}>
+              Desired Delivery Date *
+            </Text>
             <TextInput
               style={sharedStyles.input}
               placeholder="e.g., 2024-01-15"
@@ -201,20 +251,27 @@ export const CreatePackageScreen = () => {
 
             <Text style={packageStyles.fieldLabel}>Urgency Level *</Text>
             <View style={packageStyles.urgencyContainer}>
-              {['normal', 'urgent', 'same-day'].map((level) => (
+              {["normal", "urgent", "same-day"].map((level) => (
                 <TouchableOpacity
                   key={level}
                   style={[
                     packageStyles.urgencyButton,
-                    urgency === level && packageStyles.urgencyButtonActive
+                    urgency === level && packageStyles.urgencyButtonActive,
                   ]}
                   onPress={() => setUrgency(level)}
                 >
-                  <Text style={[
-                    packageStyles.urgencyButtonText,
-                    urgency === level && packageStyles.urgencyButtonTextActive
-                  ]}>
-                    {level === 'normal' ? 'Normal' : level === 'urgent' ? 'Urgent' : 'Same Day'}
+                  <Text
+                    style={[
+                      packageStyles.urgencyButtonText,
+                      urgency === level &&
+                        packageStyles.urgencyButtonTextActive,
+                    ]}
+                  >
+                    {level === "normal"
+                      ? "Normal"
+                      : level === "urgent"
+                        ? "Urgent"
+                        : "Same Day"}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -224,7 +281,7 @@ export const CreatePackageScreen = () => {
           {/* Route Section */}
           <View style={packageStyles.formSection}>
             <Text style={packageStyles.sectionHeader}>🗺️ Delivery Route</Text>
-            
+
             <Text style={packageStyles.fieldLabel}>Pickup Location *</Text>
             <TouchableOpacity
               style={packageStyles.locationButton}
@@ -234,11 +291,17 @@ export const CreatePackageScreen = () => {
               <View style={{ flex: 1 }}>
                 {pickup ? (
                   <>
-                    <Text style={packageStyles.locationSelectedName}>{pickup.name}</Text>
-                    <Text style={packageStyles.locationSelectedAddress}>{pickup.address}</Text>
+                    <Text style={packageStyles.locationSelectedName}>
+                      {pickup.name}
+                    </Text>
+                    <Text style={packageStyles.locationSelectedAddress}>
+                      {pickup.address}
+                    </Text>
                   </>
                 ) : (
-                  <Text style={packageStyles.locationPlaceholder}>Search on map...</Text>
+                  <Text style={packageStyles.locationPlaceholder}>
+                    Search on map...
+                  </Text>
                 )}
               </View>
               <Text style={packageStyles.locationArrow}>›</Text>
@@ -253,11 +316,17 @@ export const CreatePackageScreen = () => {
               <View style={{ flex: 1 }}>
                 {delivery ? (
                   <>
-                    <Text style={packageStyles.locationSelectedName}>{delivery.name}</Text>
-                    <Text style={packageStyles.locationSelectedAddress}>{delivery.address}</Text>
+                    <Text style={packageStyles.locationSelectedName}>
+                      {delivery.name}
+                    </Text>
+                    <Text style={packageStyles.locationSelectedAddress}>
+                      {delivery.address}
+                    </Text>
                   </>
                 ) : (
-                  <Text style={packageStyles.locationPlaceholder}>Search on map...</Text>
+                  <Text style={packageStyles.locationPlaceholder}>
+                    Search on map...
+                  </Text>
                 )}
               </View>
               <Text style={packageStyles.locationArrow}>›</Text>
@@ -266,19 +335,27 @@ export const CreatePackageScreen = () => {
             {pickup && delivery && (
               <View style={packageStyles.routeInfo}>
                 {isCalculatingRoute ? (
-                  <Text style={packageStyles.routeInfoText}>Calculating route...</Text>
+                  <Text style={packageStyles.routeInfoText}>
+                    Calculating route...
+                  </Text>
                 ) : routeInfo ? (
                   <>
                     <View style={packageStyles.routeInfoRow}>
                       <Text style={packageStyles.routeInfoIcon}>📏</Text>
                       <Text style={packageStyles.routeInfoText}>
-                        Distance: <Text style={packageStyles.routeInfoValue}>{routeInfo.distance}</Text>
+                        Distance:{" "}
+                        <Text style={packageStyles.routeInfoValue}>
+                          {routeInfo.distance}
+                        </Text>
                       </Text>
                     </View>
                     <View style={packageStyles.routeInfoRow}>
                       <Text style={packageStyles.routeInfoIcon}>⏱️</Text>
                       <Text style={packageStyles.routeInfoText}>
-                        Estimated Time: <Text style={packageStyles.routeInfoValue}>{routeInfo.duration}</Text>
+                        Estimated Time:{" "}
+                        <Text style={packageStyles.routeInfoValue}>
+                          {routeInfo.duration}
+                        </Text>
                       </Text>
                     </View>
                   </>
@@ -293,9 +370,13 @@ export const CreatePackageScreen = () => {
 
           {/* Recipient Section */}
           <View style={packageStyles.formSection}>
-            <Text style={packageStyles.sectionHeader}>👤 Recipient Information</Text>
-            
-            <Text style={packageStyles.fieldLabel}>Recipient Phone Number *</Text>
+            <Text style={packageStyles.sectionHeader}>
+              👤 Recipient Information
+            </Text>
+
+            <Text style={packageStyles.fieldLabel}>
+              Recipient Phone Number *
+            </Text>
             <TextInput
               style={sharedStyles.input}
               placeholder="e.g., 71234567"
@@ -313,29 +394,39 @@ export const CreatePackageScreen = () => {
           {/* Photo Section */}
           <View style={packageStyles.formSection}>
             <Text style={packageStyles.sectionHeader}>📷 Package Photo</Text>
-            
+
             {packagePhoto ? (
               <View style={packageStyles.photoPreview}>
-                <Image source={{ uri: packagePhoto }} style={packageStyles.photoImage} />
-                <TouchableOpacity 
+                <Image
+                  source={{ uri: packagePhoto }}
+                  style={packageStyles.photoImage}
+                />
+                <TouchableOpacity
                   style={packageStyles.changePhotoButton}
                   onPress={handlePhotoSelection}
                 >
-                  <Text style={packageStyles.changePhotoText}>Change Photo</Text>
+                  <Text style={packageStyles.changePhotoText}>
+                    Change Photo
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={packageStyles.addPhotoButton}
                 onPress={handlePhotoSelection}
               >
                 <Text style={packageStyles.addPhotoIcon}>📷</Text>
-                <Text style={packageStyles.addPhotoText}>Add Package Photo (Optional)</Text>
+                <Text style={packageStyles.addPhotoText}>
+                  Add Package Photo (Optional)
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <TouchableOpacity style={sharedStyles.primaryButton} onPress={handleCreate}>
+          <TouchableOpacity
+            style={sharedStyles.primaryButton}
+            onPress={handleCreate}
+          >
             <Text style={sharedStyles.primaryButtonText}>Create Package</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -369,4 +460,3 @@ export const CreatePackageScreen = () => {
     </View>
   );
 };
-

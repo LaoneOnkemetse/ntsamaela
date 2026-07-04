@@ -42,20 +42,22 @@ class TripService {
         );
       }
 
-      // Validate required fields
-      if (!tripData.driverId) {
-        throw new AppError("Driver ID is required", "VALIDATION_ERROR", 400);
-      }
+      // Field-specific validation
+      const missingFields: string[] = [];
+      if (!tripData.driverId) missingFields.push("Driver ID");
+      if (!tripData.startAddress) missingFields.push("Departure address");
+      if (!tripData.endAddress) missingFields.push("Destination address");
+      if (!tripData.departureTime) missingFields.push("Departure time");
+      if (!tripData.availableCapacity) missingFields.push("Capacity");
 
-      // Validate coordinates
-      if (
-        !tripData.startLat ||
-        !tripData.startLng ||
-        !tripData.endLat ||
-        !tripData.endLng
-      ) {
+      if (!tripData.startLat || !tripData.startLng)
+        missingFields.push("Departure location coordinates");
+      if (!tripData.endLat || !tripData.endLng)
+        missingFields.push("Destination location coordinates");
+
+      if (missingFields.length > 0) {
         throw new AppError(
-          "Valid coordinates are required",
+          `Missing required fields: ${missingFields.join(", ")}`,
           "VALIDATION_ERROR",
           400,
         );
@@ -67,14 +69,16 @@ class TripService {
       const endLat = parseFloat(tripData.endLat.toString());
       const endLng = parseFloat(tripData.endLng.toString());
 
-      if (
-        isNaN(startLat) ||
-        isNaN(startLng) ||
-        isNaN(endLat) ||
-        isNaN(endLng)
-      ) {
+      if (isNaN(startLat) || isNaN(startLng)) {
         throw new AppError(
-          "Valid coordinates are required",
+          "Departure location has invalid coordinates",
+          "VALIDATION_ERROR",
+          400,
+        );
+      }
+      if (isNaN(endLat) || isNaN(endLng)) {
+        throw new AppError(
+          "Destination has invalid coordinates",
           "VALIDATION_ERROR",
           400,
         );
@@ -82,6 +86,13 @@ class TripService {
 
       // Validate departure time
       const departureTime = new Date(tripData.departureTime);
+      if (isNaN(departureTime.getTime())) {
+        throw new AppError(
+          "Departure time is not a valid date",
+          "VALIDATION_ERROR",
+          400,
+        );
+      }
       if (departureTime <= new Date()) {
         throw new AppError(
           "Departure time must be in the future",
@@ -93,7 +104,11 @@ class TripService {
       // Validate capacity enum
       const validCapacities = ["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"];
       if (!validCapacities.includes(tripData.availableCapacity)) {
-        throw new AppError("Invalid capacity type", "VALIDATION_ERROR", 400);
+        throw new AppError(
+          `Invalid capacity. Must be one of: ${validCapacities.join(", ")}`,
+          "VALIDATION_ERROR",
+          400,
+        );
       }
 
       // Create the trip
