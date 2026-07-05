@@ -497,17 +497,17 @@ class PackageService {
       throw new AppError("Description is required", "INVALID_DESCRIPTION", 400);
     }
 
-    if (!data.pickupAddress || data.pickupAddress.trim().length < 5) {
+    if (!data.pickupAddress || !data.pickupAddress.trim()) {
       throw new AppError(
-        "Pickup address is required and must be at least 5 characters",
+        "Pickup address is required",
         "INVALID_PICKUP_ADDRESS",
         400,
       );
     }
 
-    if (!data.deliveryAddress || data.deliveryAddress.trim().length < 5) {
+    if (!data.deliveryAddress || !data.deliveryAddress.trim()) {
       throw new AppError(
-        "Delivery address is required and must be at least 5 characters",
+        "Delivery address is required",
         "INVALID_DELIVERY_ADDRESS",
         400,
       );

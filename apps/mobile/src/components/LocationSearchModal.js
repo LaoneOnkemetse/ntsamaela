@@ -160,121 +160,124 @@ export const LocationSearchModal = ({
     }
   };
 
-  // Search for addresses using legacy Places API (broader compatibility)
+  // Search for addresses — expo geocode, Google Places, then OpenStreetMap
   const searchAddresses = async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
     }
 
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      setSearchResults([]);
-      return;
-    }
-
     try {
       setIsLoading(true);
+      const trimmed = query.trim();
 
-      const legacyResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&components=country:bw`,
-      );
-      const legacyData = await legacyResponse.json();
-
-      if (
-        legacyData.status === "OK" &&
-        Array.isArray(legacyData.predictions) &&
-        legacyData.predictions.length > 0
-      ) {
-        const results = await Promise.all(
-          legacyData.predictions.slice(0, 6).map(async (prediction) => {
-            try {
-              const detailsResponse = await fetch(
-                `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry,formatted_address,name&key=${apiKey}`,
-              );
-              const detailsData = await detailsResponse.json();
-              const loc = detailsData.result?.geometry?.location;
-              if (loc) {
-                return {
-                  id: prediction.place_id,
-                  name:
-                    prediction.structured_formatting?.main_text ||
-                    detailsData.result?.name ||
-                    prediction.description.split(",")[0],
-                  address: prediction.description,
-                  lat: loc.lat,
-                  lng: loc.lng,
-                };
-              }
-            } catch {
-              // skip failed detail lookup
-            }
-            return null;
-          }),
-        );
-        setSearchResults(results.filter((r) => r !== null));
-        return;
+      // 1) Expo Location geocode (no API key required)
+      try {
+        const geocoded = await Location.geocodeAsync(`${trimmed}, Botswana`);
+        if (geocoded?.length > 0) {
+          const results = geocoded.slice(0, 6).map((place, index) => {
+            const parts = [
+              place.name,
+              place.street,
+              place.district,
+              place.city,
+              place.region,
+              place.country,
+            ].filter(Boolean);
+            const address = parts.join(", ") || trimmed;
+            return {
+              id: `expo-${index}-${place.latitude}`,
+              name: place.name || place.street || place.city || trimmed,
+              address,
+              lat: place.latitude,
+              lng: place.longitude,
+            };
+          });
+          if (results.length > 0) {
+            setSearchResults(results);
+            return;
+          }
+        }
+      } catch {
+        // continue to other providers
       }
 
-      // Fallback: Places API (New)
-      const response = await fetch(
-        `https://places.googleapis.com/v1/places:autocomplete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": apiKey,
-            "X-Goog-FieldMask":
-              "suggestions.placePrediction.placeId,suggestions.placePrediction.text",
-          },
-          body: JSON.stringify({
-            input: query,
-            includedRegionCodes: ["bw"],
-          }),
-        },
-      );
-      const data = await response.json();
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-      if (data.suggestions) {
-        const results = await Promise.all(
-          data.suggestions.slice(0, 6).map(async (suggestion) => {
-            if (suggestion.placePrediction?.placeId) {
-              const detailsResponse = await fetch(
-                `https://places.googleapis.com/v1/places/${suggestion.placePrediction.placeId}`,
-                {
-                  headers: {
-                    "Content-Type": "application/json",
-                    "X-Goog-Api-Key": apiKey,
-                    "X-Goog-FieldMask":
-                      "id,displayName,formattedAddress,location",
-                  },
-                },
-              );
-              const detailsData = await detailsResponse.json();
+      // 2) Google Places autocomplete
+      if (apiKey) {
+        try {
+          const legacyResponse = await fetch(
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(trimmed)}&key=${apiKey}&components=country:bw`,
+          );
+          const legacyData = await legacyResponse.json();
 
-              if (detailsData.location) {
-                return {
-                  id: detailsData.id || suggestion.placePrediction.placeId,
-                  name:
-                    detailsData.displayName?.text ||
-                    suggestion.placePrediction.text?.text ||
-                    "Unknown",
-                  address:
-                    detailsData.formattedAddress ||
-                    suggestion.placePrediction.text?.text ||
-                    "",
-                  lat: detailsData.location.latitude || 0,
-                  lng: detailsData.location.longitude || 0,
-                };
-              }
+          if (
+            legacyData.status === "OK" &&
+            Array.isArray(legacyData.predictions) &&
+            legacyData.predictions.length > 0
+          ) {
+            const results = await Promise.all(
+              legacyData.predictions.slice(0, 6).map(async (prediction) => {
+                try {
+                  const detailsResponse = await fetch(
+                    `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry,formatted_address,name&key=${apiKey}`,
+                  );
+                  const detailsData = await detailsResponse.json();
+                  const loc = detailsData.result?.geometry?.location;
+                  if (loc) {
+                    return {
+                      id: prediction.place_id,
+                      name:
+                        prediction.structured_formatting?.main_text ||
+                        detailsData.result?.name ||
+                        prediction.description.split(",")[0],
+                      address: prediction.description,
+                      lat: loc.lat,
+                      lng: loc.lng,
+                    };
+                  }
+                } catch {
+                  // skip
+                }
+                return null;
+              }),
+            );
+            const filtered = results.filter((r) => r !== null);
+            if (filtered.length > 0) {
+              setSearchResults(filtered);
+              return;
             }
-            return null;
-          }),
-        );
-        setSearchResults(results.filter((r) => r !== null));
-      } else {
-        setSearchResults([]);
+          }
+        } catch {
+          // continue
+        }
       }
+
+      // 3) OpenStreetMap Nominatim (free fallback)
+      try {
+        const osmResponse = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${trimmed}, Botswana`)}&limit=6&countrycodes=bw`,
+          { headers: { "User-Agent": "NtsamaelaMobile/1.0" } },
+        );
+        const osmData = await osmResponse.json();
+        if (Array.isArray(osmData) && osmData.length > 0) {
+          setSearchResults(
+            osmData.map((item) => ({
+              id: item.place_id?.toString() || item.osm_id?.toString(),
+              name: item.name || item.display_name.split(",")[0],
+              address: item.display_name,
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon),
+            })),
+          );
+          return;
+        }
+      } catch {
+        // no results
+      }
+
+      setSearchResults([]);
     } catch (error) {
       console.error("Error searching addresses:", error);
       setSearchResults([]);
@@ -338,7 +341,7 @@ export const LocationSearchModal = ({
       } else {
         setSearchResults([]);
       }
-    }, 500); // Debounce search
+    }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
@@ -424,7 +427,32 @@ export const LocationSearchModal = ({
               )}
             </TouchableOpacity>
 
-            {/* Search Results dropdown overlays map */}
+            {searchResults.length > 0 && (
+              <View style={styles.searchDropdown}>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  style={{ maxHeight: 200 }}
+                >
+                  {searchResults.map((location) => (
+                    <TouchableOpacity
+                      key={location.id}
+                      style={styles.locationItem}
+                      onPress={() => handleSearchResultSelect(location)}
+                    >
+                      <Text style={styles.locationIcon}>📍</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dropdownName}>{location.name}</Text>
+                        <Text style={styles.dropdownAddress}>
+                          {location.address}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Map View */}
             <View
               style={{
@@ -432,35 +460,8 @@ export const LocationSearchModal = ({
                 borderRadius: 8,
                 overflow: "hidden",
                 marginBottom: 12,
-                position: "relative",
               }}
             >
-              {searchResults.length > 0 && (
-                <View style={styles.searchDropdown}>
-                  <ScrollView
-                    keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled
-                  >
-                    {searchResults.map((location) => (
-                      <TouchableOpacity
-                        key={location.id}
-                        style={styles.locationItem}
-                        onPress={() => handleSearchResultSelect(location)}
-                      >
-                        <Text style={styles.locationIcon}>📍</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.dropdownName}>
-                            {location.name}
-                          </Text>
-                          <Text style={styles.dropdownAddress}>
-                            {location.address}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
               <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -591,15 +592,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   searchDropdown: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     maxHeight: 220,
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
-    zIndex: 1000,
-    elevation: 10,
+    marginBottom: 8,
+    elevation: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

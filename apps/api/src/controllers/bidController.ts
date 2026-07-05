@@ -200,6 +200,48 @@ export class BidController {
     }
   }
 
+  async customerCounterOffer(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { bidId, amount } = req.body as any;
+      const customerId = req.user!.id;
+
+      if (!bidId || !amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "INVALID_AMOUNT",
+            message: "Valid bid ID and amount are required",
+          },
+        });
+      }
+
+      const result = await this.getBidService().customerCounterOffer(
+        bidId,
+        parseFloat(amount),
+        customerId,
+      );
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: "Counter offer sent successfully",
+      });
+    } catch (_error: any) {
+      if (_error instanceof AppError) {
+        return res.status(_error.statusCode).json({
+          success: false,
+          error: { message: _error.message, code: _error.code },
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: {
+          message: "Failed to submit counter offer",
+          code: "CUSTOMER_COUNTER_FAILED",
+        },
+      });
+    }
+  }
+
   async counterBid(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;

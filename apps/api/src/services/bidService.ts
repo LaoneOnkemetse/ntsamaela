@@ -80,6 +80,17 @@ class BidService {
     return this.prisma;
   }
 
+  private async resolveDriverRecordId(userId: string): Promise<string> {
+    const driver = await this.getPrisma().driver.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!driver) {
+      throw new AppError("Driver not found", "DRIVER_NOT_FOUND", 404);
+    }
+    return driver.id;
+  }
+
   async createBid(bidData: CreateBidRequest): Promise<BidWithCommission> {
     try {
       // Validate required fields
@@ -391,9 +402,11 @@ class BidService {
   async updateBid(
     bidId: string,
     updateData: UpdateBidRequest,
-    driverId: string,
+    userId: string,
   ): Promise<Bid> {
     try {
+      const driverRecordId = await this.resolveDriverRecordId(userId);
+
       // Check if bid exists and belongs to driver
       const existingBid = await this.getPrisma().bid.findUnique({
         where: { id: bidId },
@@ -403,7 +416,7 @@ class BidService {
         throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (existingBid.driverId !== driverId) {
+      if (existingBid.driverId !== driverRecordId) {
         throw new AppError(
           "Unauthorized to update this bid",
           "UNAUTHORIZED",
@@ -423,7 +436,26 @@ class BidService {
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
         data: updateData,
+        include: {
+          driver: { include: { user: true } },
+          package: { include: { customer: true } },
+        },
       });
+
+      try {
+        const realtimeService = getRealtimeService();
+        if (realtimeService && updatedBid.package) {
+          await realtimeService.notifyBidReceived(
+            updatedBid.packageId,
+            this.formatBidWithRelations({ ...updatedBid, trip: null }),
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "Failed to send bid update notification:",
+          notificationError,
+        );
+      }
 
       return this.formatBid(updatedBid);
     } catch (_error) {
@@ -610,8 +642,10 @@ class BidService {
     }
   }
 
-  async cancelBid(bidId: string, driverId: string): Promise<Bid> {
+  async cancelBid(bidId: string, userId: string): Promise<Bid> {
     try {
+      const driverRecordId = await this.resolveDriverRecordId(userId);
+
       // Check if bid exists and belongs to driver
       const existingBid = await this.getPrisma().bid.findUnique({
         where: { id: bidId },
@@ -621,7 +655,7 @@ class BidService {
         throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (existingBid.driverId !== driverId) {
+      if (existingBid.driverId !== driverRecordId) {
         throw new AppError(
           "Unauthorized to cancel this bid",
           "UNAUTHORIZED",
@@ -657,10 +691,11 @@ class BidService {
   }
 
   async getBidsByDriver(
-    driverId: string,
+    userId: string,
     filters: BidFilters = {},
   ): Promise<{ bids: BidWithRelations[]; total: number }> {
-    return this.getBids({ ...filters, driverId });
+    const driverRecordId = await this.resolveDriverRecordId(userId);
+    return this.getBids({ ...filters, driverId: driverRecordId });
   }
 
   async getBidsByPackage(
@@ -745,9 +780,11 @@ class BidService {
   async counterBid(
     bidId: string,
     newAmount: number,
-    driverId: string,
+    userId: string,
   ): Promise<BidWithCommission> {
     try {
+      const driverRecordId = await this.resolveDriverRecordId(userId);
+
       const existingBid = await this.getPrisma().bid.findUnique({
         where: { id: bidId },
         include: { package: true },
@@ -757,7 +794,7 @@ class BidService {
         throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (existingBid.driverId !== driverId) {
+      if (existingBid.driverId !== driverRecordId) {
         throw new AppError(
           "Unauthorized to modify this bid",
           "UNAUTHORIZED",
@@ -826,6 +863,104 @@ class BidService {
         throw _error;
       }
       throw new AppError("Failed to counter bid", "COUNTER_BID_FAILED", 500);
+    }
+  }
+
+  async customerCounterOffer(
+    bidId: string,
+    newAmount: number,
+    customerId: string,
+  ): Promise<BidWithCommission> {
+    try {
+      const bid = await this.getPrisma().bid.findUnique({
+        where: { id: bidId },
+        include: {
+          package: true,
+          driver: { include: { user: true } },
+        },
+      });
+
+      if (!bid) {
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
+      }
+
+      if (bid.package.customerId !== customerId) {
+        throw new AppError(
+          "Unauthorized to counter this bid",
+          "UNAUTHORIZED",
+          403,
+        );
+      }
+
+      if (bid.status !== "PENDING") {
+        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
+      }
+
+      if (newAmount <= 0) {
+        throw new AppError(
+          "Counter amount must be greater than 0",
+          "INVALID_AMOUNT",
+          400,
+        );
+      }
+
+      const updatedBid = await this.getPrisma().$transaction(
+        async (prisma: any) => {
+          await prisma.package.update({
+            where: { id: bid.packageId },
+            data: { priceOffered: newAmount },
+          });
+
+          return prisma.bid.update({
+            where: { id: bidId },
+            data: {
+              amount: newAmount,
+              message: `Customer counter offer: P${newAmount}`,
+              updatedAt: new Date(),
+            },
+            include: {
+              driver: { include: { user: true } },
+              package: { include: { customer: true } },
+            },
+          });
+        },
+      );
+
+      const commission = this.calculateCommission(newAmount);
+      const formattedBid = {
+        ...this.formatBid(updatedBid),
+        commissionAmount: commission.commissionAmount,
+        driverEarnings: commission.driverEarnings,
+        platformFee: commission.platformFee,
+      };
+
+      try {
+        const realtimeService = getRealtimeService();
+        if (realtimeService && bid.driver?.userId) {
+          await realtimeService.notifyCustomerCounterOffer(
+            bid.packageId,
+            bidId,
+            bid.driver.userId,
+            newAmount,
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "Failed to send customer counter notification:",
+          notificationError,
+        );
+      }
+
+      return formattedBid;
+    } catch (_error) {
+      if (_error instanceof AppError) {
+        throw _error;
+      }
+      throw new AppError(
+        "Failed to submit counter offer",
+        "CUSTOMER_COUNTER_FAILED",
+        500,
+      );
     }
   }
 

@@ -23,17 +23,30 @@ export const AvailablePackagesScreen = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [myBids, setMyBids] = useState([]);
+
+  const loadMyBids = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.getMyBids();
+      const bids = resp?.data ?? [];
+      setMyBids(Array.isArray(bids) ? bids : []);
+    } catch {
+      setMyBids([]);
+    }
+  }, [authToken]);
 
   const loadPackages = useCallback(async () => {
     if (!authToken) return;
     setLoading(true);
     try {
-      await refreshAvailablePackages(authToken);
+      await Promise.all([refreshAvailablePackages(authToken), loadMyBids()]);
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authToken]);
+  }, [authToken, loadMyBids]);
 
   useEffect(() => {
     loadPackages();
@@ -43,17 +56,31 @@ export const AvailablePackagesScreen = () => {
     setSubmitting(true);
     try {
       apiService.setToken(authToken);
-      const resp = await apiService.placeBidOnPackage(
+      let resp = await apiService.placeBidOnPackage(
         pkg.id,
         amount,
         `Bid: P${amount}`,
       );
+
+      if (resp?.success === false && resp?.error?.code === "DUPLICATE_BID") {
+        const existing = myBids.find(
+          (b) => b.packageId === pkg.id && b.status === "PENDING",
+        );
+        if (existing) {
+          resp = await apiService.updateBid(
+            existing.id,
+            amount,
+            `Updated bid: P${amount}`,
+          );
+        }
+      }
+
       if (resp?.success === false) {
         const code = resp?.error?.code;
         if (code === "DUPLICATE_BID") {
           Alert.alert(
             "Bid already placed",
-            "You already have a pending bid on this package. Try a different amount from My Bids or wait for the customer.",
+            "You already have a pending bid on this package.",
           );
         } else {
           Alert.alert(
@@ -65,8 +92,8 @@ export const AvailablePackagesScreen = () => {
       }
       const yourEarnings = (parseFloat(amount) * 0.7).toFixed(2);
       Alert.alert(
-        "Success",
-        `Bid of P ${amount} placed!\n\nIf accepted, you'll receive P ${yourEarnings} (after 30% platform fee)`,
+        "Bid placed",
+        `Your bid of P ${amount} is pending customer approval.\n\nIf accepted, you'll receive P ${yourEarnings} (after 30% platform fee)`,
       );
       await loadPackages();
     } catch (e) {
@@ -141,70 +168,93 @@ export const AvailablePackagesScreen = () => {
               No pending packages right now.
             </Text>
           )}
-          {packages.map((pkg) => (
-            <View key={pkg.id} style={packageStyles.packageCardWithPhoto}>
-              {pkg.photo ? (
-                <Image
-                  source={{ uri: pkg.photo }}
-                  style={packageStyles.packagePhoto}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View
-                  style={[packageStyles.packagePhoto, styles.photoPlaceholder]}
-                >
-                  <Text style={styles.photoPlaceholderText}>📦</Text>
-                </View>
-              )}
-              <View style={packageStyles.packageContent}>
-                <View style={packageStyles.packageHeader}>
-                  <Text style={packageStyles.packageId}>{pkg.id}</Text>
-                  <Text style={packageStyles.packagePrice}>P {pkg.price}</Text>
-                </View>
-                <Text style={packageStyles.packageDesc}>{pkg.description}</Text>
-                <Text style={packageStyles.packageCustomer}>
-                  Customer: {pkg.customer}
-                </Text>
-                <View style={packageStyles.packageRoute}>
-                  <Text style={packageStyles.packageLocation}>
-                    📍 {pkg.pickup}
-                  </Text>
-                  <Text style={packageStyles.packageArrow}>→</Text>
-                  <Text style={packageStyles.packageLocation}>
-                    📍 {pkg.delivery}
-                  </Text>
-                </View>
-                <Text style={packageStyles.packageInfo}>
-                  {pkg.weight} • {pkg.distance}
-                </Text>
-
-                <View style={packageStyles.packageActions}>
-                  <TouchableOpacity
+          {packages.map((pkg) => {
+            const myBid = myBids.find(
+              (b) => b.packageId === pkg.id && b.status === "PENDING",
+            );
+            return (
+              <View key={pkg.id} style={packageStyles.packageCardWithPhoto}>
+                {pkg.photo ? (
+                  <Image
+                    source={{ uri: pkg.photo }}
+                    style={packageStyles.packagePhoto}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
                     style={[
-                      packageStyles.packageActionButton,
-                      packageStyles.acceptButton,
+                      packageStyles.packagePhoto,
+                      styles.photoPlaceholder,
                     ]}
-                    onPress={() => handleAccept(pkg)}
-                    disabled={submitting}
                   >
-                    <Text style={packageStyles.acceptButtonText}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      packageStyles.packageActionButton,
-                      packageStyles.counterButton,
-                    ]}
-                    onPress={() => handleCounterBid(pkg)}
-                    disabled={submitting}
-                  >
-                    <Text style={packageStyles.counterButtonText}>
-                      Counter Bid
+                    <Text style={styles.photoPlaceholderText}>📦</Text>
+                  </View>
+                )}
+                <View style={packageStyles.packageContent}>
+                  <View style={packageStyles.packageHeader}>
+                    <Text style={packageStyles.packageId}>{pkg.id}</Text>
+                    <Text style={packageStyles.packagePrice}>
+                      P {pkg.price}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
+                  <Text style={packageStyles.packageDesc}>
+                    {pkg.description}
+                  </Text>
+                  <Text style={packageStyles.packageCustomer}>
+                    Customer: {pkg.customer}
+                  </Text>
+                  <View style={packageStyles.packageRoute}>
+                    <Text style={packageStyles.packageLocation}>
+                      📍 {pkg.pickup}
+                    </Text>
+                    <Text style={packageStyles.packageArrow}>→</Text>
+                    <Text style={packageStyles.packageLocation}>
+                      📍 {pkg.delivery}
+                    </Text>
+                  </View>
+                  <Text style={packageStyles.packageInfo}>
+                    {pkg.weight} • {pkg.distance}
+                  </Text>
+
+                  {myBid ? (
+                    <View style={styles.bidPendingBadge}>
+                      <Text style={styles.bidPendingText}>
+                        ✓ Bid placed: P {myBid.amount} — awaiting customer
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View style={packageStyles.packageActions}>
+                    <TouchableOpacity
+                      style={[
+                        packageStyles.packageActionButton,
+                        packageStyles.acceptButton,
+                        (submitting || myBid) && { opacity: 0.5 },
+                      ]}
+                      onPress={() => handleAccept(pkg)}
+                      disabled={submitting || !!myBid}
+                    >
+                      <Text style={packageStyles.acceptButtonText}>
+                        {myBid ? "Bid Pending" : "Accept"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        packageStyles.packageActionButton,
+                        packageStyles.counterButton,
+                      ]}
+                      onPress={() => handleCounterBid(pkg)}
+                      disabled={submitting}
+                    >
+                      <Text style={packageStyles.counterButtonText}>
+                        {myBid ? "Update Bid" : "Counter Bid"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       </SafeAreaView>
 
@@ -235,5 +285,18 @@ const styles = {
   },
   photoPlaceholderText: {
     fontSize: 48,
+  },
+  bidPendingBadge: {
+    backgroundColor: "#4CAF5020",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  bidPendingText: {
+    color: "#4CAF50",
+    fontWeight: "600",
+    fontSize: 13,
   },
 };

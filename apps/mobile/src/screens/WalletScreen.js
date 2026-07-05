@@ -19,6 +19,7 @@ import { useNavigation } from "../navigation/NavigationContext";
 
 export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
   const { userType } = useNavigation();
+  const isDriver = (userType || "").toLowerCase() === "driver";
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -207,12 +208,19 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Text style={styles.balanceAmount}>{formatCurrency(balance)}</Text>
-          <TouchableOpacity
-            style={styles.rechargeButton}
-            onPress={() => setShowRechargeModal(true)}
-          >
-            <Text style={styles.rechargeButtonText}>Recharge Wallet</Text>
-          </TouchableOpacity>
+          {!isDriver ? (
+            <TouchableOpacity
+              style={styles.rechargeButton}
+              onPress={() => setShowRechargeModal(true)}
+            >
+              <Text style={styles.rechargeButtonText}>Recharge Wallet</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.driverWalletHint}>
+              Driver earnings appear here. Withdrawals are processed from your
+              available balance.
+            </Text>
+          )}
         </View>
 
         {/* Commission Breakdown (for drivers) */}
@@ -390,6 +398,13 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontSize: 16,
     fontWeight: "600",
+  },
+  driverWalletHint: {
+    marginTop: 12,
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 18,
   },
   commissionCard: {
     backgroundColor: colors.cardBg,

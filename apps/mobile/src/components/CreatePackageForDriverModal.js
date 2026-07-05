@@ -83,7 +83,7 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
         deliveryDate: new Date(deliveryDate).toISOString(),
         urgency: "NORMAL",
         recipientPhone,
-        requestedDriverId: driver?.id,
+        requestedDriverId: driver?.id || driver?.driverId,
       });
 
       if (response.success) {

@@ -822,27 +822,72 @@ export class RealtimeService {
         ? `${pkg.customer.firstName || ""} ${pkg.customer.lastName || ""}`.trim()
         : "A customer";
 
+      let requestedDriverUserId: string | null = null;
+
       if (requestedDriverId) {
         const requestedDriver = await this.prisma.driver.findUnique({
           where: { id: requestedDriverId },
           select: { userId: true },
         });
-        if (requestedDriver?.userId) {
+        requestedDriverUserId = requestedDriver?.userId ?? null;
+        if (requestedDriverUserId) {
           await this.createNotification(
-            requestedDriver.userId,
+            requestedDriverUserId,
             "PACKAGE_STATUS",
             "New Package Request",
             `${customerName} sent you a package delivery request`,
             { packageId: pkg.id, type: "PACKAGE_REQUEST" },
           );
-          this.emitToUser(requestedDriver.userId, "package:request", {
+          this.emitToUser(requestedDriverUserId, "package:request", {
             packageId: pkg.id,
             package: pkg,
           });
         }
       }
 
+      const activeDrivers = await this.prisma.driver.findMany({
+        where: { active: true },
+        select: { userId: true },
+      });
+
+      for (const driver of activeDrivers) {
+        if (requestedDriverUserId && driver.userId === requestedDriverUserId) {
+          continue;
+        }
+        await this.createNotification(
+          driver.userId,
+          "PACKAGE_STATUS",
+          "New Package Available",
+          `New delivery: ${pkg.pickupAddress} → ${pkg.deliveryAddress}`,
+          { packageId: pkg.id },
+        );
+      }
+
       this.io.emit("package:new", { packageId: pkg.id, package: pkg });
+    } catch (_error) {
+      console.error("Realtime service error:", _error);
+    }
+  }
+
+  async notifyCustomerCounterOffer(
+    packageId: string,
+    bidId: string,
+    driverUserId: string,
+    amount: number,
+  ): Promise<void> {
+    try {
+      await this.createNotification(
+        driverUserId,
+        "BID_RECEIVED",
+        "Customer Counter Offer",
+        `Customer countered with P${amount} for your bid`,
+        { packageId, bidId, amount, type: "CUSTOMER_COUNTER" },
+      );
+      this.emitToUser(driverUserId, "bid:counter", {
+        packageId,
+        bidId,
+        amount,
+      });
     } catch (_error) {
       console.error("Realtime service error:", _error);
     }

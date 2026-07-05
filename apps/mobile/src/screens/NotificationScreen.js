@@ -7,8 +7,14 @@ import { useNavigation } from "../navigation/NavigationContext";
 import apiService from "../services/apiService";
 
 export const NotificationScreen = () => {
-  const { notifications, setNotifications, refreshNotifications, authToken } =
-    useNavigation();
+  const {
+    notifications,
+    setNotifications,
+    refreshNotifications,
+    authToken,
+    navigate,
+    userType,
+  } = useNavigation();
 
   useEffect(() => {
     if (authToken && refreshNotifications) {
@@ -29,6 +35,14 @@ export const NotificationScreen = () => {
       } catch {
         // UI already updated optimistically
       }
+    }
+  };
+
+  const handleNotificationPress = async (notification) => {
+    await markAsRead(notification.id);
+    if (notification.packageId) {
+      const isDriver = (userType || "").toLowerCase() === "driver";
+      navigate(isDriver ? "availablePackages" : "myPackages");
     }
   };
 
@@ -84,7 +98,7 @@ export const NotificationScreen = () => {
                   styles.notificationItem,
                   !notification.read && styles.notificationItemUnread,
                 ]}
-                onPress={() => markAsRead(notification.id)}
+                onPress={() => handleNotificationPress(notification)}
               >
                 <View style={styles.notificationIcon}>
                   <Text style={styles.notificationIconText}>

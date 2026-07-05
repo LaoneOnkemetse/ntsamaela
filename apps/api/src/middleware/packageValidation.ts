@@ -15,8 +15,8 @@ export const validateCreatePackage = [
 
   body("pickupAddress")
     .isString()
-    .isLength({ min: 5, max: 200 })
-    .withMessage("Pickup address must be between 5 and 200 characters"),
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Pickup address is required"),
 
   body("pickupLat")
     .isFloat({ min: -90, max: 90 })
@@ -28,8 +28,8 @@ export const validateCreatePackage = [
 
   body("deliveryAddress")
     .isString()
-    .isLength({ min: 5, max: 200 })
-    .withMessage("Delivery address must be between 5 and 200 characters"),
+    .isLength({ min: 1, max: 200 })
+    .withMessage("Delivery address is required"),
 
   body("deliveryLat")
     .isFloat({ min: -90, max: 90 })

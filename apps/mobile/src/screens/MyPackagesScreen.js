@@ -18,6 +18,7 @@ import { packageStyles } from "../styles/packageStyles";
 import { useNavigation } from "../navigation/NavigationContext";
 import { getStatusColor } from "../utils/packageUtils";
 import apiService from "../services/apiService";
+import { InputModal } from "../components/InputModal";
 
 export const MyPackagesScreen = () => {
   const { goBack, myPackages, authToken, refreshMyPackages, navigate } =
@@ -27,6 +28,9 @@ export const MyPackagesScreen = () => {
   const [packageBids, setPackageBids] = useState([]);
   const [bidsLoading, setBidsLoading] = useState(false);
   const [acceptingBidId, setAcceptingBidId] = useState(null);
+  const [showCounterModal, setShowCounterModal] = useState(false);
+  const [counterBidTarget, setCounterBidTarget] = useState(null);
+  const [countering, setCountering] = useState(false);
 
   const handleDeletePackage = (pkg) => {
     const status = (pkg.status || "").toUpperCase();
@@ -118,6 +122,49 @@ export const MyPackagesScreen = () => {
     navigate("driverProfile", false, {
       driverProfile: { driverId, driver: bid.driver },
     });
+  };
+
+  const handleCounterBid = (bid) => {
+    setCounterBidTarget(bid);
+    setShowCounterModal(true);
+  };
+
+  const submitCounterBid = async (amount) => {
+    setShowCounterModal(false);
+    if (!counterBidTarget || !amount) return;
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+      Alert.alert("Invalid amount", "Please enter a valid price.");
+      return;
+    }
+    setCountering(true);
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.customerCounterBid(
+        counterBidTarget.id,
+        parsed,
+      );
+      if (resp?.success === false) {
+        Alert.alert(
+          "Failed",
+          resp?.error?.message || "Could not send counter offer",
+        );
+        return;
+      }
+      Alert.alert(
+        "Counter sent",
+        `Your counter offer of P ${parsed} was sent to the driver.`,
+      );
+      if (selectedPackage?.id) {
+        await loadBidsForPackage(selectedPackage.id);
+      }
+      if (authToken) await refreshMyPackages(authToken);
+    } catch (e) {
+      Alert.alert("Failed", e?.message || "Could not send counter offer");
+    } finally {
+      setCountering(false);
+      setCounterBidTarget(null);
+    }
   };
 
   const handleAcceptBid = (bid) => {
@@ -407,17 +454,28 @@ export const MyPackagesScreen = () => {
                       {status === "PENDING" &&
                         (selectedPackage?.status || "").toUpperCase() ===
                           "PENDING" && (
-                          <TouchableOpacity
-                            style={styles.acceptButton}
-                            disabled={acceptingBidId === bid.id}
-                            onPress={() => handleAcceptBid(bid)}
-                          >
-                            <Text style={styles.acceptButtonText}>
-                              {acceptingBidId === bid.id
-                                ? "Accepting..."
-                                : "Accept Bid"}
-                            </Text>
-                          </TouchableOpacity>
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              style={[styles.acceptButton, { flex: 1 }]}
+                              disabled={acceptingBidId === bid.id}
+                              onPress={() => handleAcceptBid(bid)}
+                            >
+                              <Text style={styles.acceptButtonText}>
+                                {acceptingBidId === bid.id
+                                  ? "Accepting..."
+                                  : "Accept"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.counterButton, { flex: 1 }]}
+                              disabled={countering}
+                              onPress={() => handleCounterBid(bid)}
+                            >
+                              <Text style={styles.counterButtonText}>
+                                Counter
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                         )}
                     </View>
                   );
@@ -434,6 +492,18 @@ export const MyPackagesScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <InputModal
+        visible={showCounterModal}
+        title="Counter Offer"
+        placeholder="Enter your counter amount (P)"
+        keyboardType="decimal-pad"
+        onSubmit={submitCounterBid}
+        onCancel={() => {
+          setShowCounterModal(false);
+          setCounterBidTarget(null);
+        }}
+      />
     </View>
   );
 };
@@ -516,6 +586,18 @@ const styles = StyleSheet.create({
   },
   acceptButtonText: {
     color: "#fff",
+    fontWeight: "700",
+  },
+  counterButton: {
+    backgroundColor: colors.cardBg,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  counterButtonText: {
+    color: colors.primary,
     fontWeight: "700",
   },
   deleteButton: {

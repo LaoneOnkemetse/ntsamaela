@@ -132,14 +132,19 @@ export const AvailableDriversScreen = () => {
       const mappedTrips = Array.isArray(tripsList)
         ? tripsList.map((t) => ({
             id: t.id,
+            driverId: t.driver?.id,
+            userId: t.driver?.userId,
             driver:
               `${t.driver?.user?.firstName || ""} ${t.driver?.user?.lastName || ""}`.trim() ||
               "Driver",
             rating: t.driver?.rating || 0,
+            totalDeliveries: t.driver?.totalDeliveries || 0,
+            vehicle: t.driver?.vehicleType || "Vehicle",
+            photo: t.driver?.user?.profilePictureUrl || null,
             from: t.startAddress,
             to: t.endAddress,
             date: new Date(t.departureTime).toLocaleString(),
-            spacesLeft: 3,
+            spacesLeft: t.availableCapacity || 3,
             price: "—",
           }))
         : [];
@@ -245,31 +250,60 @@ export const AvailableDriversScreen = () => {
           {upcomingTrips.map((trip) => (
             <TouchableOpacity
               key={trip.id}
-              style={styles.tripCard}
+              style={styles.driverCard}
               onPress={() => handleCreatePackageForDriver(trip)}
               activeOpacity={0.7}
             >
-              <View style={styles.tripHeader}>
-                <Text style={styles.driverName}>{trip.driver}</Text>
-                <Text style={styles.driverRating}>{trip.rating || 0} ⭐</Text>
-              </View>
-              <View style={packageStyles.packageRoute}>
-                <Text style={packageStyles.packageLocation}>
-                  📍 {trip.from}
-                </Text>
-                <Text style={packageStyles.packageArrow}>→</Text>
-                <Text style={packageStyles.packageLocation}>📍 {trip.to}</Text>
-              </View>
-              <View style={styles.tripFooter}>
-                <Text style={styles.tripDate}>🕒 {trip.date}</Text>
-                <Text style={styles.tripSpaces}>
-                  {trip.spacesLeft || 3} spaces left
-                </Text>
-              </View>
-              <View style={styles.tripPrice}>
-                <Text style={styles.tripPriceText}>
-                  Starting from {trip.price || "P 100"}
-                </Text>
+              <View style={styles.driverCardContent}>
+                {trip.photo ? (
+                  <Image
+                    source={{ uri: trip.photo }}
+                    style={styles.driverPhoto}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={[styles.driverPhoto, styles.driverPhotoPlaceholder]}
+                  >
+                    <Text style={styles.driverPhotoInitial}>
+                      {(trip.driver?.[0] || "D").toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.driverDetails}>
+                  <View style={styles.driverHeader}>
+                    <View style={styles.driverInfo}>
+                      <Text style={styles.driverName}>{trip.driver}</Text>
+                      <View style={styles.driverMeta}>
+                        <Text style={styles.driverRating}>
+                          {trip.rating || 0} ⭐
+                        </Text>
+                        <Text style={styles.driverTrips}>
+                          {" "}
+                          • {trip.totalDeliveries || 0} deliveries
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.driverVehicle}>
+                    🚗 {trip.vehicle || "Vehicle"}
+                  </Text>
+                  <View style={[packageStyles.packageRoute, { marginTop: 8 }]}>
+                    <Text style={packageStyles.packageLocation}>
+                      📍 {trip.from}
+                    </Text>
+                    <Text style={packageStyles.packageArrow}>→</Text>
+                    <Text style={packageStyles.packageLocation}>
+                      📍 {trip.to}
+                    </Text>
+                  </View>
+                  <View style={styles.tripFooter}>
+                    <Text style={styles.tripDate}>🕒 {trip.date}</Text>
+                    <Text style={styles.tripSpaces}>
+                      {trip.spacesLeft || 3} spaces left
+                    </Text>
+                  </View>
+                </View>
               </View>
             </TouchableOpacity>
           ))}

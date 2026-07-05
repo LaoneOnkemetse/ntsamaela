@@ -17,12 +17,12 @@ import apiService from "../services/apiService";
 export const DriverProfileScreen = () => {
   const { goBack, screenParams, authToken } = useNavigation();
   const params = screenParams?.driverProfile || {};
-  const driverId = params.driverId;
-  const [driver, setDriver] = useState(params.driver || null);
-  const [loading, setLoading] = useState(!params.driver && !!driverId);
+  const driverId = params.driverId || params.driver?.id;
+  const [driver, setDriver] = useState(null);
+  const [loading, setLoading] = useState(!!driverId);
 
   useEffect(() => {
-    if (!driverId || params.driver) return;
+    if (!driverId) return;
     const load = async () => {
       setLoading(true);
       try {
@@ -30,20 +30,24 @@ export const DriverProfileScreen = () => {
         const resp = await apiService.getDriverById(driverId);
         if (resp?.success !== false && resp?.data) {
           setDriver(resp.data);
+        } else if (params.driver) {
+          setDriver(params.driver);
         }
       } catch (e) {
         console.warn("Failed to load driver profile:", e?.message);
+        if (params.driver) setDriver(params.driver);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [driverId, params.driver, authToken]);
+  }, [driverId, authToken, params.driver]);
 
   const name = driver?.user
     ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
     : "Driver";
   const photo = driver?.user?.profilePictureUrl;
+  const registration = driver?.licensePlate;
 
   return (
     <View style={sharedStyles.screenContainer}>
@@ -84,21 +88,29 @@ export const DriverProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Vehicle</Text>
               <Text style={styles.row}>🚗 {driver?.vehicleType || "—"}</Text>
-              {driver?.licensePlate ? (
-                <Text style={styles.row}>Plate: {driver.licensePlate}</Text>
-              ) : null}
+              <Text style={styles.row}>
+                🔖 Car registration: {registration || "Not provided"}
+              </Text>
               {driver?.carDescription ? (
                 <Text style={styles.row}>{driver.carDescription}</Text>
               ) : null}
             </View>
 
+            <Text style={styles.sectionTitle}>Car Photo</Text>
             {driver?.carPhotoUrl ? (
               <Image
                 source={{ uri: driver.carPhotoUrl }}
                 style={styles.carPhoto}
                 resizeMode="cover"
               />
-            ) : null}
+            ) : (
+              <View style={[styles.carPhoto, styles.carPhotoPlaceholder]}>
+                <Text style={styles.carPhotoPlaceholderText}>🚗</Text>
+                <Text style={styles.carPhotoPlaceholderLabel}>
+                  No car photo uploaded
+                </Text>
+              </View>
+            )}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
@@ -180,5 +192,20 @@ const styles = {
     borderRadius: 12,
     marginBottom: 12,
     backgroundColor: colors.border,
+  },
+  carPhotoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.cardBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  carPhotoPlaceholderText: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  carPhotoPlaceholderLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
 };

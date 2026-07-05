@@ -349,6 +349,23 @@ class ApiService {
     });
   }
 
+  async customerCounterBid(bidId, amount) {
+    return this.request("/api/bids/customer-counter", {
+      method: "POST",
+      body: JSON.stringify({ bidId, amount: parseFloat(amount) }),
+    });
+  }
+
+  async updateBid(bidId, amount, message = "") {
+    return this.request(`/api/bids/${bidId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        amount: parseFloat(amount),
+        message: message || `Updated bid: P${amount}`,
+      }),
+    });
+  }
+
   async submitCounterBid(packageId, amount) {
     return this.createBid({
       packageId,

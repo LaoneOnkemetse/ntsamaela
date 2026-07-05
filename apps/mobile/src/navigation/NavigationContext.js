@@ -175,21 +175,32 @@ export const NavigationProvider = ({ children }) => {
     }
   };
 
-  const formatNotificationForUi = (n) => ({
-    id: n.id,
-    type:
-      n.type === "BID_RECEIVED" ||
-      n.type === "BID_ACCEPTED" ||
-      n.type === "BID_REJECTED"
-        ? "bid"
-        : n.type === "PACKAGE_STATUS"
-          ? "delivery"
-          : "default",
-    title: n.title,
-    message: n.message || n.body,
-    time: n.createdAt ? new Date(n.createdAt).toLocaleString() : "Just now",
-    read: Boolean(n.isRead ?? n.read),
-  });
+  const formatNotificationForUi = (n) => {
+    let data = n.data;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        data = null;
+      }
+    }
+    return {
+      id: n.id,
+      type:
+        n.type === "BID_RECEIVED" ||
+        n.type === "BID_ACCEPTED" ||
+        n.type === "BID_REJECTED"
+          ? "bid"
+          : n.type === "PACKAGE_STATUS"
+            ? "delivery"
+            : "default",
+      title: n.title,
+      message: n.message || n.body,
+      time: n.createdAt ? new Date(n.createdAt).toLocaleString() : "Just now",
+      read: Boolean(n.isRead ?? n.read),
+      packageId: data?.packageId || null,
+    };
+  };
 
   const refreshNotifications = async (token) => {
     if (!token) return;
@@ -240,19 +251,26 @@ export const NavigationProvider = ({ children }) => {
     const onPackageNew = () => {
       if ((userType || "").toLowerCase() === "driver") {
         refreshAvailablePackages(authToken);
+        refreshNotifications(authToken);
       }
     };
 
     const onPackageRequest = () => {
       if ((userType || "").toLowerCase() === "driver") {
         refreshAvailablePackages(authToken);
+        refreshNotifications(authToken);
       }
+    };
+
+    const onBidCounter = () => {
+      refreshNotifications(authToken);
     };
 
     socketService.on("notification:new", onNotification);
     socketService.on("bid:received", onBidReceived);
     socketService.on("bid:accepted", onBidAccepted);
     socketService.on("bid:rejected", onBidAccepted);
+    socketService.on("bid:counter", onBidCounter);
     socketService.on("package:new", onPackageNew);
     socketService.on("package:request", onPackageRequest);
 
@@ -261,6 +279,7 @@ export const NavigationProvider = ({ children }) => {
       socketService.off("bid:received", onBidReceived);
       socketService.off("bid:accepted", onBidAccepted);
       socketService.off("bid:rejected", onBidAccepted);
+      socketService.off("bid:counter", onBidCounter);
       socketService.off("package:new", onPackageNew);
       socketService.off("package:request", onPackageRequest);
     };
