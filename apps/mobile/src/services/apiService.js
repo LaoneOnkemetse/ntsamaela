@@ -103,6 +103,20 @@ class ApiService {
           };
         }
 
+        // Client validation / auth errors — return structured response instead of throwing
+        if (response.status >= 400 && response.status < 500) {
+          return {
+            success: false,
+            data: null,
+            error: {
+              code: data?.error?.code || "REQUEST_FAILED",
+              message,
+              details: data?.error?.details,
+            },
+            statusCode: response.status,
+          };
+        }
+
         throw new Error(message);
       }
 
@@ -212,6 +226,10 @@ class ApiService {
   async getAllDrivers(filters = {}) {
     const queryParams = new URLSearchParams(filters).toString();
     return this.request(`/api/driver/all?${queryParams}`);
+  }
+
+  async getDriverById(driverId) {
+    return this.request(`/api/driver/${driverId}`);
   }
 
   // Trips

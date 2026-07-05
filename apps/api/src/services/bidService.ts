@@ -1,6 +1,6 @@
-import { getPrismaClient } from '@database/index';
-import { AppError } from '../utils/errors';
-import { getRealtimeService } from './realtimeService';
+import { getPrismaClient } from "@database/index";
+import { AppError } from "../utils/errors";
+import { getRealtimeService } from "./realtimeService";
 import {
   CreateBidRequest,
   UpdateBidRequest,
@@ -10,8 +10,8 @@ import {
   BidWithCommission,
   CommissionCalculation,
   BidAcceptanceRequest,
-  BidRejectionRequest
-} from '@ntsamaela/shared/types';
+  BidRejectionRequest,
+} from "@ntsamaela/shared/types";
 
 export interface BidWithRelations {
   id: string;
@@ -28,6 +28,9 @@ export interface BidWithRelations {
     userId: string;
     licensePlate?: string;
     vehicleType?: string;
+    carDescription?: string;
+    carPhotoUrl?: string;
+    locationName?: string;
     rating: number;
     totalDeliveries: number;
     user?: {
@@ -35,6 +38,7 @@ export interface BidWithRelations {
       firstName: string;
       lastName: string;
       phone: string;
+      profilePictureUrl?: string;
     };
   };
   package?: {
@@ -64,13 +68,13 @@ export interface BidWithRelations {
 
 class BidService {
   private prisma: any;
-  private readonly COMMISSION_PERCENTAGE = 0.30; // 30% commission
+  private readonly COMMISSION_PERCENTAGE = 0.3; // 30% commission
 
   private getPrisma() {
     if (!this.prisma) {
       this.prisma = getPrismaClient();
       if (!this.prisma) {
-        throw new Error('Database client not available');
+        throw new Error("Database client not available");
       }
     }
     return this.prisma;
@@ -84,52 +88,72 @@ class BidService {
       // Check if package exists and is available for bidding
       const package_ = await this.getPrisma().package.findUnique({
         where: { id: bidData.packageId },
-        include: { customer: true }
+        include: { customer: true },
       });
 
       if (!package_) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
-      if (package_.status !== 'PENDING') {
-        throw new AppError('Package is not available for bidding', 'PACKAGE_NOT_AVAILABLE', 400);
+      if (package_.status !== "PENDING") {
+        throw new AppError(
+          "Package is not available for bidding",
+          "PACKAGE_NOT_AVAILABLE",
+          400,
+        );
       }
 
       // Check if driver exists and is verified
       const driver = await this.getPrisma().driver.findUnique({
         where: { userId: bidData.driverId },
-        include: { user: true }
+        include: { user: true },
       });
 
       if (!driver) {
-        throw new AppError('Driver not found', 'DRIVER_NOT_FOUND', 404);
+        throw new AppError("Driver not found", "DRIVER_NOT_FOUND", 404);
       }
 
       if (!driver.user.identityVerified) {
-        throw new AppError('Driver must be verified to place bids', 'DRIVER_NOT_VERIFIED', 403);
+        throw new AppError(
+          "Driver must be verified to place bids",
+          "DRIVER_NOT_VERIFIED",
+          403,
+        );
       }
 
       // Check if driver is not bidding on their own package
       if (package_.customerId === driver.userId) {
-        throw new AppError('Cannot bid on your own package', 'INVALID_BID', 400);
+        throw new AppError(
+          "Cannot bid on your own package",
+          "INVALID_BID",
+          400,
+        );
       }
 
       // Check if trip exists and belongs to driver (if tripId provided)
       if (bidData.tripId) {
         const trip = await this.getPrisma().trip.findUnique({
-          where: { id: bidData.tripId }
+          where: { id: bidData.tripId },
         });
 
         if (!trip) {
-          throw new AppError('Trip not found', 'TRIP_NOT_FOUND', 404);
+          throw new AppError("Trip not found", "TRIP_NOT_FOUND", 404);
         }
 
         if (trip.driverId !== bidData.driverId) {
-          throw new AppError('Trip does not belong to driver', 'INVALID_TRIP', 400);
+          throw new AppError(
+            "Trip does not belong to driver",
+            "INVALID_TRIP",
+            400,
+          );
         }
 
-        if (trip.status !== 'SCHEDULED') {
-          throw new AppError('Trip is not available for bidding', 'TRIP_NOT_AVAILABLE', 400);
+        if (trip.status !== "SCHEDULED") {
+          throw new AppError(
+            "Trip is not available for bidding",
+            "TRIP_NOT_AVAILABLE",
+            400,
+          );
         }
       }
 
@@ -138,12 +162,16 @@ class BidService {
         where: {
           packageId: bidData.packageId,
           driverId: driver.id,
-          status: 'PENDING'
-        }
+          status: "PENDING",
+        },
       });
 
       if (existingBid) {
-        throw new AppError('Driver already has a pending bid on this package', 'DUPLICATE_BID', 400);
+        throw new AppError(
+          "Driver already has a pending bid on this package",
+          "DUPLICATE_BID",
+          400,
+        );
       }
 
       // Calculate commission
@@ -157,25 +185,28 @@ class BidService {
           tripId: bidData.tripId,
           amount: bidData.amount,
           message: bidData.message,
-          status: 'PENDING'
-        }
+          status: "PENDING",
+        },
       });
 
       const formattedBid = {
         ...this.formatBid(newBid),
         commissionAmount: commission.commissionAmount,
         driverEarnings: commission.driverEarnings,
-        platformFee: commission.platformFee
+        platformFee: commission.platformFee,
       };
 
       // Send real-time notification
       try {
         const realtimeService = getRealtimeService();
         if (realtimeService) {
-          await realtimeService.notifyBidReceived(bidData.packageId, formattedBid);
+          await realtimeService.notifyBidReceived(
+            bidData.packageId,
+            formattedBid,
+          );
         }
       } catch (notificationError) {
-        console.error('Failed to send bid notification:', notificationError);
+        console.error("Failed to send bid notification:", notificationError);
         // Don't fail the bid creation if notification fails
       }
 
@@ -184,11 +215,13 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to create bid', 'BID_CREATION_FAILED', 500);
+      throw new AppError("Failed to create bid", "BID_CREATION_FAILED", 500);
     }
   }
 
-  async getBids(filters: BidFilters = {}): Promise<{ bids: BidWithRelations[]; total: number }> {
+  async getBids(
+    filters: BidFilters = {},
+  ): Promise<{ bids: BidWithRelations[]; total: number }> {
     try {
       const {
         packageId,
@@ -200,7 +233,7 @@ class BidService {
         startDate,
         endDate,
         limit = 20,
-        offset = 0
+        offset = 0,
       } = filters;
 
       // Build where clause
@@ -254,10 +287,11 @@ class BidService {
                     id: true,
                     firstName: true,
                     lastName: true,
-                    phone: true
-                  }
-                }
-              }
+                    phone: true,
+                    profilePictureUrl: true,
+                  },
+                },
+              },
             },
             package: {
               include: {
@@ -266,10 +300,10 @@ class BidService {
                     id: true,
                     firstName: true,
                     lastName: true,
-                    phone: true
-                  }
-                }
-              }
+                    phone: true,
+                  },
+                },
+              },
             },
             trip: {
               select: {
@@ -278,23 +312,23 @@ class BidService {
                 endAddress: true,
                 departureTime: true,
                 availableCapacity: true,
-                status: true
-              }
-            }
+                status: true,
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: limit,
-          skip: offset
+          skip: offset,
         }),
-        this.getPrisma().bid.count({ where })
+        this.getPrisma().bid.count({ where }),
       ]);
 
       return {
         bids: bids.map((bid: any) => this.formatBidWithRelations(bid)),
-        total
+        total,
       };
     } catch (_error) {
-      throw new AppError('Failed to fetch bids', 'BID_FETCH_FAILED', 500);
+      throw new AppError("Failed to fetch bids", "BID_FETCH_FAILED", 500);
     }
   }
 
@@ -310,10 +344,11 @@ class BidService {
                   id: true,
                   firstName: true,
                   lastName: true,
-                  phone: true
-                }
-              }
-            }
+                  phone: true,
+                  profilePictureUrl: true,
+                },
+              },
+            },
           },
           package: {
             include: {
@@ -322,10 +357,10 @@ class BidService {
                   id: true,
                   firstName: true,
                   lastName: true,
-                  phone: true
-                }
-              }
-            }
+                  phone: true,
+                },
+              },
+            },
           },
           trip: {
             select: {
@@ -334,14 +369,14 @@ class BidService {
               endAddress: true,
               departureTime: true,
               availableCapacity: true,
-              status: true
-            }
-          }
-        }
+              status: true,
+            },
+          },
+        },
       });
 
       if (!bid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
       return this.formatBidWithRelations(bid);
@@ -349,33 +384,45 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to fetch bid', 'BID_FETCH_FAILED', 500);
+      throw new AppError("Failed to fetch bid", "BID_FETCH_FAILED", 500);
     }
   }
 
-  async updateBid(bidId: string, updateData: UpdateBidRequest, driverId: string): Promise<Bid> {
+  async updateBid(
+    bidId: string,
+    updateData: UpdateBidRequest,
+    driverId: string,
+  ): Promise<Bid> {
     try {
       // Check if bid exists and belongs to driver
       const existingBid = await this.getPrisma().bid.findUnique({
-        where: { id: bidId }
+        where: { id: bidId },
       });
 
       if (!existingBid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
       if (existingBid.driverId !== driverId) {
-        throw new AppError('Unauthorized to update this bid', 'UNAUTHORIZED', 403);
+        throw new AppError(
+          "Unauthorized to update this bid",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
-      if (existingBid.status !== 'PENDING') {
-        throw new AppError('Can only update pending bids', 'BID_NOT_PENDING', 400);
+      if (existingBid.status !== "PENDING") {
+        throw new AppError(
+          "Can only update pending bids",
+          "BID_NOT_PENDING",
+          400,
+        );
       }
 
       // Update bid
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
-        data: updateData
+        data: updateData,
       });
 
       return this.formatBid(updatedBid);
@@ -383,75 +430,91 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to update bid', 'BID_UPDATE_FAILED', 500);
+      throw new AppError("Failed to update bid", "BID_UPDATE_FAILED", 500);
     }
   }
 
-  async acceptBid(acceptanceData: BidAcceptanceRequest): Promise<BidWithCommission> {
+  async acceptBid(
+    acceptanceData: BidAcceptanceRequest,
+  ): Promise<BidWithCommission> {
     try {
-      const { bidId, customerId, commissionAmount: _commissionAmount } = acceptanceData;
+      const {
+        bidId,
+        customerId,
+        commissionAmount: _commissionAmount,
+      } = acceptanceData;
 
       // Check if bid exists
       const bid = await this.getPrisma().bid.findUnique({
         where: { id: bidId },
         include: {
           package: true,
-          driver: true
-        }
+          driver: true,
+        },
       });
 
       if (!bid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (bid.status !== 'PENDING') {
-        throw new AppError('Bid is not pending', 'BID_NOT_PENDING', 400);
+      if (bid.status !== "PENDING") {
+        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
       }
 
       // Check if customer owns the package
       if (bid.package.customerId !== customerId) {
-        throw new AppError('Unauthorized to accept this bid', 'UNAUTHORIZED', 403);
+        throw new AppError(
+          "Unauthorized to accept this bid",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
       // Check if package is still available
-      if (bid.package.status !== 'PENDING') {
-        throw new AppError('Package is no longer available', 'PACKAGE_NOT_AVAILABLE', 400);
+      if (bid.package.status !== "PENDING") {
+        throw new AppError(
+          "Package is no longer available",
+          "PACKAGE_NOT_AVAILABLE",
+          400,
+        );
       }
 
       // Use transaction to ensure atomicity
-      const result = await this.getPrisma().$transaction(async (prisma: any) => {
-        // Update bid status to accepted
-        const updatedBid = await prisma.bid.update({
-          where: { id: bidId },
-          data: { status: 'ACCEPTED' }
-        });
-
-        // Update package status to accepted
-        await prisma.package.update({
-          where: { id: bid.packageId },
-          data: { status: 'ACCEPTED' }
-        });
-
-        // Reject all other pending bids for this package
-        await prisma.bid.updateMany({
-          where: {
-            packageId: bid.packageId,
-            id: { not: bidId },
-            status: 'PENDING'
-          },
-          data: { status: 'REJECTED' }
-        });
-
-        // If bid is associated with a trip, update trip status
-        if (bid.tripId) {
-          await prisma.trip.update({
-            where: { id: bid.tripId },
-            data: { status: 'IN_PROGRESS' }
+      const result = await this.getPrisma().$transaction(
+        async (prisma: any) => {
+          // Update bid status to accepted
+          const updatedBid = await prisma.bid.update({
+            where: { id: bidId },
+            data: { status: "ACCEPTED" },
           });
-        }
 
-        return updatedBid;
-      });
+          // Update package status to accepted
+          await prisma.package.update({
+            where: { id: bid.packageId },
+            data: { status: "ACCEPTED" },
+          });
+
+          // Reject all other pending bids for this package
+          await prisma.bid.updateMany({
+            where: {
+              packageId: bid.packageId,
+              id: { not: bidId },
+              status: "PENDING",
+            },
+            data: { status: "REJECTED" },
+          });
+
+          // If bid is associated with a trip, update trip status
+          if (bid.tripId) {
+            await prisma.trip.update({
+              where: { id: bid.tripId },
+              data: { status: "IN_PROGRESS" },
+            });
+          }
+
+          return updatedBid;
+        },
+      );
 
       const commission = this.calculateCommission(bid.amount);
 
@@ -459,17 +522,24 @@ class BidService {
         ...this.formatBid(result),
         commissionAmount: commission.commissionAmount,
         driverEarnings: commission.driverEarnings,
-        platformFee: commission.platformFee
+        platformFee: commission.platformFee,
       };
 
       // Send real-time notification
       try {
         const realtimeService = getRealtimeService();
         if (realtimeService) {
-          await realtimeService.notifyBidAccepted(bid.packageId, bidId, bid.driverId);
+          await realtimeService.notifyBidAccepted(
+            bid.packageId,
+            bidId,
+            bid.driver.userId,
+          );
         }
       } catch (notificationError) {
-        console.error('Failed to send bid acceptance notification:', notificationError);
+        console.error(
+          "Failed to send bid acceptance notification:",
+          notificationError,
+        );
         // Don't fail the bid acceptance if notification fails
       }
 
@@ -478,7 +548,7 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to accept bid', 'BID_ACCEPTANCE_FAILED', 500);
+      throw new AppError("Failed to accept bid", "BID_ACCEPTANCE_FAILED", 500);
     }
   }
 
@@ -488,24 +558,27 @@ class BidService {
 
       // Check if bid exists
       const existingBid = await this.getPrisma().bid.findUnique({
-        where: { id: bidId }
+        where: { id: bidId },
+        include: { driver: { select: { userId: true } } },
       });
 
       if (!existingBid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (existingBid.status !== 'PENDING') {
-        throw new AppError('Bid is not pending', 'BID_NOT_PENDING', 400);
+      if (existingBid.status !== "PENDING") {
+        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
       }
 
       // Update bid status to rejected
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
-        data: { 
-          status: 'REJECTED',
-          message: reason ? `${existingBid.message || ''}\nRejection reason: ${reason}`.trim() : existingBid.message
-        }
+        data: {
+          status: "REJECTED",
+          message: reason
+            ? `${existingBid.message || ""}\nRejection reason: ${reason}`.trim()
+            : existingBid.message,
+        },
       });
 
       const formattedBid = this.formatBid(updatedBid);
@@ -514,10 +587,17 @@ class BidService {
       try {
         const realtimeService = getRealtimeService();
         if (realtimeService) {
-          await realtimeService.notifyBidRejected(existingBid.packageId, bidId, existingBid.driverId);
+          await realtimeService.notifyBidRejected(
+            existingBid.packageId,
+            bidId,
+            existingBid.driver?.userId || existingBid.driverId,
+          );
         }
       } catch (notificationError) {
-        console.error('Failed to send bid rejection notification:', notificationError);
+        console.error(
+          "Failed to send bid rejection notification:",
+          notificationError,
+        );
         // Don't fail the bid rejection if notification fails
       }
 
@@ -526,7 +606,7 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to reject bid', 'BID_REJECTION_FAILED', 500);
+      throw new AppError("Failed to reject bid", "BID_REJECTION_FAILED", 500);
     }
   }
 
@@ -534,25 +614,33 @@ class BidService {
     try {
       // Check if bid exists and belongs to driver
       const existingBid = await this.getPrisma().bid.findUnique({
-        where: { id: bidId }
+        where: { id: bidId },
       });
 
       if (!existingBid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
       if (existingBid.driverId !== driverId) {
-        throw new AppError('Unauthorized to cancel this bid', 'UNAUTHORIZED', 403);
+        throw new AppError(
+          "Unauthorized to cancel this bid",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
-      if (existingBid.status !== 'PENDING') {
-        throw new AppError('Can only cancel pending bids', 'BID_NOT_PENDING', 400);
+      if (existingBid.status !== "PENDING") {
+        throw new AppError(
+          "Can only cancel pending bids",
+          "BID_NOT_PENDING",
+          400,
+        );
       }
 
       // Update bid status to cancelled
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
-        data: { status: 'CANCELLED' }
+        data: { status: "CANCELLED" },
       });
 
       return this.formatBid(updatedBid);
@@ -560,37 +648,51 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to cancel bid', 'BID_CANCELLATION_FAILED', 500);
+      throw new AppError(
+        "Failed to cancel bid",
+        "BID_CANCELLATION_FAILED",
+        500,
+      );
     }
   }
 
-  async getBidsByDriver(driverId: string, filters: BidFilters = {}): Promise<{ bids: BidWithRelations[]; total: number }> {
+  async getBidsByDriver(
+    driverId: string,
+    filters: BidFilters = {},
+  ): Promise<{ bids: BidWithRelations[]; total: number }> {
     return this.getBids({ ...filters, driverId });
   }
 
-  async getBidsByPackage(packageId: string, filters: BidFilters = {}): Promise<{ bids: BidWithRelations[]; total: number }> {
+  async getBidsByPackage(
+    packageId: string,
+    filters: BidFilters = {},
+  ): Promise<{ bids: BidWithRelations[]; total: number }> {
     return this.getBids({ ...filters, packageId });
   }
 
-  async getPendingBids(filters: BidFilters = {}): Promise<{ bids: BidWithRelations[]; total: number }> {
-    return this.getBids({ ...filters, status: 'PENDING' });
+  async getPendingBids(
+    filters: BidFilters = {},
+  ): Promise<{ bids: BidWithRelations[]; total: number }> {
+    return this.getBids({ ...filters, status: "PENDING" });
   }
 
-  async getRecommendedBid(packageId: string): Promise<{ recommendedAmount: number; reasoning: string }> {
+  async getRecommendedBid(
+    packageId: string,
+  ): Promise<{ recommendedAmount: number; reasoning: string }> {
     try {
       const package_ = await this.getPrisma().package.findUnique({
         where: { id: packageId },
         include: {
           bids: {
-            where: { status: 'PENDING' },
-            orderBy: { amount: 'asc' },
-            take: 5
-          }
-        }
+            where: { status: "PENDING" },
+            orderBy: { amount: "asc" },
+            take: 5,
+          },
+        },
       });
 
       if (!package_) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
       // Calculate recommended bid based on:
@@ -599,61 +701,80 @@ class BidService {
       // 3. Distance and urgency
       const priceOffered = package_.priceOffered;
       const existingBids = package_.bids || [];
-      
+
       let recommendedAmount = priceOffered * 0.9; // Start at 90% of offered price
-      
+
       if (existingBids.length > 0) {
-        const averageBid = existingBids.reduce((sum: number, bid: any) => sum + bid.amount, 0) / existingBids.length;
+        const averageBid =
+          existingBids.reduce((sum: number, bid: any) => sum + bid.amount, 0) /
+          existingBids.length;
         const minBid = Math.min(...existingBids.map((bid: any) => bid.amount));
         // Recommend slightly below average but above minimum
         recommendedAmount = Math.max(minBid * 1.05, averageBid * 0.95);
       }
 
       // Adjust based on urgency
-      if (package_.urgency === 'URGENT') {
+      if (package_.urgency === "URGENT") {
         recommendedAmount = recommendedAmount * 1.1; // 10% premium for urgent
       }
 
       // Round to 2 decimal places
       recommendedAmount = Math.round(recommendedAmount * 100) / 100;
 
-      const reasoning = existingBids.length > 0
-        ? `Based on ${existingBids.length} existing bids, recommended amount is ${recommendedAmount.toFixed(2)}`
-        : `Based on package price of ${priceOffered}, recommended amount is ${recommendedAmount.toFixed(2)}`;
+      const reasoning =
+        existingBids.length > 0
+          ? `Based on ${existingBids.length} existing bids, recommended amount is ${recommendedAmount.toFixed(2)}`
+          : `Based on package price of ${priceOffered}, recommended amount is ${recommendedAmount.toFixed(2)}`;
 
       return {
         recommendedAmount,
-        reasoning
+        reasoning,
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to get recommended bid', 'RECOMMENDED_BID_FAILED', 500);
+      throw new AppError(
+        "Failed to get recommended bid",
+        "RECOMMENDED_BID_FAILED",
+        500,
+      );
     }
   }
 
-  async counterBid(bidId: string, newAmount: number, driverId: string): Promise<BidWithCommission> {
+  async counterBid(
+    bidId: string,
+    newAmount: number,
+    driverId: string,
+  ): Promise<BidWithCommission> {
     try {
       const existingBid = await this.getPrisma().bid.findUnique({
         where: { id: bidId },
-        include: { package: true }
+        include: { package: true },
       });
 
       if (!existingBid) {
-        throw new AppError('Bid not found', 'BID_NOT_FOUND', 404);
+        throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
       if (existingBid.driverId !== driverId) {
-        throw new AppError('Unauthorized to modify this bid', 'UNAUTHORIZED', 403);
+        throw new AppError(
+          "Unauthorized to modify this bid",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
-      if (existingBid.status !== 'PENDING') {
-        throw new AppError('Bid is not pending', 'BID_NOT_PENDING', 400);
+      if (existingBid.status !== "PENDING") {
+        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
       }
 
       if (newAmount <= 0) {
-        throw new AppError('Bid amount must be greater than 0', 'INVALID_AMOUNT', 400);
+        throw new AppError(
+          "Bid amount must be greater than 0",
+          "INVALID_AMOUNT",
+          400,
+        );
       }
 
       // Update bid amount
@@ -661,17 +782,17 @@ class BidService {
         where: { id: bidId },
         data: {
           amount: newAmount,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         include: {
           driver: {
-            include: { user: true }
+            include: { user: true },
           },
           package: {
-            include: { customer: true }
+            include: { customer: true },
           },
-          trip: true
-        }
+          trip: true,
+        },
       });
 
       const commission = this.calculateCommission(newAmount);
@@ -680,17 +801,23 @@ class BidService {
         ...this.formatBid(updatedBid),
         commissionAmount: commission.commissionAmount,
         driverEarnings: commission.driverEarnings,
-        platformFee: commission.platformFee
+        platformFee: commission.platformFee,
       };
 
       // Send real-time notification
       try {
         const realtimeService = getRealtimeService();
         if (realtimeService) {
-          await realtimeService.notifyBidReceived(existingBid.packageId, formattedBid);
+          await realtimeService.notifyBidReceived(
+            existingBid.packageId,
+            formattedBid,
+          );
         }
       } catch (notificationError) {
-        console.error('Failed to send counter bid notification:', notificationError);
+        console.error(
+          "Failed to send counter bid notification:",
+          notificationError,
+        );
       }
 
       return formattedBid;
@@ -698,13 +825,14 @@ class BidService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to counter bid', 'COUNTER_BID_FAILED', 500);
+      throw new AppError("Failed to counter bid", "COUNTER_BID_FAILED", 500);
     }
   }
 
   // Commission calculation methods
   calculateCommission(amount: number): CommissionCalculation {
-    const commissionAmount = Math.floor(amount * this.COMMISSION_PERCENTAGE * 100) / 100; // Floor to 2 decimal places
+    const commissionAmount =
+      Math.floor(amount * this.COMMISSION_PERCENTAGE * 100) / 100; // Floor to 2 decimal places
     const driverEarnings = Math.floor((amount - commissionAmount) * 100) / 100;
     const platformFee = commissionAmount;
 
@@ -713,7 +841,7 @@ class BidService {
       commissionPercentage: this.COMMISSION_PERCENTAGE,
       commissionAmount,
       driverEarnings,
-      platformFee
+      platformFee,
     };
   }
 
@@ -721,33 +849,37 @@ class BidService {
   async preAuthorizeCommission(
     driverId: string,
     tripId: string | undefined,
-    commissionAmount: number
+    commissionAmount: number,
   ): Promise<{ id: string; status: string }> {
     try {
       // Check if driver has sufficient wallet balance
       const wallet = await this.getPrisma().wallet.findUnique({
-        where: { userId: driverId }
+        where: { userId: driverId },
       });
 
       if (!wallet) {
-        throw new AppError('Driver wallet not found', 'WALLET_NOT_FOUND', 404);
+        throw new AppError("Driver wallet not found", "WALLET_NOT_FOUND", 404);
       }
 
       const totalReserved = wallet.reservedBalance + commissionAmount;
       if (totalReserved > wallet.availableBalance) {
-        throw new AppError('Insufficient wallet balance for commission', 'INSUFFICIENT_BALANCE', 400);
+        throw new AppError(
+          "Insufficient wallet balance for commission",
+          "INSUFFICIENT_BALANCE",
+          400,
+        );
       }
 
       // Create commission reservation
       const reservation = await this.getPrisma().commissionReservation.create({
         data: {
           driverId,
-          tripId: tripId || 'temp',
+          tripId: tripId || "temp",
           amount: commissionAmount,
           percentage: this.COMMISSION_PERCENTAGE * 100,
-          status: 'PENDING',
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-        }
+          status: "PENDING",
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        },
       });
 
       // Update wallet reserved balance
@@ -755,41 +887,54 @@ class BidService {
         where: { userId: driverId },
         data: {
           reservedBalance: {
-            increment: commissionAmount
-          }
-        }
+            increment: commissionAmount,
+          },
+        },
       });
 
       return {
         id: reservation.id,
-        status: reservation.status
+        status: reservation.status,
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to pre-authorize commission', 'COMMISSION_AUTHORIZATION_FAILED', 500);
+      throw new AppError(
+        "Failed to pre-authorize commission",
+        "COMMISSION_AUTHORIZATION_FAILED",
+        500,
+      );
     }
   }
 
   async confirmCommissionReservation(reservationId: string): Promise<void> {
     try {
-      const reservation = await this.getPrisma().commissionReservation.findUnique({
-        where: { id: reservationId }
-      });
+      const reservation =
+        await this.getPrisma().commissionReservation.findUnique({
+          where: { id: reservationId },
+        });
 
       if (!reservation) {
-        throw new AppError('Commission reservation not found', 'RESERVATION_NOT_FOUND', 404);
+        throw new AppError(
+          "Commission reservation not found",
+          "RESERVATION_NOT_FOUND",
+          404,
+        );
       }
 
-      if (reservation.status !== 'PENDING') {
-        throw new AppError('Commission reservation is not pending', 'INVALID_RESERVATION_STATUS', 400);
+      if (reservation.status !== "PENDING") {
+        throw new AppError(
+          "Commission reservation is not pending",
+          "INVALID_RESERVATION_STATUS",
+          400,
+        );
       }
 
       // Update reservation status
       await this.getPrisma().commissionReservation.update({
         where: { id: reservationId },
-        data: { status: 'CONFIRMED' }
+        data: { status: "CONFIRMED" },
       });
 
       // Move funds from reserved to platform fee
@@ -797,48 +942,57 @@ class BidService {
         where: { userId: reservation.driverId },
         data: {
           reservedBalance: {
-            decrement: reservation.amount
-          }
-        }
+            decrement: reservation.amount,
+          },
+        },
       });
 
       // Create transaction record
       await this.getPrisma().transaction.create({
         data: {
           userId: reservation.driverId,
-          type: 'COMMISSION',
+          type: "COMMISSION",
           amount: reservation.amount,
-          status: 'COMPLETED',
+          status: "COMPLETED",
           description: `Commission payment for trip ${reservation.tripId}`,
-          reference: reservationId
-        }
+          reference: reservationId,
+        },
       });
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to confirm commission reservation', 'COMMISSION_CONFIRMATION_FAILED', 500);
+      throw new AppError(
+        "Failed to confirm commission reservation",
+        "COMMISSION_CONFIRMATION_FAILED",
+        500,
+      );
     }
   }
 
   async releaseCommissionReservation(reservationId: string): Promise<void> {
     try {
-      const reservation = await this.getPrisma().commissionReservation.findUnique({
-        where: { id: reservationId }
-      });
+      const reservation =
+        await this.getPrisma().commissionReservation.findUnique({
+          where: { id: reservationId },
+        });
 
       if (!reservation) {
-        throw new AppError('Commission reservation not found', 'RESERVATION_NOT_FOUND', 404);
+        throw new AppError(
+          "Commission reservation not found",
+          "RESERVATION_NOT_FOUND",
+          404,
+        );
       }
 
-      if (reservation.status === 'RELEASED') {
+      if (reservation.status === "RELEASED") {
         return; // Already released
       }
 
       // Update reservation status
       await this.getPrisma().commissionReservation.update({
         where: { id: reservationId },
-        data: { status: 'RELEASED' }
+        data: { status: "RELEASED" },
       });
 
       // Release reserved funds back to available balance
@@ -846,28 +1000,33 @@ class BidService {
         where: { userId: reservation.driverId },
         data: {
           reservedBalance: {
-            decrement: reservation.amount
-          }
-        }
+            decrement: reservation.amount,
+          },
+        },
       });
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to release commission reservation', 'COMMISSION_RELEASE_FAILED', 500);
+      throw new AppError(
+        "Failed to release commission reservation",
+        "COMMISSION_RELEASE_FAILED",
+        500,
+      );
     }
   }
 
   async cleanupExpiredReservations(): Promise<number> {
     try {
-      const expiredReservations = await this.getPrisma().commissionReservation.findMany({
-        where: {
-          status: 'PENDING',
-          expiresAt: {
-            lt: new Date()
-          }
-        }
-      });
+      const expiredReservations =
+        await this.getPrisma().commissionReservation.findMany({
+          where: {
+            status: "PENDING",
+            expiresAt: {
+              lt: new Date(),
+            },
+          },
+        });
 
       let cleanedCount = 0;
       for (const reservation of expiredReservations) {
@@ -877,7 +1036,7 @@ class BidService {
 
       return cleanedCount;
     } catch (_error: any) {
-      console.error('Failed to cleanup expired reservations:', _error);
+      console.error("Failed to cleanup expired reservations:", _error);
       return 0;
     }
   }
@@ -885,23 +1044,35 @@ class BidService {
   // Private helper methods
   private validateBidData(bidData: CreateBidRequest): void {
     if (!bidData.packageId) {
-      throw new AppError('Package ID is required', 'VALIDATION_ERROR', 400);
+      throw new AppError("Package ID is required", "VALIDATION_ERROR", 400);
     }
 
     if (!bidData.driverId) {
-      throw new AppError('Driver ID is required', 'VALIDATION_ERROR', 400);
+      throw new AppError("Driver ID is required", "VALIDATION_ERROR", 400);
     }
 
-    if (typeof bidData.amount !== 'number' || bidData.amount <= 0) {
-      throw new AppError('Valid bid amount is required', 'VALIDATION_ERROR', 400);
+    if (typeof bidData.amount !== "number" || bidData.amount <= 0) {
+      throw new AppError(
+        "Valid bid amount is required",
+        "VALIDATION_ERROR",
+        400,
+      );
     }
 
     if (bidData.amount < 1) {
-      throw new AppError('Bid amount must be at least $1', 'VALIDATION_ERROR', 400);
+      throw new AppError(
+        "Bid amount must be at least $1",
+        "VALIDATION_ERROR",
+        400,
+      );
     }
 
     if (bidData.amount > 10000) {
-      throw new AppError('Bid amount cannot exceed $10,000', 'VALIDATION_ERROR', 400);
+      throw new AppError(
+        "Bid amount cannot exceed $10,000",
+        "VALIDATION_ERROR",
+        400,
+      );
     }
   }
 
@@ -915,50 +1086,64 @@ class BidService {
       status: bid.status,
       message: bid.message,
       createdAt: bid.createdAt.toISOString(),
-      updatedAt: bid.updatedAt.toISOString()
+      updatedAt: bid.updatedAt.toISOString(),
     };
   }
 
   private formatBidWithRelations(bid: any): BidWithRelations {
     return {
       ...this.formatBid(bid),
-      driver: bid.driver ? {
-        id: bid.driver.id,
-        userId: bid.driver.userId,
-        licensePlate: bid.driver.licensePlate,
-        vehicleType: bid.driver.vehicleType,
-        rating: bid.driver.rating,
-        totalDeliveries: bid.driver.totalDeliveries,
-        user: bid.driver.user ? {
-          id: bid.driver.user.id,
-          firstName: bid.driver.user.firstName,
-          lastName: bid.driver.user.lastName,
-          phone: bid.driver.user.phone
-        } : undefined
-      } : undefined,
-      package: bid.package ? {
-        id: bid.package.id,
-        customerId: bid.package.customerId,
-        description: bid.package.description,
-        pickupAddress: bid.package.pickupAddress,
-        deliveryAddress: bid.package.deliveryAddress,
-        priceOffered: bid.package.priceOffered,
-        status: bid.package.status,
-        customer: bid.package.customer ? {
-          id: bid.package.customer.id,
-          firstName: bid.package.customer.firstName,
-          lastName: bid.package.customer.lastName,
-          phone: bid.package.customer.phone
-        } : undefined
-      } : undefined,
-      trip: bid.trip ? {
-        id: bid.trip.id,
-        startAddress: bid.trip.startAddress,
-        endAddress: bid.trip.endAddress,
-        departureTime: bid.trip.departureTime.toISOString(),
-        availableCapacity: bid.trip.availableCapacity,
-        status: bid.trip.status
-      } : undefined
+      driver: bid.driver
+        ? {
+            id: bid.driver.id,
+            userId: bid.driver.userId,
+            licensePlate: bid.driver.licensePlate,
+            vehicleType: bid.driver.vehicleType,
+            carDescription: bid.driver.carDescription,
+            carPhotoUrl: bid.driver.carPhotoUrl,
+            rating: bid.driver.rating,
+            totalDeliveries: bid.driver.totalDeliveries,
+            locationName: bid.driver.locationName,
+            user: bid.driver.user
+              ? {
+                  id: bid.driver.user.id,
+                  firstName: bid.driver.user.firstName,
+                  lastName: bid.driver.user.lastName,
+                  phone: bid.driver.user.phone,
+                  profilePictureUrl: bid.driver.user.profilePictureUrl,
+                }
+              : undefined,
+          }
+        : undefined,
+      package: bid.package
+        ? {
+            id: bid.package.id,
+            customerId: bid.package.customerId,
+            description: bid.package.description,
+            pickupAddress: bid.package.pickupAddress,
+            deliveryAddress: bid.package.deliveryAddress,
+            priceOffered: bid.package.priceOffered,
+            status: bid.package.status,
+            customer: bid.package.customer
+              ? {
+                  id: bid.package.customer.id,
+                  firstName: bid.package.customer.firstName,
+                  lastName: bid.package.customer.lastName,
+                  phone: bid.package.customer.phone,
+                }
+              : undefined,
+          }
+        : undefined,
+      trip: bid.trip
+        ? {
+            id: bid.trip.id,
+            startAddress: bid.trip.startAddress,
+            endAddress: bid.trip.endAddress,
+            departureTime: bid.trip.departureTime.toISOString(),
+            availableCapacity: bid.trip.availableCapacity,
+            status: bid.trip.status,
+          }
+        : undefined,
     };
   }
 }

@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
-import packageService from '../services/packageService';
-import cloudStorageService from '../services/cloudStorageService';
-import { AppError } from '../utils/AppError';
-import { validationResult } from 'express-validator';
-import { PackageFilters } from '../services/mockPackageService';
+import { Request, Response } from "express";
+import packageService from "../services/packageService";
+import cloudStorageService from "../services/cloudStorageService";
+import { AppError } from "../utils/AppError";
+import { validationResult } from "express-validator";
+import { PackageFilters } from "../services/mockPackageService";
 
 export class PackageController {
   async createPackage(req: Request, res: Response) {
@@ -14,10 +14,10 @@ export class PackageController {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid input data',
-            details: errors.array()
-          }
+            code: "VALIDATION_ERROR",
+            message: "Invalid input data",
+            details: errors.array(),
+          },
         });
       }
 
@@ -33,14 +33,15 @@ export class PackageController {
         deliveryLng: parseFloat(req.body.deliveryLng),
         priceOffered: parseFloat(req.body.priceOffered),
         size: req.body.size,
-        weight: req.body.weight ? parseFloat(req.body.weight) : undefined
+        weight: req.body.weight ? parseFloat(req.body.weight) : undefined,
+        requestedDriverId: req.body.requestedDriverId,
       };
 
       // Handle image upload if present
       if (req.file) {
         const uploadResult = await cloudStorageService.uploadPackageImage(
           req.file,
-          userId
+          userId,
         );
         packageData.imageUrl = uploadResult.url;
       }
@@ -50,27 +51,27 @@ export class PackageController {
       res.status(201).json({
         success: true,
         data: result,
-        message: 'Package created successfully'
+        message: "Package created successfully",
       });
     } catch (_error: any) {
-      console.error('Error creating package:', _error);
-      
+      console.error("Error creating package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create package'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to create package",
+        },
       });
     }
   }
@@ -79,24 +80,34 @@ export class PackageController {
     try {
       const filters: any = {
         status: req.query.status as string,
-        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
-        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        minPrice: req.query.minPrice
+          ? parseFloat(req.query.minPrice as string)
+          : undefined,
+        maxPrice: req.query.maxPrice
+          ? parseFloat(req.query.maxPrice as string)
+          : undefined,
         size: req.query.size as string,
         customerId: req.query.customerId as string,
         search: req.query.search as string,
-        weight: req.query.weight ? parseFloat(req.query.weight as string) : undefined,
-        minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
-        maxWeight: req.query.maxWeight ? parseFloat(req.query.maxWeight as string) : undefined,
+        weight: req.query.weight
+          ? parseFloat(req.query.weight as string)
+          : undefined,
+        minWeight: req.query.minWeight
+          ? parseFloat(req.query.minWeight as string)
+          : undefined,
+        maxWeight: req.query.maxWeight
+          ? parseFloat(req.query.maxWeight as string)
+          : undefined,
         dateFrom: req.query.dateFrom as string,
         dateTo: req.query.dateTo as string,
-        sortBy: req.query.sortBy as string || 'createdAt',
-        sortOrder: req.query.sortOrder as string || 'desc',
+        sortBy: (req.query.sortBy as string) || "createdAt",
+        sortOrder: (req.query.sortOrder as string) || "desc",
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
-        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
       };
 
       // Remove undefined values
-      Object.keys(filters).forEach(key => {
+      Object.keys(filters).forEach((key) => {
         if (filters[key as keyof typeof filters] === undefined) {
           delete filters[key as keyof typeof filters];
         }
@@ -106,27 +117,27 @@ export class PackageController {
 
       res.json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (_error: any) {
-      console.error('Error fetching packages:', _error);
-      
+      console.error("Error fetching packages:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to fetch packages'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to fetch packages",
+        },
       });
     }
   }
@@ -138,27 +149,27 @@ export class PackageController {
 
       res.json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to fetch package'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to fetch package",
+        },
       });
     }
   }
@@ -171,10 +182,10 @@ export class PackageController {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid input data',
-            details: errors.array()
-          }
+            code: "VALIDATION_ERROR",
+            message: "Invalid input data",
+            details: errors.array(),
+          },
         });
       }
 
@@ -187,27 +198,27 @@ export class PackageController {
       res.json({
         success: true,
         data: result,
-        message: 'Package updated successfully'
+        message: "Package updated successfully",
       });
     } catch (_error: any) {
-      console.error('Error updating package:', _error);
-      
+      console.error("Error updating package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Internal server error'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Internal server error",
+        },
       });
     }
   }
@@ -220,10 +231,10 @@ export class PackageController {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid input data',
-            details: errors.array()
-          }
+            code: "VALIDATION_ERROR",
+            message: "Invalid input data",
+            details: errors.array(),
+          },
         });
       }
 
@@ -231,7 +242,7 @@ export class PackageController {
       const authenticatedUser = (req as any).user;
       const updateData = {
         status: req.body.status,
-        notes: req.body.notes
+        notes: req.body.notes,
       };
 
       // First, get the package to check ownership
@@ -240,49 +251,55 @@ export class PackageController {
         return res.status(404).json({
           success: false,
           error: {
-            code: 'PACKAGE_NOT_FOUND',
-            message: 'Package not found'
-          }
+            code: "PACKAGE_NOT_FOUND",
+            message: "Package not found",
+          },
         });
       }
 
       // Access control: Only the package owner or admin can update status
-      if (authenticatedUser.role !== 'ADMIN' && (package_ as any).data?.customerId !== authenticatedUser.id) {
+      if (
+        authenticatedUser.role !== "ADMIN" &&
+        (package_ as any).data?.customerId !== authenticatedUser.id
+      ) {
         return res.status(403).json({
           success: false,
           error: {
-            code: 'ACCESS_DENIED',
-            message: 'Access denied. You can only update your own packages.'
-          }
+            code: "ACCESS_DENIED",
+            message: "Access denied. You can only update your own packages.",
+          },
         });
       }
 
-      const result = await (packageService as any).updatePackageStatus(id, { status: updateData.status, notes: updateData.notes });
+      const result = await (packageService as any).updatePackageStatus(id, {
+        status: updateData.status,
+        notes: updateData.notes,
+      });
 
       res.json({
         success: true,
         data: (result as any).data ?? result,
-        message: 'Package status updated successfully'
+        message: "Package status updated successfully",
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to update package status'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to update package status",
+        },
       });
     }
   }
@@ -296,27 +313,27 @@ export class PackageController {
 
       res.json({
         success: true,
-        message: result?.message || 'Package deleted successfully'
+        message: result?.message || "Package deleted successfully",
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to delete package'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to delete package",
+        },
       });
     }
   }
@@ -327,48 +344,46 @@ export class PackageController {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'NO_FILE',
-            message: 'No image file provided'
-          }
+            code: "NO_FILE",
+            message: "No image file provided",
+          },
         });
       }
 
       const userId = (req as any).user.id;
       const packageId = req.params.id;
 
-      const uploadResult = await (cloudStorageService as any).uploadPackageImage(
-        req.file,
-        userId,
-        packageId
-      );
+      const uploadResult = await (
+        cloudStorageService as any
+      ).uploadPackageImage(req.file, userId, packageId);
 
       res.json({
         success: true,
         data: {
           imageUrl: uploadResult.url,
-          key: uploadResult.key
+          key: uploadResult.key,
         },
-        message: 'Image uploaded successfully'
+        message: "Image uploaded successfully",
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to upload image'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to upload image",
+        },
       });
     }
   }
@@ -384,35 +399,49 @@ export class PackageController {
         success: true,
         data: {
           signedUrl,
-          expiresIn
-        }
+          expiresIn,
+        },
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to generate signed URL'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to generate signed URL",
+        },
       });
     }
   }
 
   async searchPackages(req: Request, res: Response) {
     try {
-      const { q, location, radius, minPrice, maxPrice, size, weight, minWeight, maxWeight, dateFrom, dateTo, sortBy, sortOrder } = req.query;
+      const {
+        q,
+        location,
+        radius,
+        minPrice,
+        maxPrice,
+        size,
+        weight,
+        minWeight,
+        maxWeight,
+        dateFrom,
+        dateTo,
+        sortBy,
+        sortOrder,
+      } = req.query;
 
       // Build search filters
       const filters: any = {};
@@ -476,28 +505,28 @@ export class PackageController {
           radius,
           minPrice,
           maxPrice,
-          size
-        }
+          size,
+        },
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to search packages'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to search packages",
+        },
       });
     }
   }
@@ -507,22 +536,32 @@ export class PackageController {
       const { lat, lng, radius } = req.query;
       const filters: any = {
         status: req.query.status as string,
-        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
-        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        minPrice: req.query.minPrice
+          ? parseFloat(req.query.minPrice as string)
+          : undefined,
+        maxPrice: req.query.maxPrice
+          ? parseFloat(req.query.maxPrice as string)
+          : undefined,
         size: req.query.size as string,
-        weight: req.query.weight ? parseFloat(req.query.weight as string) : undefined,
-        minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
-        maxWeight: req.query.maxWeight ? parseFloat(req.query.maxWeight as string) : undefined,
+        weight: req.query.weight
+          ? parseFloat(req.query.weight as string)
+          : undefined,
+        minWeight: req.query.minWeight
+          ? parseFloat(req.query.minWeight as string)
+          : undefined,
+        maxWeight: req.query.maxWeight
+          ? parseFloat(req.query.maxWeight as string)
+          : undefined,
         dateFrom: req.query.dateFrom as string,
         dateTo: req.query.dateTo as string,
-        sortBy: req.query.sortBy as string || 'createdAt',
-        sortOrder: req.query.sortOrder as string || 'desc',
+        sortBy: (req.query.sortBy as string) || "createdAt",
+        sortOrder: (req.query.sortOrder as string) || "desc",
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
-        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
       };
 
       // Remove undefined values
-      Object.keys(filters).forEach(key => {
+      Object.keys(filters).forEach((key) => {
         if (filters[key as keyof typeof filters] === undefined) {
           delete filters[key as keyof typeof filters];
         }
@@ -532,32 +571,32 @@ export class PackageController {
         parseFloat(lat as string),
         parseFloat(lng as string),
         radius ? parseFloat(radius as string) : 10,
-        filters
+        filters,
       );
 
       res.json({
         success: true,
-        data: result.data
+        data: result.data,
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to search packages by location'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to search packages by location",
+        },
       });
     }
   }
@@ -569,22 +608,25 @@ export class PackageController {
       const authenticatedUser = (req as any).user;
 
       // Access control: Users can only access their own packages, unless they're admin
-      if (authenticatedUser.role !== 'ADMIN' && authenticatedUser.id !== userId) {
+      if (
+        authenticatedUser.role !== "ADMIN" &&
+        authenticatedUser.id !== userId
+      ) {
         return res.status(403).json({
           success: false,
           error: {
-            code: 'ACCESS_DENIED',
-            message: 'Access denied. You can only access your own packages.'
-          }
+            code: "ACCESS_DENIED",
+            message: "Access denied. You can only access your own packages.",
+          },
         });
       }
 
       const filters: PackageFilters = {
-        status: status as any
+        status: status as any,
       };
 
       // Remove undefined values
-      Object.keys(filters).forEach(key => {
+      Object.keys(filters).forEach((key) => {
         if (filters[key as keyof typeof filters] === undefined) {
           delete filters[key as keyof typeof filters];
         }
@@ -594,27 +636,27 @@ export class PackageController {
 
       res.json({
         success: true,
-        data: result.data
+        data: result.data,
       });
     } catch (_error: any) {
-      console.error('Error fetching package:', _error);
-      
+      console.error("Error fetching package:", _error);
+
       if (_error instanceof AppError) {
         return res.status(_error.statusCode).json({
           success: false,
           error: {
             code: _error.code,
-            message: _error.message
-          }
+            message: _error.message,
+          },
         });
       }
 
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to get packages by user'
-        }
+          code: "INTERNAL_ERROR",
+          message: "Failed to get packages by user",
+        },
       });
     }
   }

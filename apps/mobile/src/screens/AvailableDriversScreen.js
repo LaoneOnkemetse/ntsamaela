@@ -99,6 +99,7 @@ export const AvailableDriversScreen = () => {
 
         return {
           id: d.id,
+          userId: d.userId,
           driver:
             `${d.user?.firstName || ""} ${d.user?.lastName || ""}`.trim() ||
             "Driver",
@@ -188,12 +189,20 @@ export const AvailableDriversScreen = () => {
               activeOpacity={0.7}
             >
               <View style={styles.driverCardContent}>
-                {driver.photo && (
+                {driver.photo ? (
                   <Image
                     source={{ uri: driver.photo }}
                     style={styles.driverPhoto}
                     resizeMode="cover"
                   />
+                ) : (
+                  <View
+                    style={[styles.driverPhoto, styles.driverPhotoPlaceholder]}
+                  >
+                    <Text style={styles.driverPhotoInitial}>
+                      {(driver.driver?.[0] || "D").toUpperCase()}
+                    </Text>
+                  </View>
                 )}
                 <View style={styles.driverDetails}>
                   <View style={styles.driverHeader}>
@@ -307,6 +316,16 @@ const styles = {
     borderRadius: 35,
     backgroundColor: colors.border,
     marginRight: 16,
+  },
+  driverPhotoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.primary + "25",
+  },
+  driverPhotoInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: colors.primary,
   },
   driverDetails: {
     flex: 1,

@@ -1,45 +1,57 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { colors } from '../constants/colors';
-import { sharedStyles } from '../styles/sharedStyles';
-import { useNavigation } from '../navigation/NavigationContext';
+import React, { useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { colors } from "../constants/colors";
+import { sharedStyles } from "../styles/sharedStyles";
+import { useNavigation } from "../navigation/NavigationContext";
+import apiService from "../services/apiService";
 
 export const NotificationScreen = () => {
-  const { notifications, setNotifications } = useNavigation();
+  const { notifications, setNotifications, refreshNotifications, authToken } =
+    useNavigation();
 
-  const markAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, read: true }
-          : notif
-      )
+  useEffect(() => {
+    if (authToken && refreshNotifications) {
+      refreshNotifications(authToken);
+    }
+  }, [authToken, refreshNotifications]);
+
+  const markAsRead = async (notificationId) => {
+    setNotifications((prev) =>
+      prev.map((notif) =>
+        notif.id === notificationId ? { ...notif, read: true } : notif,
+      ),
     );
+    if (authToken) {
+      try {
+        apiService.setToken(authToken);
+        await apiService.markNotificationAsRead(notificationId);
+      } catch {
+        // UI already updated optimistically
+      }
+    }
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
   };
 
   const getNotificationIcon = (type) => {
     switch (type) {
-      case 'delivery': return '📦';
-      case 'bid': return '💰';
-      case 'payment': return '💳';
-      case 'verification': return '✅';
-      default: return '🔔';
+      case "delivery":
+        return "📦";
+      case "bid":
+        return "💰";
+      case "payment":
+        return "💳";
+      case "verification":
+        return "✅";
+      default:
+        return "🔔";
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <View style={sharedStyles.screenContainer}>
@@ -48,7 +60,10 @@ export const NotificationScreen = () => {
         <View style={styles.notificationHeader}>
           <Text style={styles.notificationTitle}>Notifications</Text>
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+            <TouchableOpacity
+              onPress={markAllAsRead}
+              style={styles.markAllButton}
+            >
               <Text style={styles.markAllText}>Mark all as read</Text>
             </TouchableOpacity>
           )}
@@ -62,12 +77,12 @@ export const NotificationScreen = () => {
           </View>
         ) : (
           <View style={styles.notificationList}>
-            {notifications.map(notification => (
+            {notifications.map((notification) => (
               <TouchableOpacity
                 key={notification.id}
                 style={[
                   styles.notificationItem,
-                  !notification.read && styles.notificationItemUnread
+                  !notification.read && styles.notificationItemUnread,
                 ]}
                 onPress={() => markAsRead(notification.id)}
               >
@@ -77,10 +92,12 @@ export const NotificationScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.notificationContent}>
-                  <Text style={[
-                    styles.notificationItemTitle,
-                    !notification.read && styles.notificationItemTitleUnread
-                  ]}>
+                  <Text
+                    style={[
+                      styles.notificationItemTitle,
+                      !notification.read && styles.notificationItemTitleUnread,
+                    ]}
+                  >
                     {notification.title}
                   </Text>
                   <Text style={styles.notificationItemMessage}>
@@ -90,9 +107,7 @@ export const NotificationScreen = () => {
                     {notification.time}
                   </Text>
                 </View>
-                {!notification.read && (
-                  <View style={styles.unreadDot} />
-                )}
+                {!notification.read && <View style={styles.unreadDot} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -104,15 +119,15 @@ export const NotificationScreen = () => {
 
 const styles = {
   notificationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     paddingBottom: 12,
   },
   notificationTitle: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: "800",
     color: colors.textPrimary,
   },
   markAllButton: {
@@ -121,19 +136,19 @@ const styles = {
   markAllText: {
     fontSize: 14,
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   notificationList: {
     paddingHorizontal: 20,
   },
   notificationItem: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: colors.cardBg,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
+    borderLeftColor: "transparent",
   },
   notificationItemUnread: {
     borderLeftColor: colors.primary,
@@ -144,8 +159,8 @@ const styles = {
     height: 48,
     borderRadius: 24,
     backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   notificationIconText: {
@@ -156,12 +171,12 @@ const styles = {
   },
   notificationItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textSecondary,
     marginBottom: 4,
   },
   notificationItemTitleUnread: {
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.textPrimary,
   },
   notificationItemMessage: {
@@ -183,8 +198,8 @@ const styles = {
   },
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 40,
     marginTop: 100,
   },
@@ -194,14 +209,13 @@ const styles = {
   },
   emptyStateTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.textPrimary,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
 };
-

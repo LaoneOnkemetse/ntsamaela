@@ -42,6 +42,7 @@ import {
   SettingsScreen,
   NotificationScreen,
   AvailableDriversScreen,
+  DriverProfileScreen,
 } from "./src/screens";
 import { API_CONFIG as _API_CONFIG } from "./src/constants/config";
 import _apiService from "./src/services/apiService";
@@ -1414,6 +1415,7 @@ function AppNavigator() {
     if (currentScreen === "createPackage") return <CreatePackageScreen />;
     if (currentScreen === "myPackages") return <MyPackagesScreen />;
     if (currentScreen === "availableDrivers") return <AvailableDriversScreen />;
+    if (currentScreen === "driverProfile") return <DriverProfileScreen />;
     if (currentScreen === "wallet")
       return <NewWalletScreen navigation={{ navigate, goBack }} route={{}} />;
     if (currentScreen === "notifications") return <NotificationScreen />;

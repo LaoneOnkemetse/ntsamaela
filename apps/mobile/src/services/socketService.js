@@ -1,15 +1,16 @@
 // Socket.IO Service for real-time communication
 // Note: socket.io-client may need polyfills for React Native
 // Consider using react-native-socket.io or a WebSocket wrapper
-import { SOCKET_CONFIG } from '../constants/config';
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { SOCKET_CONFIG } from "../constants/config";
 
 // Conditional import for socket.io-client
 let io;
 try {
   // Try to import socket.io-client (works in web, may need polyfills for React Native)
-  io = require('socket.io-client').io;
-} catch (error) {
-  console.warn('socket.io-client not available, using mock implementation');
+  io = require("socket.io-client").io;
+} catch {
+  console.warn("socket.io-client not available, using mock implementation");
   // Fallback mock implementation
   io = () => ({
     on: () => {},
@@ -28,12 +29,17 @@ class SocketService {
     this.listeners = new Map();
   }
 
-  connect(token) {
+  connect(token, userId, userType) {
     if (this.socket?.connected) {
+      if (userId && userType) {
+        this.socket.emit("user:connect", { userId, userType });
+      }
       return;
     }
 
     this.token = token;
+    this.userId = userId;
+    this.userType = userType;
     this.socket = io(SOCKET_CONFIG.URL, {
       auth: { token },
       reconnection: true,
@@ -41,16 +47,22 @@ class SocketService {
       reconnectionDelay: SOCKET_CONFIG.RECONNECTION_DELAY,
     });
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected');
+    this.socket.on("connect", () => {
+      console.log("Socket connected");
+      if (this.userId && this.userType) {
+        this.socket.emit("user:connect", {
+          userId: this.userId,
+          userType: this.userType,
+        });
+      }
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    this.socket.on("disconnect", () => {
+      console.log("Socket disconnected");
     });
 
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
+    this.socket.on("error", (error) => {
+      console.error("Socket error:", error);
     });
 
     // Re-register all listeners
@@ -85,7 +97,7 @@ class SocketService {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     } else {
-      console.warn('Socket not connected, cannot emit:', event);
+      console.warn("Socket not connected, cannot emit:", event);
     }
   }
 
@@ -95,4 +107,3 @@ class SocketService {
 }
 
 export default new SocketService();
-

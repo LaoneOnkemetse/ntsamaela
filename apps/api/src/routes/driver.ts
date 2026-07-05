@@ -82,6 +82,12 @@ router.get(
   driverController.getAllDrivers.bind(driverController),
 );
 
+router.get(
+  "/:id",
+  requireAuth,
+  driverController.getDriverById.bind(driverController),
+);
+
 router.post(
   "/location",
   requireAuth,

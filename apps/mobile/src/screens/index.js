@@ -30,3 +30,4 @@ export { ProfileScreen } from "./ProfileScreen";
 export { SettingsScreen } from "./SettingsScreen";
 export { NotificationScreen } from "./NotificationScreen";
 export { AvailableDriversScreen } from "./AvailableDriversScreen";
+export { DriverProfileScreen } from "./DriverProfileScreen";

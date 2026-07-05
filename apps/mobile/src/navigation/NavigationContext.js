@@ -175,6 +175,98 @@ export const NavigationProvider = ({ children }) => {
     }
   };
 
+  const formatNotificationForUi = (n) => ({
+    id: n.id,
+    type:
+      n.type === "BID_RECEIVED" ||
+      n.type === "BID_ACCEPTED" ||
+      n.type === "BID_REJECTED"
+        ? "bid"
+        : n.type === "PACKAGE_STATUS"
+          ? "delivery"
+          : "default",
+    title: n.title,
+    message: n.message || n.body,
+    time: n.createdAt ? new Date(n.createdAt).toLocaleString() : "Just now",
+    read: Boolean(n.isRead ?? n.read),
+  });
+
+  const refreshNotifications = async (token) => {
+    if (!token) return;
+    try {
+      apiService.setToken(token);
+      const resp = await apiService.getNotifications({ limit: 50 });
+      const raw = resp?.data ?? resp;
+      const items = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.notifications)
+          ? raw.notifications
+          : [];
+      setNotifications(items.map(formatNotificationForUi));
+    } catch (e) {
+      console.warn("Failed to refresh notifications:", e?.message || e);
+    }
+  };
+
+  const addNotificationToState = (notification) => {
+    if (!notification) return;
+    const formatted = formatNotificationForUi(notification);
+    setNotifications((prev) => {
+      if (prev.some((n) => n.id === formatted.id)) return prev;
+      return [formatted, ...prev];
+    });
+  };
+
+  // Real-time socket listeners for bids, packages, and notifications
+  useEffect(() => {
+    if (!isAuthenticated || !authToken) return;
+
+    refreshNotifications(authToken);
+
+    const onNotification = ({ notification }) => {
+      addNotificationToState(notification);
+    };
+
+    const onBidReceived = () => {
+      refreshMyPackages(authToken);
+    };
+
+    const onBidAccepted = () => {
+      if ((userType || "").toLowerCase() === "driver") {
+        refreshAvailablePackages(authToken);
+      }
+    };
+
+    const onPackageNew = () => {
+      if ((userType || "").toLowerCase() === "driver") {
+        refreshAvailablePackages(authToken);
+      }
+    };
+
+    const onPackageRequest = () => {
+      if ((userType || "").toLowerCase() === "driver") {
+        refreshAvailablePackages(authToken);
+      }
+    };
+
+    socketService.on("notification:new", onNotification);
+    socketService.on("bid:received", onBidReceived);
+    socketService.on("bid:accepted", onBidAccepted);
+    socketService.on("bid:rejected", onBidAccepted);
+    socketService.on("package:new", onPackageNew);
+    socketService.on("package:request", onPackageRequest);
+
+    return () => {
+      socketService.off("notification:new", onNotification);
+      socketService.off("bid:received", onBidReceived);
+      socketService.off("bid:accepted", onBidAccepted);
+      socketService.off("bid:rejected", onBidAccepted);
+      socketService.off("package:new", onPackageNew);
+      socketService.off("package:request", onPackageRequest);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, authToken, userType]);
+
   // Keep verification / identityVerified in sync automatically.
   useEffect(() => {
     if (!isAuthenticated || !authToken) return;
@@ -495,10 +587,16 @@ export const NavigationProvider = ({ children }) => {
       setIsAuthenticated(true);
       apiService.setToken(token);
       try {
-        socketService.connect(token);
+        socketService.connect(
+          token,
+          fullProfile?.id || userData.id,
+          actualUserType,
+        );
       } catch (socketError) {
         console.warn("Socket.IO connection failed:", socketError);
       }
+
+      refreshNotifications(token);
 
       navigate("home", true);
     } catch (error) {
@@ -567,6 +665,7 @@ export const NavigationProvider = ({ children }) => {
         setMyBids,
         notifications,
         setNotifications,
+        refreshNotifications,
         upcomingTrips,
         setUpcomingTrips,
         isActiveDriver,

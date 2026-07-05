@@ -1,7 +1,7 @@
-import { getPrismaClient } from '@database/index';
-import { AppError } from '../utils/AppError';
-import { getRealtimeService } from './realtimeService';
-import { PackageStatus, PackageSize } from '@shared/types';
+import { getPrismaClient } from "@database/index";
+import { AppError } from "../utils/AppError";
+import { getRealtimeService } from "./realtimeService";
+import { PackageStatus, PackageSize } from "@shared/types";
 
 export interface CreatePackageRequest {
   customerId: string;
@@ -16,6 +16,7 @@ export interface CreatePackageRequest {
   priceOffered: number;
   size?: PackageSize;
   weight?: number;
+  requestedDriverId?: string;
 }
 
 export interface PackageFilters {
@@ -30,8 +31,8 @@ export interface PackageFilters {
   maxWeight?: number;
   dateFrom?: string;
   dateTo?: string;
-  sortBy?: 'createdAt' | 'priceOffered' | 'weight' | 'status';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "createdAt" | "priceOffered" | "weight" | "status";
+  sortOrder?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
@@ -48,7 +49,7 @@ class PackageService {
     if (!this.prisma) {
       this.prisma = getPrismaClient();
       if (!this.prisma) {
-        throw new Error('Database client not available');
+        throw new Error("Database client not available");
       }
     }
     return this.prisma;
@@ -61,18 +62,18 @@ class PackageService {
 
       // Check if customer exists
       const customer = await this.getPrisma().user.findUnique({
-        where: { id: packageData.customerId }
+        where: { id: packageData.customerId },
       });
 
       if (!customer) {
-        throw new AppError('Customer not found', 'CUSTOMER_NOT_FOUND', 404);
+        throw new AppError("Customer not found", "CUSTOMER_NOT_FOUND", 404);
       }
 
       // Create package
       const newPackage = await this.getPrisma().package.create({
         data: {
           customerId: packageData.customerId,
-          description: packageData.description,
+          description: packageData.description.trim(),
           imageUrl: packageData.imageUrl,
           pickupAddress: packageData.pickupAddress,
           pickupLat: packageData.pickupLat,
@@ -83,7 +84,7 @@ class PackageService {
           priceOffered: packageData.priceOffered,
           size: packageData.size,
           weight: packageData.weight,
-          status: 'PENDING'
+          status: "PENDING",
         },
         include: {
           customer: {
@@ -92,21 +93,41 @@ class PackageService {
               firstName: true,
               lastName: true,
               email: true,
-              phone: true
-            }
-          }
-        }
+              phone: true,
+            },
+          },
+        },
       });
+
+      // Notify drivers about the new package
+      try {
+        const realtimeService = getRealtimeService();
+        if (realtimeService) {
+          await realtimeService.notifyNewPackageAvailable(
+            newPackage,
+            packageData.requestedDriverId,
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "Failed to send new package notification:",
+          notificationError,
+        );
+      }
 
       return {
         success: true,
-        data: newPackage
+        data: newPackage,
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to create package', 'PACKAGE_CREATION_ERROR', 500);
+      throw new AppError(
+        "Failed to create package",
+        "PACKAGE_CREATION_ERROR",
+        500,
+      );
     }
   }
 
@@ -124,10 +145,10 @@ class PackageService {
         maxWeight,
         dateFrom,
         dateTo,
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
+        sortBy = "createdAt",
+        sortOrder = "desc",
         limit = 20,
-        offset = 0
+        offset = 0,
       } = filters;
 
       // Build where clause
@@ -181,9 +202,9 @@ class PackageService {
 
       if (search) {
         where.OR = [
-          { description: { contains: search, mode: 'insensitive' } },
-          { pickupAddress: { contains: search, mode: 'insensitive' } },
-          { deliveryAddress: { contains: search, mode: 'insensitive' } }
+          { description: { contains: search, mode: "insensitive" } },
+          { pickupAddress: { contains: search, mode: "insensitive" } },
+          { deliveryAddress: { contains: search, mode: "insensitive" } },
         ];
       }
 
@@ -198,8 +219,8 @@ class PackageService {
                 firstName: true,
                 lastName: true,
                 email: true,
-                phone: true
-              }
+                phone: true,
+              },
             },
             bids: {
               include: {
@@ -211,19 +232,19 @@ class PackageService {
                         firstName: true,
                         lastName: true,
                         email: true,
-                        phone: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                        phone: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           orderBy: { [sortBy]: sortOrder },
           take: limit,
-          skip: offset
+          skip: offset,
         }),
-        this.getPrisma().package.count({ where })
+        this.getPrisma().package.count({ where }),
       ]);
 
       return {
@@ -234,12 +255,16 @@ class PackageService {
             total,
             limit,
             offset,
-            hasMore: offset + limit < total
-          }
-        }
+            hasMore: offset + limit < total,
+          },
+        },
       };
     } catch (_error: any) {
-      throw new AppError('Failed to fetch packages', 'PACKAGE_FETCH_ERROR', 500);
+      throw new AppError(
+        "Failed to fetch packages",
+        "PACKAGE_FETCH_ERROR",
+        500,
+      );
     }
   }
 
@@ -254,8 +279,8 @@ class PackageService {
               firstName: true,
               lastName: true,
               email: true,
-              phone: true
-            }
+              phone: true,
+            },
           },
           bids: {
             include: {
@@ -267,79 +292,90 @@ class PackageService {
                       firstName: true,
                       lastName: true,
                       email: true,
-                      phone: true
-                    }
-                  }
-                }
-              }
+                      phone: true,
+                    },
+                  },
+                },
+              },
             },
-            orderBy: { createdAt: 'desc' }
-          }
-        }
+            orderBy: { createdAt: "desc" },
+          },
+        },
       });
 
       if (!packageData) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
       return {
         success: true,
-        data: packageData
+        data: packageData,
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to fetch package', 'PACKAGE_FETCH_ERROR', 500);
+      throw new AppError("Failed to fetch package", "PACKAGE_FETCH_ERROR", 500);
     }
   }
 
   async updatePackage(packageId: string, updateData: any, userId: string) {
     try {
       const existingPackage = await this.getPrisma().package.findUnique({
-        where: { id: packageId }
+        where: { id: packageId },
       });
 
       if (!existingPackage) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
       // Check if user has permission to update this package
       if (existingPackage.customerId !== userId) {
-        throw new AppError('Unauthorized to update this package', 'UNAUTHORIZED', 403);
+        throw new AppError(
+          "Unauthorized to update this package",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
       const updatedPackage = await this.getPrisma().package.update({
         where: { id: packageId },
         data: {
           ...updateData,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
       return {
         success: true,
-        data: updatedPackage
+        data: updatedPackage,
       };
     } catch (_error) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to update package', 'PACKAGE_UPDATE_ERROR', 500);
+      throw new AppError(
+        "Failed to update package",
+        "PACKAGE_UPDATE_ERROR",
+        500,
+      );
     }
   }
 
-  async updatePackageStatus(packageId: string, updateData: UpdatePackageStatusRequest) {
+  async updatePackageStatus(
+    packageId: string,
+    updateData: UpdatePackageStatusRequest,
+  ) {
     try {
       const { status, notes } = updateData;
 
       // Validate status transition
       const existingPackage = await this.getPrisma().package.findUnique({
-        where: { id: packageId }
+        where: { id: packageId },
       });
 
       if (!existingPackage) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
       // Validate status transition
@@ -350,7 +386,7 @@ class PackageService {
         where: { id: packageId },
         data: {
           status,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         include: {
           customer: {
@@ -359,10 +395,10 @@ class PackageService {
               firstName: true,
               lastName: true,
               email: true,
-              phone: true
-            }
-          }
-        }
+              phone: true,
+            },
+          },
+        },
       });
 
       // Create tracking update
@@ -375,135 +411,186 @@ class PackageService {
             undefined, // location
             undefined, // latitude
             undefined, // longitude
-            notes
+            notes,
           );
         }
       } catch (trackingError) {
-        console.error('Failed to create tracking update:', trackingError);
+        console.error("Failed to create tracking update:", trackingError);
         // Don't fail the package update if tracking fails
       }
 
       return {
         success: true,
-        data: updatedPackage
+        data: updatedPackage,
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to update package status', 'PACKAGE_UPDATE_ERROR', 500);
+      throw new AppError(
+        "Failed to update package status",
+        "PACKAGE_UPDATE_ERROR",
+        500,
+      );
     }
   }
 
   async deletePackage(packageId: string, userId: string) {
     try {
       const packageData = await this.getPrisma().package.findUnique({
-        where: { id: packageId }
+        where: { id: packageId },
       });
 
       if (!packageData) {
-        throw new AppError('Package not found', 'PACKAGE_NOT_FOUND', 404);
+        throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
       }
 
       // Check if user is the owner or admin
       const user = await this.getPrisma().user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
 
       if (!user) {
-        throw new AppError('User not found', 'USER_NOT_FOUND', 404);
+        throw new AppError("User not found", "USER_NOT_FOUND", 404);
       }
 
-      if (packageData.customerId !== userId && user.userType !== 'ADMIN') {
-        throw new AppError('Unauthorized to delete this package', 'UNAUTHORIZED', 403);
+      if (packageData.customerId !== userId && user.userType !== "ADMIN") {
+        throw new AppError(
+          "Unauthorized to delete this package",
+          "UNAUTHORIZED",
+          403,
+        );
       }
 
       // Check if package can be deleted (only if no bids or pending status)
-      if (packageData.status !== 'PENDING') {
-        throw new AppError('Cannot delete package with status other than PENDING', 'INVALID_STATUS', 400);
+      if (packageData.status !== "PENDING") {
+        throw new AppError(
+          "Cannot delete package with status other than PENDING",
+          "INVALID_STATUS",
+          400,
+        );
       }
 
       // Delete package
       await this.getPrisma().package.delete({
-        where: { id: packageId }
+        where: { id: packageId },
       });
 
       return {
         success: true,
-        message: 'Package deleted successfully'
+        message: "Package deleted successfully",
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to delete package', 'PACKAGE_DELETE_ERROR', 500);
+      throw new AppError(
+        "Failed to delete package",
+        "PACKAGE_DELETE_ERROR",
+        500,
+      );
     }
   }
 
   private validatePackageData(data: CreatePackageRequest) {
-    if (!data.description || data.description.trim().length < 10) {
-      throw new AppError('Description must be at least 10 characters long', 'INVALID_DESCRIPTION', 400);
+    if (!data.description || !data.description.trim()) {
+      throw new AppError("Description is required", "INVALID_DESCRIPTION", 400);
     }
 
     if (!data.pickupAddress || data.pickupAddress.trim().length < 5) {
-      throw new AppError('Pickup address is required and must be at least 5 characters', 'INVALID_PICKUP_ADDRESS', 400);
+      throw new AppError(
+        "Pickup address is required and must be at least 5 characters",
+        "INVALID_PICKUP_ADDRESS",
+        400,
+      );
     }
 
     if (!data.deliveryAddress || data.deliveryAddress.trim().length < 5) {
-      throw new AppError('Delivery address is required and must be at least 5 characters', 'INVALID_DELIVERY_ADDRESS', 400);
+      throw new AppError(
+        "Delivery address is required and must be at least 5 characters",
+        "INVALID_DELIVERY_ADDRESS",
+        400,
+      );
     }
 
     if (data.priceOffered <= 0) {
-      throw new AppError('Price offered must be greater than 0', 'INVALID_PRICE', 400);
+      throw new AppError(
+        "Price offered must be greater than 0",
+        "INVALID_PRICE",
+        400,
+      );
     }
 
     if (data.priceOffered > 10000) {
-      throw new AppError('Price offered cannot exceed $10,000', 'INVALID_PRICE', 400);
+      throw new AppError(
+        "Price offered cannot exceed $10,000",
+        "INVALID_PRICE",
+        400,
+      );
     }
 
     // Validate coordinates
     if (data.pickupLat < -90 || data.pickupLat > 90) {
-      throw new AppError('Invalid pickup latitude', 'INVALID_COORDINATES', 400);
+      throw new AppError("Invalid pickup latitude", "INVALID_COORDINATES", 400);
     }
 
     if (data.pickupLng < -180 || data.pickupLng > 180) {
-      throw new AppError('Invalid pickup longitude', 'INVALID_COORDINATES', 400);
+      throw new AppError(
+        "Invalid pickup longitude",
+        "INVALID_COORDINATES",
+        400,
+      );
     }
 
     if (data.deliveryLat < -90 || data.deliveryLat > 90) {
-      throw new AppError('Invalid delivery latitude', 'INVALID_COORDINATES', 400);
+      throw new AppError(
+        "Invalid delivery latitude",
+        "INVALID_COORDINATES",
+        400,
+      );
     }
 
     if (data.deliveryLng < -180 || data.deliveryLng > 180) {
-      throw new AppError('Invalid delivery longitude', 'INVALID_COORDINATES', 400);
+      throw new AppError(
+        "Invalid delivery longitude",
+        "INVALID_COORDINATES",
+        400,
+      );
     }
 
     // Validate weight if provided
     if (data.weight !== undefined && (data.weight <= 0 || data.weight > 1000)) {
-      throw new AppError('Weight must be between 0 and 1000 kg', 'INVALID_WEIGHT', 400);
+      throw new AppError(
+        "Weight must be between 0 and 1000 kg",
+        "INVALID_WEIGHT",
+        400,
+      );
     }
 
     // Validate size if provided
-    if (data.size && !['SMALL', 'MEDIUM', 'LARGE', 'EXTRA_LARGE'].includes(data.size)) {
-      throw new AppError('Invalid package size', 'INVALID_SIZE', 400);
+    if (
+      data.size &&
+      !["SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"].includes(data.size)
+    ) {
+      throw new AppError("Invalid package size", "INVALID_SIZE", 400);
     }
   }
 
   private validateStatusTransition(currentStatus: string, newStatus: string) {
     const validTransitions: { [key: string]: string[] } = {
-      'PENDING': ['ACCEPTED', 'CANCELLED'],
-      'ACCEPTED': ['IN_TRANSIT', 'CANCELLED'],
-      'IN_TRANSIT': ['DELIVERED', 'FAILED'],
-      'DELIVERED': [],
-      'FAILED': ['PENDING', 'CANCELLED'],
-      'CANCELLED': []
+      PENDING: ["ACCEPTED", "CANCELLED"],
+      ACCEPTED: ["IN_TRANSIT", "CANCELLED"],
+      IN_TRANSIT: ["DELIVERED", "FAILED"],
+      DELIVERED: [],
+      FAILED: ["PENDING", "CANCELLED"],
+      CANCELLED: [],
     };
 
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
       throw new AppError(
         `Invalid status transition from ${currentStatus} to ${newStatus}`,
-        'INVALID_STATUS_TRANSITION',
-        400
+        "INVALID_STATUS_TRANSITION",
+        400,
       );
     }
   }
@@ -512,7 +599,7 @@ class PackageService {
     try {
       const searchFilters = {
         ...filters,
-        search: searchQuery
+        search: searchQuery,
       };
 
       return await this.getPackages(searchFilters);
@@ -520,7 +607,7 @@ class PackageService {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to search packages', 'SEARCH_ERROR', 500);
+      throw new AppError("Failed to search packages", "SEARCH_ERROR", 500);
     }
   }
 
@@ -528,13 +615,15 @@ class PackageService {
     lat: number,
     lng: number,
     radiusKm: number = 10,
-    filters: PackageFilters = {}
+    filters: PackageFilters = {},
   ) {
     try {
       // Calculate bounding box for the search radius
       const earthRadius = 6371; // Earth's radius in kilometers
       const latDelta = (radiusKm / earthRadius) * (180 / Math.PI);
-      const lngDelta = (radiusKm / earthRadius) * (180 / Math.PI) / Math.cos(lat * Math.PI / 180);
+      const lngDelta =
+        ((radiusKm / earthRadius) * (180 / Math.PI)) /
+        Math.cos((lat * Math.PI) / 180);
 
       const minLat = lat - latDelta;
       const maxLat = lat + latDelta;
@@ -548,14 +637,14 @@ class PackageService {
           // Search in pickup location
           {
             pickupLat: { gte: minLat, lte: maxLat },
-            pickupLng: { gte: minLng, lte: maxLng }
+            pickupLng: { gte: minLng, lte: maxLng },
           },
           // Search in delivery location
           {
             deliveryLat: { gte: minLat, lte: maxLat },
-            deliveryLng: { gte: minLng, lte: maxLng }
-          }
-        ]
+            deliveryLng: { gte: minLng, lte: maxLng },
+          },
+        ],
       };
 
       const [packages, total] = await Promise.all([
@@ -568,8 +657,8 @@ class PackageService {
                 firstName: true,
                 lastName: true,
                 email: true,
-                phone: true
-              }
+                phone: true,
+              },
             },
             bids: {
               include: {
@@ -581,19 +670,19 @@ class PackageService {
                         firstName: true,
                         lastName: true,
                         email: true,
-                        phone: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                        phone: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: filters.limit || 20,
-          skip: filters.offset || 0
+          skip: filters.offset || 0,
         }),
-        this.getPrisma().package.count({ where })
+        this.getPrisma().package.count({ where }),
       ]);
 
       return {
@@ -604,15 +693,19 @@ class PackageService {
             total,
             limit: filters.limit || 20,
             offset: filters.offset || 0,
-            hasMore: (filters.offset || 0) + (filters.limit || 20) < total
-          }
-        }
+            hasMore: (filters.offset || 0) + (filters.limit || 20) < total,
+          },
+        },
       };
     } catch (_error: any) {
       if (_error instanceof AppError) {
         throw _error;
       }
-      throw new AppError('Failed to search packages by location', 'LOCATION_SEARCH_ERROR', 500);
+      throw new AppError(
+        "Failed to search packages by location",
+        "LOCATION_SEARCH_ERROR",
+        500,
+      );
     }
   }
 
@@ -643,7 +736,10 @@ class PackageService {
 
     if (filters.weight !== undefined) {
       where.weight = filters.weight;
-    } else if (filters.minWeight !== undefined || filters.maxWeight !== undefined) {
+    } else if (
+      filters.minWeight !== undefined ||
+      filters.maxWeight !== undefined
+    ) {
       where.weight = {};
       if (filters.minWeight !== undefined) {
         where.weight.gte = filters.minWeight;
@@ -665,9 +761,9 @@ class PackageService {
 
     if (filters.search) {
       where.OR = [
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { pickupAddress: { contains: filters.search, mode: 'insensitive' } },
-        { deliveryAddress: { contains: filters.search, mode: 'insensitive' } }
+        { description: { contains: filters.search, mode: "insensitive" } },
+        { pickupAddress: { contains: filters.search, mode: "insensitive" } },
+        { deliveryAddress: { contains: filters.search, mode: "insensitive" } },
       ];
     }
 

@@ -8,9 +8,11 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { colors } from "../constants/colors";
 import { sharedStyles } from "../styles/sharedStyles";
 import { packageStyles } from "../styles/packageStyles";
 import { useNavigation } from "../navigation/NavigationContext";
@@ -18,7 +20,8 @@ import { getStatusColor } from "../utils/packageUtils";
 import apiService from "../services/apiService";
 
 export const MyPackagesScreen = () => {
-  const { goBack, myPackages, authToken, refreshMyPackages } = useNavigation();
+  const { goBack, myPackages, authToken, refreshMyPackages, navigate } =
+    useNavigation();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showBidsModal, setShowBidsModal] = useState(false);
   const [packageBids, setPackageBids] = useState([]);
@@ -63,6 +66,9 @@ export const MyPackagesScreen = () => {
   const pendingPackages = normalized.filter(
     (p) => (p.status || "").toString().toUpperCase() === "PENDING",
   );
+  const acceptedPackages = normalized.filter(
+    (p) => (p.status || "").toString().toUpperCase() === "ACCEPTED",
+  );
   const inTransitPackages = normalized.filter((p) =>
     ["IN_TRANSIT", "IN_PROGRESS"].includes(
       (p.status || "").toString().toUpperCase(),
@@ -79,8 +85,9 @@ export const MyPackagesScreen = () => {
       try {
         apiService.setToken(authToken);
         const resp = await apiService.getBidsByPackage(packageId);
-        const bids = resp?.data ?? [];
-        setPackageBids(Array.isArray(bids) ? bids : []);
+        const raw = resp?.data ?? [];
+        const bids = Array.isArray(raw) ? raw : (raw?.bids ?? []);
+        setPackageBids(bids);
       } catch (e) {
         setPackageBids([]);
         console.warn("Failed to load bids:", e?.message || e);
@@ -104,6 +111,15 @@ export const MyPackagesScreen = () => {
     setShowBidsModal(true);
   };
 
+  const handleViewDriverProfile = (bid) => {
+    const driverId = bid.driver?.id;
+    if (!driverId) return;
+    setShowBidsModal(false);
+    navigate("driverProfile", false, {
+      driverProfile: { driverId, driver: bid.driver },
+    });
+  };
+
   const handleAcceptBid = (bid) => {
     Alert.alert("Accept bid", `Accept driver bid of P ${bid.amount}?`, [
       { text: "Cancel", style: "cancel" },
@@ -121,7 +137,10 @@ export const MyPackagesScreen = () => {
               );
               return;
             }
-            Alert.alert("Success", "Bid accepted. Package is now assigned.");
+            Alert.alert(
+              "Success",
+              "Bid accepted. Your package is now assigned.",
+            );
             setShowBidsModal(false);
             if (authToken) {
               await refreshMyPackages(authToken);
@@ -134,6 +153,86 @@ export const MyPackagesScreen = () => {
         },
       },
     ]);
+  };
+
+  const renderPackageCard = (pkg, options = {}) => {
+    const { showBids = false, statusLabel, statusColor } = options;
+    return (
+      <View key={pkg.id} style={packageStyles.packageCard}>
+        {showBids ? (
+          <TouchableOpacity onPress={() => handleViewBids(pkg)}>
+            <View style={packageStyles.packageHeader}>
+              <Text style={packageStyles.packageId}>{pkg.id}</Text>
+              <View
+                style={[
+                  packageStyles.statusBadge,
+                  { backgroundColor: statusColor || "#FFA500" },
+                ]}
+              >
+                <Text style={packageStyles.statusText}>
+                  {statusLabel || "Pending"}
+                </Text>
+              </View>
+            </View>
+            <Text style={packageStyles.packageDesc}>{pkg.description}</Text>
+            <View style={packageStyles.packageRoute}>
+              <Text style={packageStyles.packageLocation}>
+                📍 {pkg.pickupAddress}
+              </Text>
+              <Text style={packageStyles.packageArrow}>→</Text>
+              <Text style={packageStyles.packageLocation}>
+                📍 {pkg.deliveryAddress}
+              </Text>
+            </View>
+            <View style={packageStyles.packageFooter}>
+              <Text style={packageStyles.packageDriver}>
+                Offer: P {pkg.priceOffered}
+              </Text>
+              <Text style={packageStyles.viewBidsText}>Tap to view bids →</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <View style={packageStyles.packageHeader}>
+              <Text style={packageStyles.packageId}>{pkg.id}</Text>
+              <View
+                style={[
+                  packageStyles.statusBadge,
+                  typeof statusColor === "string"
+                    ? { backgroundColor: statusColor }
+                    : statusColor || getStatusColor(statusLabel?.toLowerCase()),
+                ]}
+              >
+                <Text style={packageStyles.statusText}>{statusLabel}</Text>
+              </View>
+            </View>
+            <Text style={packageStyles.packageDesc}>{pkg.description}</Text>
+            <View style={packageStyles.packageRoute}>
+              <Text style={packageStyles.packageLocation}>
+                📍 {pkg.pickupAddress}
+              </Text>
+              <Text style={packageStyles.packageArrow}>→</Text>
+              <Text style={packageStyles.packageLocation}>
+                📍 {pkg.deliveryAddress}
+              </Text>
+            </View>
+            <View style={packageStyles.packageFooter}>
+              <Text style={packageStyles.packagePrice}>
+                P {pkg.priceOffered}
+              </Text>
+            </View>
+          </>
+        )}
+        {showBids && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeletePackage(pkg)}
+          >
+            <Text style={styles.deleteButtonText}>Delete Package</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -155,183 +254,66 @@ export const MyPackagesScreen = () => {
           {normalized.length === 0 && (
             <Text style={packageStyles.sectionTitle}>No packages found.</Text>
           )}
-          {/* Pending Packages */}
+
           {pendingPackages.length > 0 && (
             <>
               <Text style={packageStyles.sectionTitle}>
                 ⏳ Pending ({pendingPackages.length})
               </Text>
-              {pendingPackages.map((pkg) => (
-                <View key={pkg.id} style={packageStyles.packageCard}>
-                  <TouchableOpacity onPress={() => handleViewBids(pkg)}>
-                    <View style={packageStyles.packageHeader}>
-                      <Text style={packageStyles.packageId}>{pkg.id}</Text>
-                      <View
-                        style={[
-                          packageStyles.statusBadge,
-                          { backgroundColor: "#FFA500" },
-                        ]}
-                      >
-                        <Text style={packageStyles.statusText}>Pending</Text>
-                      </View>
-                    </View>
-                    <Text style={packageStyles.packageDesc}>
-                      {pkg.description}
-                    </Text>
-                    <View style={packageStyles.packageRoute}>
-                      <Text style={packageStyles.packageLocation}>
-                        📍 {pkg.pickupAddress}
-                      </Text>
-                      <Text style={packageStyles.packageArrow}>→</Text>
-                      <Text style={packageStyles.packageLocation}>
-                        📍 {pkg.deliveryAddress}
-                      </Text>
-                    </View>
-                    <View style={packageStyles.packageFooter}>
-                      <Text style={packageStyles.packageDriver}>
-                        Offer: P {pkg.priceOffered}
-                      </Text>
-                      <Text style={packageStyles.viewBidsText}>
-                        Tap to view bids →
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{
-                      marginTop: 10,
-                      backgroundColor: "#FF4444" + "20",
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      alignItems: "center",
-                      borderWidth: 1,
-                      borderColor: "#FF4444",
-                    }}
-                    onPress={() => handleDeletePackage(pkg)}
-                  >
-                    <Text
-                      style={{
-                        color: "#FF4444",
-                        fontSize: 14,
-                        fontWeight: "600",
-                      }}
-                    >
-                      Delete Package
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {pendingPackages.map((pkg) =>
+                renderPackageCard(pkg, {
+                  showBids: true,
+                  statusLabel: "Pending",
+                  statusColor: "#FFA500",
+                }),
+              )}
             </>
           )}
 
-          {/* In Transit Packages */}
+          {acceptedPackages.length > 0 && (
+            <>
+              <Text style={packageStyles.sectionTitle}>
+                ✅ Accepted ({acceptedPackages.length})
+              </Text>
+              {acceptedPackages.map((pkg) =>
+                renderPackageCard(pkg, {
+                  statusLabel: "Accepted",
+                  statusColor: "#4CAF50",
+                }),
+              )}
+            </>
+          )}
+
           {inTransitPackages.length > 0 && (
             <>
               <Text style={packageStyles.sectionTitle}>
                 🚚 In Transit ({inTransitPackages.length})
               </Text>
-              {inTransitPackages.map((pkg) => (
-                <View key={pkg.id} style={packageStyles.packageCard}>
-                  <View style={packageStyles.packageHeader}>
-                    <Text style={packageStyles.packageId}>{pkg.id}</Text>
-                    <View
-                      style={[
-                        packageStyles.statusBadge,
-                        getStatusColor("in-transit"),
-                      ]}
-                    >
-                      <Text style={packageStyles.statusText}>In Transit</Text>
-                    </View>
-                  </View>
-                  <Text style={packageStyles.packageDesc}>
-                    {pkg.description}
-                  </Text>
-                  <View style={packageStyles.packageRoute}>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.pickupAddress}
-                    </Text>
-                    <Text style={packageStyles.packageArrow}>→</Text>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.deliveryAddress}
-                    </Text>
-                  </View>
-                  <View style={packageStyles.packageFooter}>
-                    {pkg.driverPhoto && (
-                      <Image
-                        source={{ uri: pkg.driverPhoto }}
-                        style={packageStyles.packageDriverPhoto}
-                        resizeMode="cover"
-                      />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={packageStyles.packageDriver}>
-                        Driver: {pkg.driver}
-                      </Text>
-                    </View>
-                    <Text style={packageStyles.packagePrice}>
-                      P {pkg.priceOffered}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              {inTransitPackages.map((pkg) =>
+                renderPackageCard(pkg, {
+                  statusLabel: "In Transit",
+                  statusColor: getStatusColor("in-transit").backgroundColor,
+                }),
+              )}
             </>
           )}
 
-          {/* Delivered Packages */}
           {deliveredPackages.length > 0 && (
             <>
               <Text style={packageStyles.sectionTitle}>
                 ✅ Delivered ({deliveredPackages.length})
               </Text>
-              {deliveredPackages.map((pkg) => (
-                <View key={pkg.id} style={packageStyles.packageCard}>
-                  <View style={packageStyles.packageHeader}>
-                    <Text style={packageStyles.packageId}>{pkg.id}</Text>
-                    <View
-                      style={[
-                        packageStyles.statusBadge,
-                        getStatusColor("delivered"),
-                      ]}
-                    >
-                      <Text style={packageStyles.statusText}>Delivered</Text>
-                    </View>
-                  </View>
-                  <Text style={packageStyles.packageDesc}>
-                    {pkg.description}
-                  </Text>
-                  <View style={packageStyles.packageRoute}>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.pickupAddress}
-                    </Text>
-                    <Text style={packageStyles.packageArrow}>→</Text>
-                    <Text style={packageStyles.packageLocation}>
-                      📍 {pkg.deliveryAddress}
-                    </Text>
-                  </View>
-                  <View style={packageStyles.packageFooter}>
-                    {pkg.driverPhoto && (
-                      <Image
-                        source={{ uri: pkg.driverPhoto }}
-                        style={packageStyles.packageDriverPhoto}
-                        resizeMode="cover"
-                      />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={packageStyles.packageDriver}>
-                        Driver: {pkg.driver}
-                      </Text>
-                    </View>
-                    <Text style={packageStyles.packagePrice}>
-                      P {pkg.priceOffered}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              {deliveredPackages.map((pkg) =>
+                renderPackageCard(pkg, {
+                  statusLabel: "Delivered",
+                  statusColor: getStatusColor("delivered").backgroundColor,
+                }),
+              )}
             </>
           )}
         </ScrollView>
       </SafeAreaView>
 
-      {/* Bids Modal */}
       <Modal
         visible={showBidsModal}
         transparent
@@ -339,11 +321,9 @@ export const MyPackagesScreen = () => {
         onRequestClose={() => setShowBidsModal(false)}
       >
         <View style={sharedStyles.modalOverlay}>
-          <View style={[sharedStyles.modalContent, { maxHeight: "80%" }]}>
+          <View style={[sharedStyles.modalContent, styles.bidsModal]}>
             <View style={packageStyles.modalTitleRow}>
-              <Text style={sharedStyles.modalTitle}>
-                Package {selectedPackage?.id}
-              </Text>
+              <Text style={sharedStyles.modalTitle}>Driver Bids</Text>
               <TouchableOpacity
                 style={packageStyles.modalCloseButton}
                 onPress={() => setShowBidsModal(false)}
@@ -352,10 +332,10 @@ export const MyPackagesScreen = () => {
               </TouchableOpacity>
             </View>
             <Text style={sharedStyles.modalSubtitle}>
-              Status: {(selectedPackage?.status || "PENDING").toString()}
+              {selectedPackage?.description}
             </Text>
             <Text style={sharedStyles.modalSubtitle}>
-              Offer: P {selectedPackage?.priceOffered}
+              Your offer: P {selectedPackage?.priceOffered}
             </Text>
 
             {bidsLoading ? (
@@ -365,39 +345,80 @@ export const MyPackagesScreen = () => {
                 No bids yet. Drivers can bid from Available Packages.
               </Text>
             ) : (
-              <ScrollView style={{ maxHeight: 280, marginTop: 12 }}>
+              <ScrollView style={{ maxHeight: 400, marginTop: 8 }}>
                 {packageBids.map((bid) => {
-                  const driverName = bid.driver?.user
-                    ? `${bid.driver.user.firstName || ""} ${bid.driver.user.lastName || ""}`.trim()
+                  const driver = bid.driver;
+                  const driverName = driver?.user
+                    ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
                     : "Driver";
+                  const photo = driver?.user?.profilePictureUrl;
                   const status = (bid.status || "PENDING").toString();
+
                   return (
-                    <View
-                      key={bid.id}
-                      style={{
-                        padding: 12,
-                        marginBottom: 8,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: "#333",
-                      }}
-                    >
-                      <Text style={sharedStyles.modalSubtitle}>
-                        {driverName} • P {bid.amount} • {status}
-                      </Text>
-                      {status === "PENDING" && (
-                        <TouchableOpacity
-                          style={[sharedStyles.modalButton, { marginTop: 8 }]}
-                          disabled={acceptingBidId === bid.id}
-                          onPress={() => handleAcceptBid(bid)}
-                        >
-                          <Text style={sharedStyles.modalButtonText}>
-                            {acceptingBidId === bid.id
-                              ? "Accepting..."
-                              : "Accept bid"}
+                    <View key={bid.id} style={styles.bidCard}>
+                      <TouchableOpacity
+                        style={styles.bidHeader}
+                        onPress={() => handleViewDriverProfile(bid)}
+                      >
+                        {photo ? (
+                          <Image
+                            source={{ uri: photo }}
+                            style={styles.bidPhoto}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.bidPhoto,
+                              styles.bidPhotoPlaceholder,
+                            ]}
+                          >
+                            <Text style={styles.bidPhotoInitial}>
+                              {(driverName[0] || "D").toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.bidDriverName}>{driverName}</Text>
+                          <Text style={styles.bidMeta}>
+                            {driver?.rating || 0} ⭐ •{" "}
+                            {driver?.totalDeliveries || 0} deliveries
                           </Text>
-                        </TouchableOpacity>
-                      )}
+                          <Text style={styles.bidMeta}>
+                            🚗 {driver?.vehicleType || "Vehicle"}
+                          </Text>
+                          {driver?.locationName ? (
+                            <Text style={styles.bidMeta}>
+                              📍 {driver.locationName}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text style={styles.viewProfile}>View →</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.bidAmountRow}>
+                        <Text style={styles.bidAmount}>P {bid.amount}</Text>
+                        <Text style={styles.bidStatus}>{status}</Text>
+                      </View>
+
+                      {bid.message ? (
+                        <Text style={styles.bidMessage}>{bid.message}</Text>
+                      ) : null}
+
+                      {status === "PENDING" &&
+                        (selectedPackage?.status || "").toUpperCase() ===
+                          "PENDING" && (
+                          <TouchableOpacity
+                            style={styles.acceptButton}
+                            disabled={acceptingBidId === bid.id}
+                            onPress={() => handleAcceptBid(bid)}
+                          >
+                            <Text style={styles.acceptButtonText}>
+                              {acceptingBidId === bid.id
+                                ? "Accepting..."
+                                : "Accept Bid"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
                     </View>
                   );
                 })}
@@ -416,3 +437,99 @@ export const MyPackagesScreen = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  bidsModal: {
+    maxHeight: "85%",
+    width: "92%",
+  },
+  bidCard: {
+    padding: 14,
+    marginBottom: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBgLight,
+  },
+  bidHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  bidPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginRight: 12,
+  },
+  bidPhotoPlaceholder: {
+    backgroundColor: colors.primary + "25",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bidPhotoInitial: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  bidDriverName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  bidMeta: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  viewProfile: {
+    color: colors.primary,
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  bidAmountRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  bidAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  bidStatus: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  bidMessage: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  acceptButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  acceptButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  deleteButton: {
+    marginTop: 10,
+    backgroundColor: "#FF4444" + "20",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FF4444",
+  },
+  deleteButtonText: {
+    color: "#FF4444",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});

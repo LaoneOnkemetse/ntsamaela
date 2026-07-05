@@ -143,12 +143,18 @@ export const AvailablePackagesScreen = () => {
           )}
           {packages.map((pkg) => (
             <View key={pkg.id} style={packageStyles.packageCardWithPhoto}>
-              {pkg.photo && (
+              {pkg.photo ? (
                 <Image
                   source={{ uri: pkg.photo }}
                   style={packageStyles.packagePhoto}
                   resizeMode="cover"
                 />
+              ) : (
+                <View
+                  style={[packageStyles.packagePhoto, styles.photoPlaceholder]}
+                >
+                  <Text style={styles.photoPlaceholderText}>📦</Text>
+                </View>
               )}
               <View style={packageStyles.packageContent}>
                 <View style={packageStyles.packageHeader}>
@@ -219,4 +225,15 @@ export const AvailablePackagesScreen = () => {
       />
     </View>
   );
+};
+
+const styles = {
+  photoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2a2a2a",
+  },
+  photoPlaceholderText: {
+    fontSize: 48,
+  },
 };

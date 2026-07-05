@@ -160,23 +160,63 @@ export const LocationSearchModal = ({
     }
   };
 
-  // Search for addresses
+  // Search for addresses using legacy Places API (broader compatibility)
   const searchAddresses = async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
     }
 
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      setSearchResults([]);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-      if (!apiKey) {
-        setSearchResults([]);
-        setIsLoading(false);
+
+      const legacyResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&components=country:bw`,
+      );
+      const legacyData = await legacyResponse.json();
+
+      if (
+        legacyData.status === "OK" &&
+        Array.isArray(legacyData.predictions) &&
+        legacyData.predictions.length > 0
+      ) {
+        const results = await Promise.all(
+          legacyData.predictions.slice(0, 6).map(async (prediction) => {
+            try {
+              const detailsResponse = await fetch(
+                `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry,formatted_address,name&key=${apiKey}`,
+              );
+              const detailsData = await detailsResponse.json();
+              const loc = detailsData.result?.geometry?.location;
+              if (loc) {
+                return {
+                  id: prediction.place_id,
+                  name:
+                    prediction.structured_formatting?.main_text ||
+                    detailsData.result?.name ||
+                    prediction.description.split(",")[0],
+                  address: prediction.description,
+                  lat: loc.lat,
+                  lng: loc.lng,
+                };
+              }
+            } catch {
+              // skip failed detail lookup
+            }
+            return null;
+          }),
+        );
+        setSearchResults(results.filter((r) => r !== null));
         return;
       }
 
-      // Use Places API (New) - Autocomplete
+      // Fallback: Places API (New)
       const response = await fetch(
         `https://places.googleapis.com/v1/places:autocomplete`,
         {
@@ -190,7 +230,6 @@ export const LocationSearchModal = ({
           body: JSON.stringify({
             input: query,
             includedRegionCodes: ["bw"],
-            languageCode: "en",
           }),
         },
       );
@@ -198,9 +237,8 @@ export const LocationSearchModal = ({
 
       if (data.suggestions) {
         const results = await Promise.all(
-          data.suggestions.slice(0, 5).map(async (suggestion) => {
+          data.suggestions.slice(0, 6).map(async (suggestion) => {
             if (suggestion.placePrediction?.placeId) {
-              // Get place details using Places API (New)
               const detailsResponse = await fetch(
                 `https://places.googleapis.com/v1/places/${suggestion.placePrediction.placeId}`,
                 {
@@ -234,6 +272,8 @@ export const LocationSearchModal = ({
           }),
         );
         setSearchResults(results.filter((r) => r !== null));
+      } else {
+        setSearchResults([]);
       }
     } catch (error) {
       console.error("Error searching addresses:", error);
@@ -354,11 +394,11 @@ export const LocationSearchModal = ({
             <Text style={sharedStyles.modalTitle}>{title}</Text>
 
             {/* Search Input */}
-            <View style={{ position: "relative", marginBottom: 8 }}>
+            <View style={{ position: "relative", marginBottom: 8, zIndex: 20 }}>
               <TextInput
-                style={sharedStyles.modalInput}
+                style={styles.searchInput}
                 placeholder="Search by name, keyword, or plot number..."
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor="#666"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
@@ -384,34 +424,7 @@ export const LocationSearchModal = ({
               )}
             </TouchableOpacity>
 
-            {/* Search Results */}
-            {searchResults.length > 0 && (
-              <ScrollView
-                style={{
-                  maxHeight: 150,
-                  marginBottom: 12,
-                  backgroundColor: colors.cardBg,
-                  borderRadius: 8,
-                }}
-              >
-                {searchResults.map((location) => (
-                  <TouchableOpacity
-                    key={location.id}
-                    style={styles.locationItem}
-                    onPress={() => handleSearchResultSelect(location)}
-                  >
-                    <Text style={styles.locationIcon}>📍</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.locationName}>{location.name}</Text>
-                      <Text style={styles.locationAddress}>
-                        {location.address}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-
+            {/* Search Results dropdown overlays map */}
             {/* Map View */}
             <View
               style={{
@@ -419,8 +432,35 @@ export const LocationSearchModal = ({
                 borderRadius: 8,
                 overflow: "hidden",
                 marginBottom: 12,
+                position: "relative",
               }}
             >
+              {searchResults.length > 0 && (
+                <View style={styles.searchDropdown}>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled
+                  >
+                    {searchResults.map((location) => (
+                      <TouchableOpacity
+                        key={location.id}
+                        style={styles.locationItem}
+                        onPress={() => handleSearchResultSelect(location)}
+                      >
+                        <Text style={styles.locationIcon}>📍</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dropdownName}>
+                            {location.name}
+                          </Text>
+                          <Text style={styles.dropdownAddress}>
+                            {location.address}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
               <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -541,6 +581,42 @@ export const LocationSearchModal = ({
 };
 
 const styles = StyleSheet.create({
+  searchInput: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+    color: "#1A1A1A",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  searchDropdown: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    maxHeight: 220,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + "40",
+  },
+  dropdownName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 2,
+  },
+  dropdownAddress: {
+    fontSize: 13,
+    color: "#555",
+  },
   useCurrentLocationBtn: {
     flexDirection: "row",
     alignItems: "center",

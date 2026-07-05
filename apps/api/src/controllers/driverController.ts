@@ -408,4 +408,64 @@ export class DriverController {
       });
     }
   }
+
+  async getDriverById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        return res.status(503).json({
+          success: false,
+          error: { code: "DATABASE_ERROR", message: "Database unavailable" },
+        });
+      }
+
+      const driver = await prisma.driver.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          userId: true,
+          licensePlate: true,
+          vehicleType: true,
+          vehicleCapacity: true,
+          carDescription: true,
+          carPhotoUrl: true,
+          rating: true,
+          totalDeliveries: true,
+          active: true,
+          locationName: true,
+          lastLatitude: true,
+          lastLongitude: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              profilePictureUrl: true,
+              identityVerified: true,
+            },
+          },
+        },
+      });
+
+      if (!driver) {
+        return res.status(404).json({
+          success: false,
+          error: { code: "DRIVER_NOT_FOUND", message: "Driver not found" },
+        });
+      }
+
+      res.status(200).json({ success: true, data: driver });
+    } catch (_error: any) {
+      console.error("Error getting driver:", _error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "DRIVER_FETCH_ERROR",
+          message: _error?.message || "Failed to get driver",
+        },
+      });
+    }
+  }
 }
