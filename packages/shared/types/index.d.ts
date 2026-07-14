@@ -146,6 +146,14 @@ export interface Driver {
   rating: number;
   totalDeliveries: number;
   active: boolean;
+  profilePictureUrl?: string | null;
+  user?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    profilePictureUrl?: string | null;
+  };
 }
 export interface Theme {
   colors: {
