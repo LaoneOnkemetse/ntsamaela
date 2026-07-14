@@ -205,6 +205,65 @@ class ApiService {
     });
   }
 
+  async updateDriverVehicleDetails(details) {
+    return this.request("/api/driver/profile/vehicle", {
+      method: "PUT",
+      body: JSON.stringify(details),
+    });
+  }
+
+  async uploadProfilePicture(imageUri) {
+    const formData = new FormData();
+    const filename = imageUri.split("/").pop() || `profile-${Date.now()}.jpg`;
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+    formData.append("profilePicture", {
+      uri: imageUri,
+      name: filename,
+      type,
+    });
+    return this.request("/api/user/profile/picture", {
+      method: "POST",
+      isFormData: true,
+      body: formData,
+      timeoutMs: 60000,
+    });
+  }
+
+  async cancelPackage(packageId) {
+    const tryPaths = [
+      { path: `/api/packages/${packageId}/cancel`, method: "POST" },
+      { path: `/api/packages/cancel/${packageId}`, method: "POST" },
+      { path: `/api/packages/${packageId}/cancel`, method: "DELETE" },
+    ];
+    let lastError = null;
+    for (const attempt of tryPaths) {
+      try {
+        const resp = await this.request(attempt.path, {
+          method: attempt.method,
+        });
+        if (resp?.success !== false) return resp;
+        if (resp?.statusCode === 404 || resp?.error?.code === "NOT_FOUND") {
+          lastError = resp;
+          continue;
+        }
+        return resp;
+      } catch (e) {
+        lastError = e;
+        const msg = (e?.message || "").toLowerCase();
+        if (msg.includes("not found") || msg.includes("404")) continue;
+        throw e;
+      }
+    }
+    if (lastError instanceof Error) throw lastError;
+    return (
+      lastError || {
+        success: false,
+        error: { message: "Cancel route not found", code: "NOT_FOUND" },
+      }
+    );
+  }
+
   async getDriverProfile() {
     return this.request("/api/driver/profile");
   }
@@ -298,9 +357,64 @@ class ApiService {
 
   // Packages
   async createPackage(packageData) {
+    if (packageData?.imageUri || packageData?.photo) {
+      const formData = new FormData();
+      Object.entries(packageData).forEach(([key, value]) => {
+        if (
+          key === "imageUri" ||
+          key === "photo" ||
+          value === null ||
+          value === undefined ||
+          value === ""
+        ) {
+          return;
+        }
+        if (
+          key === "weight" &&
+          (Number.isNaN(Number(value)) || Number(value) <= 0)
+        ) {
+          return;
+        }
+        formData.append(key, String(value));
+      });
+      const uri = packageData.imageUri || packageData.photo;
+      const filename = uri.split("/").pop() || "package.jpg";
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : "image/jpeg";
+      formData.append("image", { uri, name: filename, type });
+      return this.request("/api/packages", {
+        method: "POST",
+        body: formData,
+        isFormData: true,
+      });
+    }
+
+    const cleaned = { ...packageData };
+    delete cleaned.imageUri;
+    delete cleaned.photo;
+    if (
+      cleaned.weight === null ||
+      cleaned.weight === "" ||
+      Number.isNaN(cleaned.weight)
+    ) {
+      delete cleaned.weight;
+    }
     return this.request("/api/packages", {
       method: "POST",
-      body: JSON.stringify(packageData),
+      body: JSON.stringify(cleaned),
+    });
+  }
+
+  async searchPlaces(query) {
+    return this.request(
+      `/api/places/autocomplete?q=${encodeURIComponent(query)}`,
+    );
+  }
+
+  async withdrawWallet(amount, method = "BANK_TRANSFER", accountDetails = "") {
+    return this.request("/api/wallet/withdraw", {
+      method: "POST",
+      body: JSON.stringify({ amount, method, accountDetails }),
     });
   }
 
@@ -374,12 +488,20 @@ class ApiService {
     });
   }
 
-  async placeBidOnPackage(packageId, amount, message = "") {
-    return this.createBid({
+  async placeBidOnPackage(packageId, amount, message = "", location = null) {
+    const payload = {
       packageId,
       amount: parseFloat(amount),
       message: message || `Bid: P${amount}`,
-    });
+    };
+    if (location?.latitude != null && location?.longitude != null) {
+      payload.bidLatitude = location.latitude;
+      payload.bidLongitude = location.longitude;
+      if (location.locationName) {
+        payload.bidLocationName = location.locationName;
+      }
+    }
+    return this.createBid(payload);
   }
 
   getPackageBids(packageId) {

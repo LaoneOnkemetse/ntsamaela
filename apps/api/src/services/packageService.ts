@@ -225,7 +225,18 @@ class PackageService {
             bids: {
               include: {
                 driver: {
-                  include: {
+                  select: {
+                    id: true,
+                    userId: true,
+                    licensePlate: true,
+                    vehicleType: true,
+                    carDescription: true,
+                    carPhotoUrl: true,
+                    rating: true,
+                    totalDeliveries: true,
+                    locationName: true,
+                    lastLatitude: true,
+                    lastLongitude: true,
                     user: {
                       select: {
                         id: true,
@@ -233,6 +244,7 @@ class PackageService {
                         lastName: true,
                         email: true,
                         phone: true,
+                        profilePictureUrl: true,
                       },
                     },
                   },
@@ -580,7 +592,7 @@ class PackageService {
     const validTransitions: { [key: string]: string[] } = {
       PENDING: ["ACCEPTED", "CANCELLED"],
       ACCEPTED: ["IN_TRANSIT", "CANCELLED"],
-      IN_TRANSIT: ["DELIVERED", "FAILED"],
+      IN_TRANSIT: ["DELIVERED", "FAILED", "CANCELLED"],
       DELIVERED: [],
       FAILED: ["PENDING", "CANCELLED"],
       CANCELLED: [],
@@ -593,6 +605,157 @@ class PackageService {
         400,
       );
     }
+  }
+
+  /**
+   * Cancel an ACCEPTED or IN_TRANSIT package. Canceller pays a 10% fee
+   * of the accepted bid amount (or priceOffered fallback).
+   */
+  async cancelPackageWithFee(
+    packageId: string,
+    userId: string,
+    userType: string,
+  ) {
+    const pkg = await this.getPrisma().package.findUnique({
+      where: { id: packageId },
+      include: {
+        bids: {
+          where: { status: "ACCEPTED" },
+          include: { driver: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!pkg) {
+      throw new AppError("Package not found", "PACKAGE_NOT_FOUND", 404);
+    }
+
+    const status = (pkg.status || "").toUpperCase();
+    if (
+      status !== "ACCEPTED" &&
+      status !== "IN_TRANSIT" &&
+      status !== "IN_PROGRESS"
+    ) {
+      throw new AppError(
+        "Only accepted or in-transit packages can be cancelled with a fee",
+        "INVALID_CANCEL_STATUS",
+        400,
+      );
+    }
+
+    const acceptedBid = pkg.bids?.[0];
+    const isCustomer = pkg.customerId === userId;
+    const isAssignedDriver =
+      acceptedBid?.driver?.userId === userId ||
+      acceptedBid?.driverId === userId;
+    const isAdmin = (userType || "").toUpperCase() === "ADMIN";
+
+    if (!isCustomer && !isAssignedDriver && !isAdmin) {
+      throw new AppError(
+        "Only the customer or assigned driver can cancel this package",
+        "UNAUTHORIZED",
+        403,
+      );
+    }
+
+    const baseAmount = acceptedBid?.amount || pkg.priceOffered || 0;
+    const fee = Math.round(baseAmount * 0.1 * 100) / 100;
+    const cancellerRole = isAdmin
+      ? "ADMIN"
+      : isCustomer
+        ? "CUSTOMER"
+        : "DRIVER";
+
+    if (fee > 0 && !isAdmin) {
+      const wallet = await this.getPrisma().wallet.findUnique({
+        where: { userId },
+      });
+      if (!wallet || wallet.availableBalance < fee) {
+        throw new AppError(
+          `Insufficient wallet balance to cover the 10% cancellation fee (P ${fee.toFixed(2)})`,
+          "INSUFFICIENT_CANCEL_FEE",
+          400,
+        );
+      }
+
+      await this.getPrisma().$transaction([
+        this.getPrisma().wallet.update({
+          where: { userId },
+          data: { availableBalance: { decrement: fee } },
+        }),
+        this.getPrisma().transaction.create({
+          data: {
+            userId,
+            type: "CANCELLATION_FEE",
+            amount: fee,
+            status: "COMPLETED",
+            description: `10% cancellation fee for package ${packageId.slice(-6).toUpperCase()}`,
+            reference: `CXL-${Date.now()}`,
+            metadata: JSON.stringify({
+              packageId,
+              baseAmount,
+              feePercent: 10,
+              cancelledBy: cancellerRole,
+            }),
+          },
+        }),
+        this.getPrisma().package.update({
+          where: { id: packageId },
+          data: { status: "CANCELLED" },
+        }),
+        this.getPrisma().bid.updateMany({
+          where: {
+            packageId,
+            status: { in: ["ACCEPTED", "PENDING"] },
+          },
+          data: { status: "CANCELLED" },
+        }),
+      ]);
+    } else {
+      await this.getPrisma().$transaction([
+        this.getPrisma().package.update({
+          where: { id: packageId },
+          data: { status: "CANCELLED" },
+        }),
+        this.getPrisma().bid.updateMany({
+          where: {
+            packageId,
+            status: { in: ["ACCEPTED", "PENDING"] },
+          },
+          data: { status: "CANCELLED" },
+        }),
+      ]);
+    }
+
+    try {
+      const realtimeService = getRealtimeService();
+      if (realtimeService) {
+        await realtimeService.createTrackingUpdate(
+          packageId,
+          "CANCELLED",
+          undefined,
+          undefined,
+          undefined,
+          `Cancelled by ${cancellerRole.toLowerCase()} (fee P ${fee.toFixed(2)})`,
+        );
+      }
+    } catch {
+      // non-fatal
+    }
+
+    return {
+      success: true,
+      data: {
+        packageId,
+        status: "CANCELLED",
+        fee,
+        cancelledBy: cancellerRole,
+        baseAmount,
+      },
+      message:
+        `Package cancelled. ${fee > 0 ? `A 10% fee of P ${fee.toFixed(2)} was charged.` : ""}`.trim(),
+    };
   }
 
   async searchPackages(searchQuery: string, filters: PackageFilters = {}) {

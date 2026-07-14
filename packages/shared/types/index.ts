@@ -1,5 +1,5 @@
 // Shared types for the Ntsamaela platform
-import { Request } from 'express';
+import { Request } from "express";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -26,7 +26,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  userType: 'CUSTOMER' | 'DRIVER' | 'ADMIN';
+  userType: "CUSTOMER" | "DRIVER" | "ADMIN";
   identityVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -47,7 +47,7 @@ export interface RegisterRequest {
   firstName: string;
   lastName: string;
   phone: string;
-  userType: 'CUSTOMER' | 'DRIVER';
+  userType: "CUSTOMER" | "DRIVER";
 }
 
 export interface Package {
@@ -71,8 +71,14 @@ export interface Package {
   bids?: Bid[];
 }
 
-export type PackageStatus = 'PENDING' | 'ACCEPTED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
-export type PackageSize = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA_LARGE';
+export type PackageStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "FAILED"
+  | "CANCELLED";
+export type PackageSize = "SMALL" | "MEDIUM" | "LARGE" | "EXTRA_LARGE";
 
 export interface Trip {
   id: string;
@@ -92,8 +98,12 @@ export interface Trip {
   bids?: Bid[];
 }
 
-export type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-export type TripCapacity = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA_LARGE';
+export type TripStatus =
+  | "SCHEDULED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED";
+export type TripCapacity = "SMALL" | "MEDIUM" | "LARGE" | "EXTRA_LARGE";
 
 export interface Bid {
   id: string;
@@ -103,6 +113,11 @@ export interface Bid {
   amount: number;
   status: BidStatus;
   message?: string;
+  parentBidId?: string | null;
+  offerFrom?: string | null;
+  bidLatitude?: number | null;
+  bidLongitude?: number | null;
+  bidLocationName?: string | null;
   createdAt: string;
   updatedAt: string;
   driver?: Driver;
@@ -110,7 +125,13 @@ export interface Bid {
   trip?: Trip;
 }
 
-export type BidStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+export type BidStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "CUSTOMER_COUNTER"
+  | "DRIVER_COUNTER";
 
 export interface Wallet {
   id: string;
@@ -123,21 +144,21 @@ export interface Transaction {
   id: string;
   driverId: string;
   packageId?: string;
-  type: 'RECHARGE' | 'COMMISSION_HOLD' | 'COMMISSION_DEDUCTION' | 'REFUND';
+  type: "RECHARGE" | "COMMISSION_HOLD" | "COMMISSION_DEDUCTION" | "REFUND";
   amount: number;
   balanceAfter: number;
-  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  status: "PENDING" | "COMPLETED" | "FAILED";
   createdAt: string;
 }
 
 export interface Verification {
   id: string;
   userId: string;
-  documentType: 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
+  documentType: "DRIVERS_LICENSE" | "NATIONAL_ID" | "PASSPORT";
   frontImageUrl: string;
   backImageUrl?: string;
   selfieImageUrl: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  status: "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
   riskScore?: number;
   authenticityScore?: number;
   dataValidationScore?: number;
@@ -208,10 +229,13 @@ export interface CreateBidRequest {
   tripId?: string;
   amount: number;
   message?: string;
+  bidLatitude?: number | null;
+  bidLongitude?: number | null;
+  bidLocationName?: string | null;
 }
 
 export interface SubmitVerificationRequest {
-  documentType: 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
+  documentType: "DRIVERS_LICENSE" | "NATIONAL_ID" | "PASSPORT";
   frontImage: File;
   backImage?: File;
   selfieImage: File;
@@ -291,7 +315,16 @@ export interface Notification {
   title: string;
   body: string;
   message: string;
-  type: 'PACKAGE_UPDATE' | 'BID_RECEIVED' | 'BID_ACCEPTED' | 'BID_REJECTED' | 'VERIFICATION_STATUS' | 'PAYMENT_RECEIVED' | 'PACKAGE_STATUS' | 'DELIVERY_UPDATE' | 'CHAT_MESSAGE';
+  type:
+    | "PACKAGE_UPDATE"
+    | "BID_RECEIVED"
+    | "BID_ACCEPTED"
+    | "BID_REJECTED"
+    | "VERIFICATION_STATUS"
+    | "PAYMENT_RECEIVED"
+    | "PACKAGE_STATUS"
+    | "DELIVERY_UPDATE"
+    | "CHAT_MESSAGE";
   data?: Record<string, any>;
   read: boolean;
   isRead: boolean;
@@ -320,17 +353,16 @@ export interface PackageFilters {
   radius?: number;
 }
 
-
 export interface PaginationParams {
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 }
 
 // Additional types for verification service
-export type DocumentType = 'DRIVERS_LICENSE' | 'NATIONAL_ID' | 'PASSPORT';
-export type UserType = 'CUSTOMER' | 'DRIVER' | 'ADMIN';
+export type DocumentType = "DRIVERS_LICENSE" | "NATIONAL_ID" | "PASSPORT";
+export type UserType = "CUSTOMER" | "DRIVER" | "ADMIN";
 
 export interface DocumentData {
   documentType: DocumentType;
@@ -345,7 +377,7 @@ export interface VerificationResult {
   authenticityScore: number;
   dataValidationScore: number;
   facialMatchScore: number;
-  status: 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  status: "APPROVED" | "REJECTED" | "FLAGGED";
   message?: string;
 }
 
@@ -405,8 +437,13 @@ export interface SecurityFeature {
 }
 
 export interface Anomaly {
-  type: 'TAMPERING' | 'FORGERY' | 'BLUR' | 'LOW_QUALITY' | 'WRONG_DOCUMENT_TYPE';
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  type:
+    | "TAMPERING"
+    | "FORGERY"
+    | "BLUR"
+    | "LOW_QUALITY"
+    | "WRONG_DOCUMENT_TYPE";
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   description: string;
   confidence: number;
   location?: {
@@ -451,7 +488,7 @@ export interface FacialRecognitionResult {
 }
 
 export interface FaceLandmark {
-  type: 'EYE' | 'NOSE' | 'MOUTH' | 'EAR' | 'CHIN';
+  type: "EYE" | "NOSE" | "MOUTH" | "EAR" | "CHIN";
   x: number;
   y: number;
   confidence: number;
@@ -459,14 +496,19 @@ export interface FaceLandmark {
 
 export interface RiskAssessment {
   overallRisk: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   factors: RiskFactor[];
   recommendations: string[];
   requiresManualReview: boolean;
 }
 
 export interface RiskFactor {
-  category: 'DOCUMENT_AUTHENTICITY' | 'DATA_CONSISTENCY' | 'FACIAL_MATCH' | 'BEHAVIORAL' | 'TECHNICAL';
+  category:
+    | "DOCUMENT_AUTHENTICITY"
+    | "DATA_CONSISTENCY"
+    | "FACIAL_MATCH"
+    | "BEHAVIORAL"
+    | "TECHNICAL";
   score: number;
   weight: number;
   description: string;
@@ -474,7 +516,7 @@ export interface RiskFactor {
 }
 
 export interface VerificationDecision {
-  decision: 'APPROVE' | 'REJECT' | 'FLAG_FOR_REVIEW';
+  decision: "APPROVE" | "REJECT" | "FLAG_FOR_REVIEW";
   confidence: number;
   reasoning: string[];
   automated: boolean;
@@ -485,14 +527,19 @@ export interface VerificationDecision {
 export interface VerificationWorkflow {
   steps: VerificationStep[];
   currentStep: number;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
   results: VerificationStepResult[];
 }
 
 export interface VerificationStep {
   id: string;
   name: string;
-  type: 'DOCUMENT_AUTHENTICITY' | 'OCR_EXTRACTION' | 'FACIAL_RECOGNITION' | 'RISK_ASSESSMENT' | 'DECISION_ENGINE';
+  type:
+    | "DOCUMENT_AUTHENTICITY"
+    | "OCR_EXTRACTION"
+    | "FACIAL_RECOGNITION"
+    | "RISK_ASSESSMENT"
+    | "DECISION_ENGINE";
   required: boolean;
   timeout: number;
   retryCount: number;
@@ -574,7 +621,13 @@ export interface VerificationMetrics {
 export interface VerificationAuditLog {
   id: string;
   verificationId: string;
-  action: 'SUBMITTED' | 'PROCESSED' | 'APPROVED' | 'REJECTED' | 'FLAGGED' | 'MANUAL_REVIEW';
+  action:
+    | "SUBMITTED"
+    | "PROCESSED"
+    | "APPROVED"
+    | "REJECTED"
+    | "FLAGGED"
+    | "MANUAL_REVIEW";
   performedBy: string;
   timestamp: Date;
   details: Record<string, any>;
@@ -583,20 +636,20 @@ export interface VerificationAuditLog {
 }
 
 // Wallet and Financial Types
-export type TransactionType = 
-  | 'RECHARGE' 
-  | 'DEBIT' 
-  | 'COMMISSION_RESERVATION' 
-  | 'COMMISSION_REFUND' 
-  | 'PAYMENT' 
-  | 'REFUND' 
-  | 'TRANSFER';
+export type TransactionType =
+  | "RECHARGE"
+  | "DEBIT"
+  | "COMMISSION_RESERVATION"
+  | "COMMISSION_REFUND"
+  | "PAYMENT"
+  | "REFUND"
+  | "TRANSFER";
 
-export type TransactionStatus = 
-  | 'PENDING' 
-  | 'COMPLETED' 
-  | 'FAILED' 
-  | 'CANCELLED';
+export type TransactionStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
 
 export interface WalletBalance {
   userId: string;
@@ -607,14 +660,13 @@ export interface WalletBalance {
   lastUpdated: Date;
 }
 
-
 export interface CommissionReservation {
   id: string;
   driverId: string;
   tripId: string;
   amount: number;
   percentage: number;
-  status: 'PENDING' | 'CONFIRMED' | 'RELEASED' | 'CANCELLED';
+  status: "PENDING" | "CONFIRMED" | "RELEASED" | "CANCELLED";
   createdAt: Date;
   expiresAt: Date;
 }
@@ -622,7 +674,7 @@ export interface CommissionReservation {
 export interface RechargeRequest {
   userId: string;
   amount: number;
-  paymentMethod: 'CARD' | 'BANK_TRANSFER' | 'MOBILE_MONEY';
+  paymentMethod: "CARD" | "BANK_TRANSFER" | "MOBILE_MONEY";
   paymentReference?: string;
   description?: string;
 }
@@ -674,6 +726,9 @@ export interface CreateBidRequest {
   tripId?: string;
   amount: number;
   message?: string;
+  bidLatitude?: number | null;
+  bidLongitude?: number | null;
+  bidLocationName?: string | null;
 }
 
 export interface UpdateBidRequest {
@@ -751,7 +806,7 @@ export interface ChatRoom {
   packageId: string;
   customerId: string;
   driverId?: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'CLOSED';
+  status: "ACTIVE" | "INACTIVE" | "CLOSED";
   createdAt: string;
   updatedAt: string;
   messages?: ChatMessage[];
@@ -764,9 +819,9 @@ export interface ChatMessage {
   id: string;
   chatRoomId: string;
   senderId: string;
-  senderType: 'CUSTOMER' | 'DRIVER';
+  senderType: "CUSTOMER" | "DRIVER";
   message: string;
-  messageType: 'TEXT' | 'IMAGE' | 'FILE';
+  messageType: "TEXT" | "IMAGE" | "FILE";
   isRead: boolean;
   createdAt: string;
 }
@@ -774,7 +829,7 @@ export interface ChatMessage {
 export interface CreateChatMessageRequest {
   chatRoomId: string;
   message: string;
-  messageType?: 'TEXT' | 'IMAGE' | 'FILE';
+  messageType?: "TEXT" | "IMAGE" | "FILE";
 }
 
 export interface ChatRoomFilters {
@@ -834,57 +889,94 @@ export interface NotificationFilters {
 // Socket.IO Event Types
 export interface SocketEvents {
   // Connection events
-  'user:connect': { userId: string; userType: string };
-  'user:disconnect': { userId: string };
-  
+  "user:connect": { userId: string; userType: string };
+  "user:disconnect": { userId: string };
+
   // Chat events
-  'chat:join': { chatRoomId: string };
-  'chat:leave': { chatRoomId: string };
-  'chat:message': { chatRoomId: string; message: string; messageType?: string };
-  'chat:message:received': { message: ChatMessage };
-  'chat:typing': { chatRoomId: string; isTyping: boolean };
-  
+  "chat:join": { chatRoomId: string };
+  "chat:leave": { chatRoomId: string };
+  "chat:message": { chatRoomId: string; message: string; messageType?: string };
+  "chat:message:received": { message: ChatMessage };
+  "chat:typing": { chatRoomId: string; isTyping: boolean };
+
   // Bid events
-  'bid:received': { packageId: string; bid: Bid };
-  'bid:accepted': { packageId: string; bidId: string };
-  'bid:rejected': { packageId: string; bidId: string };
-  
+  "bid:received": { packageId: string; bid: Bid };
+  "bid:accepted": { packageId: string; bidId: string };
+  "bid:rejected": { packageId: string; bidId: string };
+
   // Package tracking events
-  'package:status:update': { packageId: string; status: string; tracking: PackageTracking };
-  'package:location:update': { packageId: string; latitude: number; longitude: number };
-  
+  "package:status:update": {
+    packageId: string;
+    status: string;
+    tracking: PackageTracking;
+  };
+  "package:location:update": {
+    packageId: string;
+    latitude: number;
+    longitude: number;
+  };
+
   // Notification events
-  'notification:new': { notification: Notification };
-  'notification:read': { notificationId: string };
-  
+  "notification:new": { notification: Notification };
+  "notification:read": { notificationId: string };
+
   // Delivery events
-  'delivery:started': { packageId: string; driverId: string };
-  'delivery:completed': { packageId: string; driverId: string };
-  'delivery:failed': { packageId: string; driverId: string; reason: string };
+  "delivery:started": { packageId: string; driverId: string };
+  "delivery:completed": { packageId: string; driverId: string };
+  "delivery:failed": { packageId: string; driverId: string; reason: string };
 }
 
 // Real-time service interfaces
 export interface RealtimeService {
   // Chat methods
-  createChatRoom(packageId: string, customerId: string, driverId?: string): Promise<ChatRoom>;
-  sendMessage(chatRoomId: string, senderId: string, senderType: string, message: string, messageType?: string): Promise<ChatMessage>;
-  getChatMessages(chatRoomId: string, limit?: number, offset?: number): Promise<ChatMessage[]>;
+  createChatRoom(
+    packageId: string,
+    customerId: string,
+    driverId?: string,
+  ): Promise<ChatRoom>;
+  sendMessage(
+    chatRoomId: string,
+    senderId: string,
+    senderType: string,
+    message: string,
+    messageType?: string,
+  ): Promise<ChatMessage>;
+  getChatMessages(
+    chatRoomId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<ChatMessage[]>;
   markMessageAsRead(messageId: string): Promise<void>;
-  
+
   // Tracking methods
-  createTrackingUpdate(packageId: string, status: string, location?: string, latitude?: number, longitude?: number, notes?: string): Promise<PackageTracking>;
+  createTrackingUpdate(
+    packageId: string,
+    status: string,
+    location?: string,
+    latitude?: number,
+    longitude?: number,
+    notes?: string,
+  ): Promise<PackageTracking>;
   getPackageTracking(packageId: string): Promise<PackageTracking[]>;
-  
+
   // Notification methods
-  createNotification(userId: string, type: string, title: string, message: string, data?: any): Promise<Notification>;
-  getUserNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
+  createNotification(
+    userId: string,
+    type: string,
+    title: string,
+    message: string,
+    data?: any,
+  ): Promise<Notification>;
+  getUserNotifications(
+    userId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Notification[]>;
   markNotificationAsRead(notificationId: string): Promise<void>;
-  
+
   // Socket.IO methods
   emitToUser(userId: string, event: string, data: any): void;
   emitToRoom(roomId: string, event: string, data: any): void;
   joinRoom(socketId: string, roomId: string): void;
   leaveRoom(socketId: string, roomId: string): void;
 }
-
-

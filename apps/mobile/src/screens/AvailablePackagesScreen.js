@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
 import { sharedStyles } from "../styles/sharedStyles";
 import { packageStyles } from "../styles/packageStyles";
 import { useNavigation } from "../navigation/NavigationContext";
@@ -25,6 +26,8 @@ export const AvailablePackagesScreen = () => {
   const [submitting, setSubmitting] = useState(false);
   const [myBids, setMyBids] = useState([]);
 
+  const [acceptingCounterId, setAcceptingCounterId] = useState(null);
+
   const loadMyBids = useCallback(async () => {
     if (!authToken) return;
     try {
@@ -36,6 +39,30 @@ export const AvailablePackagesScreen = () => {
       setMyBids([]);
     }
   }, [authToken]);
+
+  const acceptCustomerCounter = async (counterBid) => {
+    setAcceptingCounterId(counterBid.id);
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.acceptBid(counterBid.id);
+      if (resp?.success === false) {
+        Alert.alert(
+          "Accept failed",
+          resp?.error?.message || "Could not accept customer counter",
+        );
+        return;
+      }
+      Alert.alert(
+        "Counter accepted",
+        `You accepted the customer's counter of P ${counterBid.amount}.`,
+      );
+      await loadPackages();
+    } catch (e) {
+      Alert.alert("Accept failed", e?.message || "Could not accept counter");
+    } finally {
+      setAcceptingCounterId(null);
+    }
+  };
 
   const loadPackages = useCallback(async () => {
     if (!authToken) return;
@@ -52,14 +79,50 @@ export const AvailablePackagesScreen = () => {
     loadPackages();
   }, [loadPackages]);
 
+  const captureBidLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return null;
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const latitude = loc.coords.latitude;
+      const longitude = loc.coords.longitude;
+      let locationName = null;
+      try {
+        const places = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+        const p = places?.[0];
+        if (p) {
+          locationName =
+            [p.name, p.street, p.city || p.subregion, p.region]
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(", ") || null;
+        }
+      } catch {
+        // ignore
+      }
+      apiService.setToken(authToken);
+      apiService.updateDriverLocation(latitude, longitude).catch(() => {});
+      return { latitude, longitude, locationName };
+    } catch {
+      return null;
+    }
+  };
+
   const placeBid = async (pkg, amount) => {
     setSubmitting(true);
     try {
       apiService.setToken(authToken);
+      const location = await captureBidLocation();
       let resp = await apiService.placeBidOnPackage(
         pkg.id,
         amount,
         `Bid: P${amount}`,
+        location,
       );
 
       if (resp?.success === false && resp?.error?.code === "DUPLICATE_BID") {
@@ -170,7 +233,18 @@ export const AvailablePackagesScreen = () => {
           )}
           {packages.map((pkg) => {
             const myBid = myBids.find(
-              (b) => b.packageId === pkg.id && b.status === "PENDING",
+              (b) =>
+                b.packageId === pkg.id &&
+                ["PENDING", "DRIVER_COUNTER"].includes(
+                  (b.status || "").toUpperCase(),
+                ) &&
+                (b.offerFrom || "DRIVER").toUpperCase() !== "CUSTOMER",
+            );
+            const customerCounter = myBids.find(
+              (b) =>
+                b.packageId === pkg.id &&
+                ((b.status || "").toUpperCase() === "CUSTOMER_COUNTER" ||
+                  (b.offerFrom || "").toUpperCase() === "CUSTOMER"),
             );
             return (
               <View key={pkg.id} style={packageStyles.packageCardWithPhoto}>
@@ -219,8 +293,32 @@ export const AvailablePackagesScreen = () => {
                   {myBid ? (
                     <View style={styles.bidPendingBadge}>
                       <Text style={styles.bidPendingText}>
-                        ✓ Bid placed: P {myBid.amount} — awaiting customer
+                        ✓ Your bid: P {myBid.amount} — awaiting customer
                       </Text>
+                    </View>
+                  ) : null}
+
+                  {customerCounter ? (
+                    <View style={styles.bidPendingBadge}>
+                      <Text style={styles.bidPendingText}>
+                        ↕ Customer counter: P {customerCounter.amount}{" "}
+                        (separate offer)
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          packageStyles.packageActionButton,
+                          packageStyles.acceptButton,
+                          { marginTop: 8 },
+                        ]}
+                        disabled={acceptingCounterId === customerCounter.id}
+                        onPress={() => acceptCustomerCounter(customerCounter)}
+                      >
+                        <Text style={packageStyles.acceptButtonText}>
+                          {acceptingCounterId === customerCounter.id
+                            ? "Accepting..."
+                            : "Accept Customer Counter"}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   ) : null}
 

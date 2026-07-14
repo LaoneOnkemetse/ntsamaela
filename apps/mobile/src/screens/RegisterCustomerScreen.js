@@ -133,6 +133,11 @@ export const RegisterCustomerScreen = () => {
           // Backend validation requires userType for verification submit
           formData.append("userType", "CUSTOMER");
           try {
+            await apiService.uploadProfilePicture(selfieUri);
+          } catch (e) {
+            console.warn("Profile photo upload after register:", e);
+          }
+          try {
             const verifyResponse =
               await apiService.submitVerification(formData);
             if (!verifyResponse.success) {

@@ -338,6 +338,34 @@ export class PackageController {
     }
   }
 
+  async cancelPackage(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const result = await (packageService as any).cancelPackageWithFee(
+        id,
+        user.id,
+        user.userType || user.role || "",
+      );
+      res.json(result);
+    } catch (_error: any) {
+      console.error("Error cancelling package:", _error);
+      if (_error instanceof AppError) {
+        return res.status(_error.statusCode).json({
+          success: false,
+          error: { code: _error.code, message: _error.message },
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to cancel package",
+        },
+      });
+    }
+  }
+
   async uploadPackageImage(req: Request, res: Response) {
     try {
       if (!req.file) {

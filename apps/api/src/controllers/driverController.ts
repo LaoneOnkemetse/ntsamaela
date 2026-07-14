@@ -224,21 +224,31 @@ export class DriverController {
       }
 
       let carPhotoUrl = existingDriver.carPhotoUrl; // Keep existing if no new photo
+      let photoUploadError: string | null = null;
       if (file) {
-        const uploadResult = await cloudStorageService.uploadPackageImage(
-          file,
-          userId,
-          `driver-car-${Date.now()}`,
-        );
-        carPhotoUrl = uploadResult.url;
+        try {
+          const uploadResult = await cloudStorageService.uploadPackageImage(
+            file,
+            userId,
+            `driver-car-${Date.now()}`,
+          );
+          carPhotoUrl = uploadResult.url;
+        } catch (uploadErr: any) {
+          console.error("Car photo upload failed:", uploadErr);
+          photoUploadError =
+            uploadErr?.message ||
+            "Car photo upload failed; other details saved";
+        }
       }
 
       const updatedDriver = await prisma.driver.update({
         where: { userId },
         data: {
-          licensePlate: carRegistration,
-          ...(typeof carDescription === "string" && carDescription
-            ? { carDescription }
+          ...(typeof carRegistration === "string" && carRegistration.trim()
+            ? { licensePlate: carRegistration.trim() }
+            : {}),
+          ...(typeof carDescription === "string" && carDescription.trim()
+            ? { carDescription: carDescription.trim() }
             : {}),
           carPhotoUrl,
           vehicleType: vehicleType || existingDriver.vehicleType,
@@ -249,7 +259,10 @@ export class DriverController {
       res.status(200).json({
         success: true,
         data: updatedDriver,
-        message: "Driver profile updated successfully",
+        message: photoUploadError
+          ? `Vehicle details updated, but photo failed: ${photoUploadError}`
+          : "Driver profile updated successfully",
+        warning: photoUploadError || undefined,
       });
     } catch (_error: any) {
       console.error("Error updating driver profile:", _error);

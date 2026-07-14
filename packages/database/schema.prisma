@@ -133,18 +133,23 @@ model Trip {
 }
 
 model Bid {
-  id        String   @id @default(cuid())
-  packageId String
-  driverId  String
-  tripId    String?
-  amount    Float
-  status    String   @default("PENDING")
-  message   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  trip      Trip?    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  packageId       String
+  driverId        String
+  tripId          String?
+  amount          Float
+  status          String   @default("PENDING")
+  message         String?
+  parentBidId     String?
+  offerFrom       String   @default("DRIVER") // DRIVER | CUSTOMER
+  bidLatitude     Float?
+  bidLongitude    Float?
+  bidLocationName String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  driver          Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  package         Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  trip            Trip?    @relation(fields: [tripId], references: [id], onDelete: Cascade)
 }
 
 model Wallet {

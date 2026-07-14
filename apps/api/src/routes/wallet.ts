@@ -181,4 +181,27 @@ router.post(
   walletController.processExpiredReservations,
 );
 
+/**
+ * @route POST /api/wallet/withdraw
+ * @desc Driver withdraw available balance
+ * @access Private (Driver only)
+ */
+router.post(
+  "/withdraw",
+  authenticateToken,
+  requireUserType(["DRIVER"]),
+  validateRequest({
+    body: {
+      amount: { type: "number", required: true, min: 0.01, max: 100000 },
+      method: {
+        type: "string",
+        enum: ["BANK_TRANSFER", "MOBILE_MONEY"],
+        required: true,
+      },
+      accountDetails: { type: "string", required: false },
+    },
+  }),
+  walletController.withdrawFunds,
+);
+
 export default router;

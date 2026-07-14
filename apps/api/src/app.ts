@@ -260,6 +260,7 @@ import performanceRoutes from "./routes/performanceRoutes";
 import realtimeRoutes from "./routes/realtime";
 import webhookRoutes from "./routes/webhookRoutes";
 import driverRoutes from "./routes/driver";
+import placesRoutes from "./routes/placesRoutes";
 
 // Cloud services initialized:
 // - Google Cloud Vision API (for OCR and face detection)
@@ -284,6 +285,7 @@ app.use("/api/performance", performanceRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/driver", driverRoutes);
+app.use("/api/places", placesRoutes);
 // Legacy mock routes — development only (disabled in production)
 if (process.env.NODE_ENV !== "production") {
   app.use("/api", simpleRoutes);

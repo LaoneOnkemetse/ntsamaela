@@ -21,6 +21,9 @@ export interface BidWithRelations {
   amount: number;
   status: string;
   message?: string;
+  bidLatitude?: number | null;
+  bidLongitude?: number | null;
+  bidLocationName?: string | null;
   createdAt: string;
   updatedAt: string;
   driver?: {
@@ -188,7 +191,63 @@ class BidService {
       // Calculate commission
       const commission = this.calculateCommission(bidData.amount);
 
-      // Create bid
+      // Prefer live location from the client; fall back to driver's last known location
+      let bidLatitude =
+        typeof bidData.bidLatitude === "number"
+          ? bidData.bidLatitude
+          : (driver.lastLatitude ?? null);
+      let bidLongitude =
+        typeof bidData.bidLongitude === "number"
+          ? bidData.bidLongitude
+          : (driver.lastLongitude ?? null);
+      let bidLocationName =
+        typeof bidData.bidLocationName === "string" && bidData.bidLocationName
+          ? bidData.bidLocationName
+          : (driver.locationName ?? null);
+
+      if (bidLatitude != null && bidLongitude != null && !bidLocationName) {
+        try {
+          const apiKey =
+            process.env.GOOGLE_MAPS_API_KEY ||
+            process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+          if (apiKey) {
+            const geoRes = await fetch(
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${bidLatitude},${bidLongitude}&key=${apiKey}`,
+            );
+            const geoData: any = await geoRes.json();
+            if (geoData.status === "OK" && geoData.results?.[0]) {
+              bidLocationName =
+                geoData.results[0].formatted_address?.split(",")[0] ||
+                geoData.results[0].formatted_address ||
+                null;
+            }
+          }
+        } catch {
+          // non-fatal
+        }
+        if (!bidLocationName) {
+          bidLocationName = `${Number(bidLatitude).toFixed(4)}, ${Number(bidLongitude).toFixed(4)}`;
+        }
+      }
+
+      // Keep driver last-known location fresh when bidding
+      if (bidLatitude != null && bidLongitude != null) {
+        try {
+          await this.getPrisma().driver.update({
+            where: { id: driver.id },
+            data: {
+              lastLatitude: bidLatitude,
+              lastLongitude: bidLongitude,
+              lastLocationAt: new Date(),
+              ...(bidLocationName ? { locationName: bidLocationName } : {}),
+            },
+          });
+        } catch {
+          // non-fatal
+        }
+      }
+
+      // Create bid — snapshot driver's location at bid time
       const newBid = await this.getPrisma().bid.create({
         data: {
           packageId: bidData.packageId,
@@ -197,6 +256,10 @@ class BidService {
           amount: bidData.amount,
           message: bidData.message,
           status: "PENDING",
+          offerFrom: "DRIVER",
+          bidLatitude,
+          bidLongitude,
+          bidLocationName,
         },
       });
 
@@ -489,17 +552,43 @@ class BidService {
         throw new AppError("Bid not found", "BID_NOT_FOUND", 404);
       }
 
-      if (bid.status !== "PENDING") {
-        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
-      }
+      const status = (bid.status || "").toUpperCase();
+      const offerFrom = (bid.offerFrom || "DRIVER").toUpperCase();
+      const isCustomerCounter =
+        status === "CUSTOMER_COUNTER" || offerFrom === "CUSTOMER";
 
-      // Check if customer owns the package
-      if (bid.package.customerId !== customerId) {
-        throw new AppError(
-          "Unauthorized to accept this bid",
-          "UNAUTHORIZED",
-          403,
-        );
+      if (isCustomerCounter) {
+        // Driver accepts the customer's separate counter offer
+        const driverRecordId = await this.resolveDriverRecordId(customerId);
+        const isDriver =
+          bid.driverId === driverRecordId || bid.driver?.userId === customerId;
+        if (!isDriver) {
+          if (bid.package.customerId === customerId) {
+            throw new AppError(
+              "Waiting for the driver to accept your counter offer",
+              "AWAITING_DRIVER",
+              400,
+            );
+          }
+          throw new AppError(
+            "Unauthorized to accept this counter offer",
+            "UNAUTHORIZED",
+            403,
+          );
+        }
+      } else {
+        if (!["PENDING", "DRIVER_COUNTER"].includes(status)) {
+          throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
+        }
+
+        // Check if customer owns the package
+        if (bid.package.customerId !== customerId) {
+          throw new AppError(
+            "Unauthorized to accept this bid",
+            "UNAUTHORIZED",
+            403,
+          );
+        }
       }
 
       // Check if package is still available
@@ -523,15 +612,20 @@ class BidService {
           // Update package status to accepted
           await prisma.package.update({
             where: { id: bid.packageId },
-            data: { status: "ACCEPTED" },
+            data: {
+              status: "ACCEPTED",
+              priceOffered: bid.amount,
+            },
           });
 
-          // Reject all other pending bids for this package
+          // Reject all other open bids/counters for this package
           await prisma.bid.updateMany({
             where: {
               packageId: bid.packageId,
               id: { not: bidId },
-              status: "PENDING",
+              status: {
+                in: ["PENDING", "CUSTOMER_COUNTER", "DRIVER_COUNTER"],
+              },
             },
             data: { status: "REJECTED" },
           });
@@ -892,8 +986,18 @@ class BidService {
         );
       }
 
-      if (bid.status !== "PENDING") {
-        throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
+      const offerFrom = (bid.offerFrom || "DRIVER").toUpperCase();
+      const status = (bid.status || "").toUpperCase();
+      // Customer can only counter a driver's outstanding offer
+      if (
+        offerFrom === "CUSTOMER" ||
+        !["PENDING", "DRIVER_COUNTER"].includes(status)
+      ) {
+        throw new AppError(
+          "You can only counter an active driver bid",
+          "BID_NOT_PENDING",
+          400,
+        );
       }
 
       if (newAmount <= 0) {
@@ -904,31 +1008,38 @@ class BidService {
         );
       }
 
-      const updatedBid = await this.getPrisma().$transaction(
-        async (prisma: any) => {
-          await prisma.package.update({
-            where: { id: bid.packageId },
-            data: { priceOffered: newAmount },
-          });
-
-          return prisma.bid.update({
-            where: { id: bidId },
-            data: {
-              amount: newAmount,
-              message: `Customer counter offer: P${newAmount}`,
-              updatedAt: new Date(),
-            },
-            include: {
-              driver: { include: { user: true } },
-              package: { include: { customer: true } },
-            },
-          });
+      // Replace any previous open customer counter for this parent/driver/package
+      await this.getPrisma().bid.updateMany({
+        where: {
+          packageId: bid.packageId,
+          driverId: bid.driverId,
+          status: "CUSTOMER_COUNTER",
+          offerFrom: "CUSTOMER",
         },
-      );
+        data: { status: "REJECTED" },
+      });
+
+      // Create a SEPARATE customer counter bid — do not overwrite the driver bid
+      const counterBid = await this.getPrisma().bid.create({
+        data: {
+          packageId: bid.packageId,
+          driverId: bid.driverId,
+          tripId: bid.tripId,
+          amount: newAmount,
+          status: "CUSTOMER_COUNTER",
+          offerFrom: "CUSTOMER",
+          parentBidId: bid.id,
+          message: `Customer counter offer: P${newAmount}`,
+        },
+        include: {
+          driver: { include: { user: true } },
+          package: { include: { customer: true } },
+        },
+      });
 
       const commission = this.calculateCommission(newAmount);
       const formattedBid = {
-        ...this.formatBid(updatedBid),
+        ...this.formatBid(counterBid),
         commissionAmount: commission.commissionAmount,
         driverEarnings: commission.driverEarnings,
         platformFee: commission.platformFee,
@@ -939,7 +1050,7 @@ class BidService {
         if (realtimeService && bid.driver?.userId) {
           await realtimeService.notifyCustomerCounterOffer(
             bid.packageId,
-            bidId,
+            counterBid.id,
             bid.driver.userId,
             newAmount,
           );
@@ -1220,6 +1331,11 @@ class BidService {
       amount: bid.amount,
       status: bid.status,
       message: bid.message,
+      parentBidId: bid.parentBidId ?? null,
+      offerFrom: bid.offerFrom ?? "DRIVER",
+      bidLatitude: bid.bidLatitude ?? null,
+      bidLongitude: bid.bidLongitude ?? null,
+      bidLocationName: bid.bidLocationName ?? null,
       createdAt: bid.createdAt.toISOString(),
       updatedAt: bid.updatedAt.toISOString(),
     };

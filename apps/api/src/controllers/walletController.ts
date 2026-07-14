@@ -645,6 +645,77 @@ export class WalletController {
       });
     }
   };
+
+  /**
+   * Driver withdraw funds
+   */
+  withdrawFunds = async (
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      const userType = req.user?.userType;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: { code: "UNAUTHORIZED", message: "User not authenticated" },
+        });
+        return;
+      }
+      if (userType !== "DRIVER") {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Only drivers can withdraw funds",
+          },
+        });
+        return;
+      }
+
+      const amount = parseFloat(req.body.amount);
+      const method = req.body.method || "BANK_TRANSFER";
+      const accountDetails = req.body.accountDetails || "";
+
+      if (!amount || amount <= 0) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Valid withdrawal amount is required",
+          },
+        });
+        return;
+      }
+
+      const transaction = await this.getWalletService().withdrawFunds(
+        userId,
+        amount,
+        method,
+        accountDetails,
+      );
+
+      const balance = await this.getWalletService().getWalletBalance(userId);
+
+      res.status(200).json({
+        success: true,
+        data: { transaction, balance },
+        message: "Withdrawal request submitted",
+      });
+    } catch (_error) {
+      const message =
+        _error instanceof Error ? _error.message : "Failed to withdraw funds";
+      const status = message.includes("Insufficient") ? 400 : 500;
+      res.status(status).json({
+        success: false,
+        error: {
+          code: status === 400 ? "INSUFFICIENT_BALANCE" : "WITHDRAWAL_ERROR",
+          message,
+        },
+      });
+    }
+  };
 }
 
 export default WalletController;

@@ -143,12 +143,9 @@ export const MyTripsScreen = () => {
             trips.map((trip) => (
               <View key={trip.id} style={styles.tripDetailCard}>
                 <View style={styles.tripDetailHeader}>
-                  <Text style={styles.tripDetailId}>{trip.id}</Text>
-                  <View style={styles.spacesIndicator}>
-                    <Text style={styles.spacesText}>
-                      {trip.availableCapacity || "—"}
-                    </Text>
-                  </View>
+                  <Text style={styles.tripDetailId} numberOfLines={1}>
+                    Trip {String(trip.id).slice(-6).toUpperCase()}
+                  </Text>
                 </View>
 
                 <View style={packageStyles.packageRoute}>
@@ -164,6 +161,24 @@ export const MyTripsScreen = () => {
                 <Text style={styles.tripDate}>
                   🕒 {new Date(trip.departureTime).toLocaleString()}
                 </Text>
+                <View style={styles.spacesIndicator}>
+                  <Text style={styles.spacesText}>
+                    📦{" "}
+                    {(() => {
+                      const raw = (trip.availableCapacity || "")
+                        .toString()
+                        .toUpperCase();
+                      if (raw === "SMALL") return "Small space available";
+                      if (raw === "MEDIUM") return "Medium space available";
+                      if (raw === "LARGE") return "Large space available";
+                      if (raw === "EXTRA_LARGE")
+                        return "Extra-large space available";
+                      return trip.availableCapacity
+                        ? `${trip.availableCapacity} available`
+                        : "Space available";
+                    })()}
+                  </Text>
+                </View>
 
                 {(trip.status || "").toUpperCase() !== "IN_TRANSIT" &&
                   (trip.status || "").toUpperCase() !== "IN_PROGRESS" && (
@@ -413,10 +428,12 @@ const styles = {
     color: colors.textPrimary,
   },
   spacesIndicator: {
+    alignSelf: "flex-start",
     backgroundColor: colors.primary + "20",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    marginBottom: 12,
   },
   spacesText: {
     fontSize: 12,
@@ -426,7 +443,7 @@ const styles = {
   tripDate: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   tripPackagesSection: {
     marginTop: 16,

@@ -17,6 +17,171 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { colors } from "../constants/colors";
 import { sharedStyles } from "../styles/sharedStyles";
 import { decodePolyline } from "../utils/packageUtils";
+import apiService from "../services/apiService";
+
+const BOTSWANA_LOCAL_PLACES = [
+  {
+    id: "bw-gabs-cbd",
+    name: "Gaborone CBD",
+    address: "Main Mall, Gaborone, Botswana",
+    lat: -24.6541,
+    lng: 25.9086,
+  },
+  {
+    id: "bw-bus",
+    name: "Gaborone Bus Rank",
+    address: "Gaborone Bus Rank, Gaborone, Botswana",
+    lat: -24.657,
+    lng: 25.908,
+  },
+  {
+    id: "bw-airport",
+    name: "Sir Seretse Khama Airport",
+    address: "SSKA, Gaborone, Botswana",
+    lat: -24.555,
+    lng: 25.918,
+  },
+  {
+    id: "bw-game",
+    name: "Game City Mall",
+    address: "Game City, Gaborone, Botswana",
+    lat: -24.678,
+    lng: 25.91,
+  },
+  {
+    id: "bw-river",
+    name: "Riverwalk Mall",
+    address: "Riverwalk, Gaborone, Botswana",
+    lat: -24.6575,
+    lng: 25.919,
+  },
+  {
+    id: "bw-aj",
+    name: "Airport Junction Mall",
+    address: "Airport Junction, Gaborone, Botswana",
+    lat: -24.56,
+    lng: 25.93,
+  },
+  {
+    id: "bw-broad",
+    name: "Broadhurst",
+    address: "Broadhurst, Gaborone, Botswana",
+    lat: -24.635,
+    lng: 25.93,
+  },
+  {
+    id: "bw-phak",
+    name: "Phakalane",
+    address: "Phakalane, Gaborone, Botswana",
+    lat: -24.57,
+    lng: 25.95,
+  },
+  {
+    id: "bw-mog",
+    name: "Mogoditshane",
+    address: "Mogoditshane, Botswana",
+    lat: -24.62,
+    lng: 25.86,
+  },
+  {
+    id: "bw-tlok",
+    name: "Tlokweng",
+    address: "Tlokweng, Botswana",
+    lat: -24.67,
+    lng: 25.97,
+  },
+  {
+    id: "bw-ft",
+    name: "Francistown CBD",
+    address: "Francistown, Botswana",
+    lat: -21.17,
+    lng: 27.51,
+  },
+  {
+    id: "bw-maun",
+    name: "Maun",
+    address: "Maun, Botswana",
+    lat: -19.983,
+    lng: 23.416,
+  },
+  {
+    id: "bw-kasane",
+    name: "Kasane",
+    address: "Kasane, Botswana",
+    lat: -17.8167,
+    lng: 25.15,
+  },
+  {
+    id: "bw-palapye",
+    name: "Palapye",
+    address: "Palapye, Botswana",
+    lat: -22.55,
+    lng: 27.13,
+  },
+  {
+    id: "bw-serowe",
+    name: "Serowe",
+    address: "Serowe, Botswana",
+    lat: -22.383,
+    lng: 26.7,
+  },
+  {
+    id: "bw-lobatse",
+    name: "Lobatse",
+    address: "Lobatse, Botswana",
+    lat: -25.2167,
+    lng: 25.6667,
+  },
+  {
+    id: "bw-jwaneng",
+    name: "Jwaneng",
+    address: "Jwaneng, Botswana",
+    lat: -24.601,
+    lng: 24.728,
+  },
+  {
+    id: "bw-mole",
+    name: "Molepolole",
+    address: "Molepolole, Botswana",
+    lat: -24.406,
+    lng: 25.495,
+  },
+  {
+    id: "bw-kanye",
+    name: "Kanye",
+    address: "Kanye, Botswana",
+    lat: -24.983,
+    lng: 25.333,
+  },
+  {
+    id: "bw-maha",
+    name: "Mahalapye",
+    address: "Mahalapye, Botswana",
+    lat: -23.1,
+    lng: 26.8,
+  },
+  {
+    id: "bw-ub",
+    name: "University of Botswana",
+    address: "UB Campus, Gaborone, Botswana",
+    lat: -24.66,
+    lng: 25.94,
+  },
+  {
+    id: "bw-b8",
+    name: "Block 8",
+    address: "Block 8, Gaborone, Botswana",
+    lat: -24.64,
+    lng: 25.91,
+  },
+  {
+    id: "bw-b9",
+    name: "Block 9",
+    address: "Block 9, Gaborone, Botswana",
+    lat: -24.645,
+    lng: 25.905,
+  },
+];
 
 export const LocationSearchModal = ({
   visible,
@@ -160,7 +325,7 @@ export const LocationSearchModal = ({
     }
   };
 
-  // Search for addresses — expo geocode, Google Places, then OpenStreetMap
+  // Search for addresses — API proxy first (works on hotspot), then local catalog
   const searchAddresses = async (query) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -171,7 +336,19 @@ export const LocationSearchModal = ({
       setIsLoading(true);
       const trimmed = query.trim();
 
-      // 1) Expo Location geocode (no API key required)
+      // 1) Backend places proxy (Railway has internet even when phone/hotspot is limited)
+      try {
+        const resp = await apiService.searchPlaces(trimmed);
+        const items = resp?.data ?? [];
+        if (Array.isArray(items) && items.length > 0) {
+          setSearchResults(items);
+          return;
+        }
+      } catch {
+        // continue to local fallbacks
+      }
+
+      // 2) Expo Location geocode
       try {
         const geocoded = await Location.geocodeAsync(`${trimmed}, Botswana`);
         if (geocoded?.length > 0) {
@@ -199,85 +376,16 @@ export const LocationSearchModal = ({
           }
         }
       } catch {
-        // continue to other providers
+        // continue
       }
 
-      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-      // 2) Google Places autocomplete
-      if (apiKey) {
-        try {
-          const legacyResponse = await fetch(
-            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(trimmed)}&key=${apiKey}&components=country:bw`,
-          );
-          const legacyData = await legacyResponse.json();
-
-          if (
-            legacyData.status === "OK" &&
-            Array.isArray(legacyData.predictions) &&
-            legacyData.predictions.length > 0
-          ) {
-            const results = await Promise.all(
-              legacyData.predictions.slice(0, 6).map(async (prediction) => {
-                try {
-                  const detailsResponse = await fetch(
-                    `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry,formatted_address,name&key=${apiKey}`,
-                  );
-                  const detailsData = await detailsResponse.json();
-                  const loc = detailsData.result?.geometry?.location;
-                  if (loc) {
-                    return {
-                      id: prediction.place_id,
-                      name:
-                        prediction.structured_formatting?.main_text ||
-                        detailsData.result?.name ||
-                        prediction.description.split(",")[0],
-                      address: prediction.description,
-                      lat: loc.lat,
-                      lng: loc.lng,
-                    };
-                  }
-                } catch {
-                  // skip
-                }
-                return null;
-              }),
-            );
-            const filtered = results.filter((r) => r !== null);
-            if (filtered.length > 0) {
-              setSearchResults(filtered);
-              return;
-            }
-          }
-        } catch {
-          // continue
-        }
-      }
-
-      // 3) OpenStreetMap Nominatim (free fallback)
-      try {
-        const osmResponse = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${trimmed}, Botswana`)}&limit=6&countrycodes=bw`,
-          { headers: { "User-Agent": "NtsamaelaMobile/1.0" } },
-        );
-        const osmData = await osmResponse.json();
-        if (Array.isArray(osmData) && osmData.length > 0) {
-          setSearchResults(
-            osmData.map((item) => ({
-              id: item.place_id?.toString() || item.osm_id?.toString(),
-              name: item.name || item.display_name.split(",")[0],
-              address: item.display_name,
-              lat: parseFloat(item.lat),
-              lng: parseFloat(item.lon),
-            })),
-          );
-          return;
-        }
-      } catch {
-        // no results
-      }
-
-      setSearchResults([]);
+      // 3) Local Botswana catalog (always works offline)
+      const local = BOTSWANA_LOCAL_PLACES.filter(
+        (p) =>
+          p.name.toLowerCase().includes(trimmed.toLowerCase()) ||
+          p.address.toLowerCase().includes(trimmed.toLowerCase()),
+      ).slice(0, 8);
+      setSearchResults(local);
     } catch (error) {
       console.error("Error searching addresses:", error);
       setSearchResults([]);

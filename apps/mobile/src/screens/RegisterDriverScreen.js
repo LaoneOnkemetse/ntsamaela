@@ -117,19 +117,43 @@ export const RegisterDriverScreen = () => {
         if (token) {
           apiService.setToken(token);
 
-          const formData = new FormData();
-          formData.append("carRegistration", carRegistration);
-          formData.append("carDescription", carDescription);
-          formData.append("vehicleType", "CAR");
-          formData.append("vehicleCapacity", "MEDIUM");
-          formData.append("carPhoto", {
-            uri: carPhoto.uri,
-            name: "car-photo.jpg",
-            type: carPhoto.type || "image/jpeg",
-          });
+          try {
+            const formData = new FormData();
+            formData.append("carRegistration", carRegistration.trim());
+            formData.append("carDescription", carDescription.trim());
+            formData.append("vehicleType", "CAR");
+            formData.append("vehicleCapacity", "MEDIUM");
+            formData.append("carPhoto", {
+              uri: carPhoto.uri,
+              name: "car-photo.jpg",
+              type: carPhoto.type || "image/jpeg",
+            });
 
-          // Auth service creates the driver record during registration; this updates details + uploads car photo.
-          await apiService.updateDriverProfile(formData);
+            const vehicleResp = await apiService.updateDriverProfile(formData);
+            if (vehicleResp?.success === false) {
+              throw new Error(
+                vehicleResp?.error?.message ||
+                  "Vehicle details could not be saved",
+              );
+            }
+          } catch (vehicleErr) {
+            Alert.alert(
+              "Vehicle details required",
+              vehicleErr?.message ||
+                "Account was created but vehicle details failed to save. Please sign in and complete your vehicle profile before accepting trips.",
+            );
+            navigate("login", true);
+            return;
+          }
+
+          if (selfie?.uri || typeof selfie === "string") {
+            try {
+              const uri = typeof selfie === "string" ? selfie : selfie.uri;
+              await apiService.uploadProfilePicture(uri);
+            } catch {
+              // non-fatal — user can add photo in profile
+            }
+          }
         }
 
         Alert.alert(

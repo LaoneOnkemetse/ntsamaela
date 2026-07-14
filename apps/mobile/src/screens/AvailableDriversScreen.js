@@ -17,6 +17,18 @@ import { useNavigation } from "../navigation/NavigationContext";
 import { CreatePackageForDriverModal } from "../components/CreatePackageForDriverModal";
 import apiService from "../services/apiService";
 
+const formatCapacity = (capacity) => {
+  const raw = (capacity || "").toString().toUpperCase();
+  if (raw === "SMALL") return "Small space available";
+  if (raw === "MEDIUM") return "Medium space available";
+  if (raw === "LARGE") return "Large space available";
+  if (raw === "EXTRA_LARGE") return "Extra-large space available";
+  if (capacity && !Number.isNaN(Number(capacity))) {
+    return `${capacity} spaces available`;
+  }
+  return "Space available";
+};
+
 export const AvailableDriversScreen = () => {
   const { goBack, authToken } = useNavigation();
   const [showCreatePackageModal, setShowCreatePackageModal] = useState(false);
@@ -144,7 +156,7 @@ export const AvailableDriversScreen = () => {
             from: t.startAddress,
             to: t.endAddress,
             date: new Date(t.departureTime).toLocaleString(),
-            spacesLeft: t.availableCapacity || 3,
+            spacesLeft: formatCapacity(t.availableCapacity),
             price: "—",
           }))
         : [];
@@ -299,9 +311,7 @@ export const AvailableDriversScreen = () => {
                   </View>
                   <View style={styles.tripFooter}>
                     <Text style={styles.tripDate}>🕒 {trip.date}</Text>
-                    <Text style={styles.tripSpaces}>
-                      {trip.spacesLeft || 3} spaces left
-                    </Text>
+                    <Text style={styles.tripSpaces}>📦 {trip.spacesLeft}</Text>
                   </View>
                 </View>
               </View>
@@ -437,10 +447,8 @@ const styles = {
     marginBottom: 12,
   },
   tripFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    marginTop: 8,
+    gap: 4,
   },
   tripDate: {
     fontSize: 13,

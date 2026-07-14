@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   StyleSheet,
+  Image,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "../constants/colors";
@@ -18,6 +19,11 @@ import { packageStyles } from "../styles/packageStyles";
 import { LocationSearchModal } from "./LocationSearchModal";
 import { useNavigation } from "../navigation/NavigationContext";
 import apiService from "../services/apiService";
+import {
+  takePhoto,
+  selectFromGallery,
+  showPhotoActionSheet,
+} from "../utils/imageUtils";
 
 export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
   const { authToken, refreshMyPackages } = useNavigation();
@@ -27,6 +33,7 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
   const [recipientPhone, setRecipientPhone] = useState("");
   const [weight, setWeight] = useState("");
   const [price, setPrice] = useState("");
+  const [packagePhoto, setPackagePhoto] = useState(null);
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState("");
@@ -34,6 +41,19 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const driverName = driver?.driver || driver?.name || "this driver";
+
+  const handlePackagePhoto = async () => {
+    await showPhotoActionSheet(
+      async () => {
+        const image = await takePhoto();
+        if (image) setPackagePhoto(image.uri);
+      },
+      async () => {
+        const image = await selectFromGallery();
+        if (image) setPackagePhoto(image.uri);
+      },
+    );
+  };
 
   const handleSubmit = async () => {
     const missing = [];
@@ -79,11 +99,14 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
         deliveryLat: delivery.lat,
         deliveryLng: delivery.lng,
         priceOffered: parseFloat(price),
-        weight: weight ? parseFloat(weight) : null,
+        ...(weight && !isNaN(parseFloat(weight))
+          ? { weight: parseFloat(weight) }
+          : {}),
         deliveryDate: new Date(deliveryDate).toISOString(),
         urgency: "NORMAL",
         recipientPhone,
         requestedDriverId: driver?.id || driver?.driverId,
+        ...(packagePhoto ? { imageUri: packagePhoto } : {}),
       });
 
       if (response.success) {
@@ -102,6 +125,7 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                 setWeight("");
                 setPrice("");
                 setDeliveryDate("");
+                setPackagePhoto(null);
                 onClose();
               },
             },
@@ -131,6 +155,7 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
     setWeight("");
     setPrice("");
     setDeliveryDate("");
+    setPackagePhoto(null);
     onClose();
   };
 
@@ -167,6 +192,24 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
                   value={description}
                   onChangeText={setDescription}
                 />
+
+                <Text style={packageStyles.fieldLabel}>Package Photo</Text>
+                <TouchableOpacity
+                  style={styles.photoButton}
+                  onPress={handlePackagePhoto}
+                >
+                  {packagePhoto ? (
+                    <Image
+                      source={{ uri: packagePhoto }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.photoButtonText}>
+                      📷 Add package photo
+                    </Text>
+                  )}
+                </TouchableOpacity>
 
                 <Text style={packageStyles.fieldLabel}>Pickup Location *</Text>
                 <TouchableOpacity
@@ -361,6 +404,26 @@ export const CreatePackageForDriverModal = ({ visible, driver, onClose }) => {
 };
 
 const styles = StyleSheet.create({
+  photoButton: {
+    backgroundColor: colors.cardBgLight,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    minHeight: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  photoPreview: {
+    width: "100%",
+    height: 140,
+  },
+  photoButtonText: {
+    color: colors.primary,
+    fontWeight: "600",
+  },
   infoBox: {
     backgroundColor: colors.primary + "15",
     borderRadius: 8,

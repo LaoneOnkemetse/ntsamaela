@@ -49,7 +49,7 @@ export const validateCreatePackage = [
     .withMessage("Size must be one of: SMALL, MEDIUM, LARGE, EXTRA_LARGE"),
 
   body("weight")
-    .optional()
+    .optional({ values: "falsy" })
     .isFloat({ min: 0.1, max: 1000 })
     .withMessage("Weight must be between 0.1 and 1000 kg"),
 

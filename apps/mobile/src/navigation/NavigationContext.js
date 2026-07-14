@@ -5,7 +5,7 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { Alert } from "react-native";
+import { Alert, Image } from "react-native";
 import * as Location from "expo-location";
 import apiService from "../services/apiService";
 import socketService from "../services/socketService";
@@ -43,6 +43,10 @@ export const NavigationProvider = ({ children }) => {
     phoneVerified: false,
     email: "",
     userId: null,
+    licensePlate: "",
+    carDescription: "",
+    carPhotoUrl: null,
+    vehicleType: "",
   });
 
   const [customerWallet, setCustomerWallet] = useState(0);
@@ -88,8 +92,19 @@ export const NavigationProvider = ({ children }) => {
         try {
           const driverResp = await apiService.getDriverProfile();
           const driver = driverResp?.data ?? driverResp;
-          if (driver && typeof driver.active === "boolean") {
-            setIsActiveDriver(driver.active);
+          if (driver) {
+            if (typeof driver.active === "boolean") {
+              setIsActiveDriver(driver.active);
+            }
+            setUserProfile((prev) => ({
+              ...prev,
+              licensePlate: driver.licensePlate ?? prev.licensePlate,
+              carDescription: driver.carDescription ?? prev.carDescription,
+              carPhotoUrl: driver.carPhotoUrl ?? prev.carPhotoUrl,
+              vehicleType: driver.vehicleType ?? prev.vehicleType,
+              rating: driver.rating ?? prev.rating,
+              totalDeliveries: driver.totalDeliveries ?? prev.totalDeliveries,
+            }));
           }
         } catch (driverErr) {
           console.warn(
@@ -137,10 +152,13 @@ export const NavigationProvider = ({ children }) => {
         delivery: p.deliveryAddress,
         weight: p.weight ? `${p.weight} kg` : "—",
         distance: "—",
-        photo: p.imageUrl || null,
+        photo: p.imageUrl || p.photo || p.image || null,
         raw: p,
       }));
       setAvailablePackages(mapped);
+      mapped.forEach((p) => {
+        if (p.photo) Image.prefetch(p.photo).catch(() => {});
+      });
     } catch (e) {
       console.warn("Failed to refresh available packages:", e?.message || e);
       setAvailablePackages([]);

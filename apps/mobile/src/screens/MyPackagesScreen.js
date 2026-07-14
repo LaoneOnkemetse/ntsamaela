@@ -37,7 +37,7 @@ export const MyPackagesScreen = () => {
     if (status === "IN_TRANSIT" || status === "IN_PROGRESS") {
       Alert.alert(
         "Cannot Delete",
-        "You cannot delete a package that is currently in transit.",
+        "Use Cancel Package for in-transit deliveries (a 10% fee applies).",
       );
       return;
     }
@@ -64,6 +64,44 @@ export const MyPackagesScreen = () => {
         },
       },
     ]);
+  };
+
+  const handleCancelPackage = (pkg) => {
+    const accepted = getAcceptedBid(pkg);
+    const base = accepted?.amount || pkg.priceOffered || 0;
+    const fee = (Number(base) * 0.1).toFixed(2);
+    Alert.alert(
+      "Cancel package",
+      `Cancelling an accepted or in-transit package charges a 10% fee (P ${fee}) from your wallet.\n\nContinue?`,
+      [
+        { text: "Keep package", style: "cancel" },
+        {
+          text: "Cancel & pay fee",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              apiService.setToken(authToken);
+              const resp = await apiService.cancelPackage(pkg.id);
+              if (resp?.success === false) {
+                Alert.alert(
+                  "Cancel failed",
+                  resp?.error?.message || "Could not cancel package",
+                );
+                return;
+              }
+              Alert.alert(
+                "Cancelled",
+                resp?.message ||
+                  `Package cancelled. Fee charged: P ${resp?.data?.fee ?? fee}`,
+              );
+              if (refreshMyPackages) await refreshMyPackages(authToken);
+            } catch (e) {
+              Alert.alert("Cancel failed", e?.message || "Could not cancel");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const normalized = Array.isArray(myPackages) ? myPackages : [];
@@ -130,13 +168,16 @@ export const MyPackagesScreen = () => {
   };
 
   const submitCounterBid = async (amount) => {
-    setShowCounterModal(false);
-    if (!counterBidTarget || !amount) return;
-    const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed <= 0) {
-      Alert.alert("Invalid amount", "Please enter a valid price.");
+    if (!counterBidTarget) {
+      setShowCounterModal(false);
       return;
     }
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+      Alert.alert("Invalid amount", "Please enter a valid counter price.");
+      return;
+    }
+    setShowCounterModal(false);
     setCountering(true);
     try {
       apiService.setToken(authToken);
@@ -147,16 +188,24 @@ export const MyPackagesScreen = () => {
       if (resp?.success === false) {
         Alert.alert(
           "Failed",
-          resp?.error?.message || "Could not send counter offer",
+          resp?.error?.message ||
+            (Array.isArray(resp?.error?.details)
+              ? resp.error.details
+                  .map((d) => d.msg || d.message || d)
+                  .join("\n")
+              : "Could not send counter offer"),
         );
         return;
       }
       Alert.alert(
         "Counter sent",
-        `Your counter offer of P ${parsed} was sent to the driver.`,
+        `Your counter of P ${parsed} is a separate offer. The driver's bid is unchanged — they must accept your counter, or you can still accept their bid.`,
       );
       if (selectedPackage?.id) {
         await loadBidsForPackage(selectedPackage.id);
+        setSelectedPackage((prev) =>
+          prev ? { ...prev, priceOffered: parsed } : prev,
+        );
       }
       if (authToken) await refreshMyPackages(authToken);
     } catch (e) {
@@ -202,25 +251,69 @@ export const MyPackagesScreen = () => {
     ]);
   };
 
+  const shortPackageId = (id) =>
+    id ? `PKG-${String(id).slice(-6).toUpperCase()}` : "—";
+
+  const getAcceptedBid = (pkg) =>
+    (pkg.bids || []).find(
+      (b) => (b.status || "").toString().toUpperCase() === "ACCEPTED",
+    );
+
+  const handleTrackPackage = (pkg) => {
+    navigate("tracking", false, { tracking: { packageId: pkg.id } });
+  };
+
+  const handleViewAssignedDriver = (pkg) => {
+    const bid = getAcceptedBid(pkg);
+    const driverId = bid?.driver?.id;
+    if (!driverId) {
+      Alert.alert("Driver", "Driver details are not available yet.");
+      return;
+    }
+    navigate("driverProfile", false, {
+      driverProfile: { driverId, driver: bid.driver },
+    });
+  };
+
   const renderPackageCard = (pkg, options = {}) => {
-    const { showBids = false, statusLabel, statusColor } = options;
+    const {
+      showBids = false,
+      statusLabel,
+      statusColor,
+      showDriver = false,
+    } = options;
+    const acceptedBid = showDriver ? getAcceptedBid(pkg) : null;
+    const driver = acceptedBid?.driver;
+    const driverName = driver?.user
+      ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
+      : null;
+    const driverPhoto = driver?.user?.profilePictureUrl;
+
     return (
       <View key={pkg.id} style={packageStyles.packageCard}>
+        <View style={packageStyles.packageHeader}>
+          <View>
+            <Text style={styles.packageIdLabel}>Package ID</Text>
+            <Text style={packageStyles.packageId}>
+              {shortPackageId(pkg.id)}
+            </Text>
+          </View>
+          <View
+            style={[
+              packageStyles.statusBadge,
+              typeof statusColor === "string"
+                ? { backgroundColor: statusColor }
+                : statusColor || getStatusColor(statusLabel?.toLowerCase()),
+            ]}
+          >
+            <Text style={packageStyles.statusText}>
+              {statusLabel || "Pending"}
+            </Text>
+          </View>
+        </View>
+
         {showBids ? (
           <TouchableOpacity onPress={() => handleViewBids(pkg)}>
-            <View style={packageStyles.packageHeader}>
-              <Text style={packageStyles.packageId}>{pkg.id}</Text>
-              <View
-                style={[
-                  packageStyles.statusBadge,
-                  { backgroundColor: statusColor || "#FFA500" },
-                ]}
-              >
-                <Text style={packageStyles.statusText}>
-                  {statusLabel || "Pending"}
-                </Text>
-              </View>
-            </View>
             <Text style={packageStyles.packageDesc}>{pkg.description}</Text>
             <View style={packageStyles.packageRoute}>
               <Text style={packageStyles.packageLocation}>
@@ -240,19 +333,6 @@ export const MyPackagesScreen = () => {
           </TouchableOpacity>
         ) : (
           <>
-            <View style={packageStyles.packageHeader}>
-              <Text style={packageStyles.packageId}>{pkg.id}</Text>
-              <View
-                style={[
-                  packageStyles.statusBadge,
-                  typeof statusColor === "string"
-                    ? { backgroundColor: statusColor }
-                    : statusColor || getStatusColor(statusLabel?.toLowerCase()),
-                ]}
-              >
-                <Text style={packageStyles.statusText}>{statusLabel}</Text>
-              </View>
-            </View>
             <Text style={packageStyles.packageDesc}>{pkg.description}</Text>
             <View style={packageStyles.packageRoute}>
               <Text style={packageStyles.packageLocation}>
@@ -265,11 +345,72 @@ export const MyPackagesScreen = () => {
             </View>
             <View style={packageStyles.packageFooter}>
               <Text style={packageStyles.packagePrice}>
-                P {pkg.priceOffered}
+                P {acceptedBid?.amount || pkg.priceOffered}
               </Text>
             </View>
           </>
         )}
+
+        {showDriver && (
+          <View style={styles.assignedDriverBox}>
+            <TouchableOpacity
+              style={styles.assignedDriverRow}
+              onPress={() => handleViewAssignedDriver(pkg)}
+            >
+              {driverPhoto ? (
+                <Image
+                  source={{ uri: driverPhoto }}
+                  style={styles.driverThumb}
+                />
+              ) : (
+                <View
+                  style={[styles.driverThumb, styles.driverThumbPlaceholder]}
+                >
+                  <Text style={styles.driverThumbInitial}>
+                    {(driverName?.[0] || "D").toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.assignedLabel}>Assigned driver</Text>
+                <Text style={styles.assignedName}>
+                  {driverName || "Driver assigned"}
+                </Text>
+                {driver?.vehicleType ? (
+                  <Text style={styles.assignedMeta}>
+                    🚗 {driver.vehicleType}
+                  </Text>
+                ) : null}
+                {driver?.licensePlate ? (
+                  <Text style={styles.assignedMeta}>
+                    🔖 {driver.licensePlate}
+                  </Text>
+                ) : null}
+                {driver?.user?.phone ? (
+                  <Text style={styles.assignedMeta}>
+                    📞 {driver.user.phone}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={styles.viewProfile}>Profile →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.trackButton}
+              onPress={() => handleTrackPackage(pkg)}
+            >
+              <Text style={styles.trackButtonText}>Track Package</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelAcceptedButton}
+              onPress={() => handleCancelPackage(pkg)}
+            >
+              <Text style={styles.cancelAcceptedButtonText}>
+                Cancel (10% fee)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {showBids && (
           <TouchableOpacity
             style={styles.deleteButton}
@@ -326,6 +467,7 @@ export const MyPackagesScreen = () => {
                 renderPackageCard(pkg, {
                   statusLabel: "Accepted",
                   statusColor: "#4CAF50",
+                  showDriver: true,
                 }),
               )}
             </>
@@ -340,6 +482,7 @@ export const MyPackagesScreen = () => {
                 renderPackageCard(pkg, {
                   statusLabel: "In Transit",
                   statusColor: getStatusColor("in-transit").backgroundColor,
+                  showDriver: true,
                 }),
               )}
             </>
@@ -399,7 +542,19 @@ export const MyPackagesScreen = () => {
                     ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
                     : "Driver";
                   const photo = driver?.user?.profilePictureUrl;
-                  const status = (bid.status || "PENDING").toString();
+                  const status = (bid.status || "PENDING")
+                    .toString()
+                    .toUpperCase();
+                  const offerFrom = (bid.offerFrom || "DRIVER")
+                    .toString()
+                    .toUpperCase();
+                  const isCustomerCounter =
+                    status === "CUSTOMER_COUNTER" || offerFrom === "CUSTOMER";
+                  const isDriverOffer =
+                    !isCustomerCounter &&
+                    (status === "PENDING" || status === "DRIVER_COUNTER");
+                  const packagePending =
+                    (selectedPackage?.status || "").toUpperCase() === "PENDING";
 
                   return (
                     <View key={bid.id} style={styles.bidCard}>
@@ -433,9 +588,34 @@ export const MyPackagesScreen = () => {
                           <Text style={styles.bidMeta}>
                             🚗 {driver?.vehicleType || "Vehicle"}
                           </Text>
+                          {isCustomerCounter ? (
+                            <Text
+                              style={[
+                                styles.bidMeta,
+                                { color: colors.primary, fontWeight: "700" },
+                              ]}
+                            >
+                              Your counter offer (awaiting driver)
+                            </Text>
+                          ) : null}
                           {driver?.locationName ? (
                             <Text style={styles.bidMeta}>
-                              📍 {driver.locationName}
+                              📍 Now: {driver.locationName}
+                            </Text>
+                          ) : null}
+                          {bid.bidLocationName ? (
+                            <Text style={styles.bidMeta}>
+                              📌 Bid from: {bid.bidLocationName}
+                            </Text>
+                          ) : bid.bidLatitude != null &&
+                            bid.bidLongitude != null ? (
+                            <Text style={styles.bidMeta}>
+                              📌 Bid from: {Number(bid.bidLatitude).toFixed(4)},{" "}
+                              {Number(bid.bidLongitude).toFixed(4)}
+                            </Text>
+                          ) : !isCustomerCounter ? (
+                            <Text style={styles.bidMeta}>
+                              📌 Bid location not available yet
                             </Text>
                           ) : null}
                         </View>
@@ -444,39 +624,46 @@ export const MyPackagesScreen = () => {
 
                       <View style={styles.bidAmountRow}>
                         <Text style={styles.bidAmount}>P {bid.amount}</Text>
-                        <Text style={styles.bidStatus}>{status}</Text>
+                        <Text style={styles.bidStatus}>
+                          {isCustomerCounter ? "YOUR COUNTER" : status}
+                        </Text>
                       </View>
 
                       {bid.message ? (
                         <Text style={styles.bidMessage}>{bid.message}</Text>
                       ) : null}
 
-                      {status === "PENDING" &&
-                        (selectedPackage?.status || "").toUpperCase() ===
-                          "PENDING" && (
-                          <View style={{ flexDirection: "row", gap: 8 }}>
-                            <TouchableOpacity
-                              style={[styles.acceptButton, { flex: 1 }]}
-                              disabled={acceptingBidId === bid.id}
-                              onPress={() => handleAcceptBid(bid)}
-                            >
-                              <Text style={styles.acceptButtonText}>
-                                {acceptingBidId === bid.id
-                                  ? "Accepting..."
-                                  : "Accept"}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.counterButton, { flex: 1 }]}
-                              disabled={countering}
-                              onPress={() => handleCounterBid(bid)}
-                            >
-                              <Text style={styles.counterButtonText}>
-                                Counter
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
+                      {isDriverOffer && packagePending ? (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <TouchableOpacity
+                            style={[styles.acceptButton, { flex: 1 }]}
+                            disabled={acceptingBidId === bid.id}
+                            onPress={() => handleAcceptBid(bid)}
+                          >
+                            <Text style={styles.acceptButtonText}>
+                              {acceptingBidId === bid.id
+                                ? "Accepting..."
+                                : "Accept"}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.counterButton, { flex: 1 }]}
+                            disabled={countering}
+                            onPress={() => handleCounterBid(bid)}
+                          >
+                            <Text style={styles.counterButtonText}>
+                              Counter
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+
+                      {isCustomerCounter && packagePending ? (
+                        <Text style={styles.bidMessage}>
+                          Driver must accept this counter. Your original driver
+                          bid is unchanged.
+                        </Text>
+                      ) : null}
                     </View>
                   );
                 })}
@@ -613,5 +800,76 @@ const styles = StyleSheet.create({
     color: "#FF4444",
     fontSize: 14,
     fontWeight: "600",
+  },
+  packageIdLabel: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  assignedDriverBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  assignedDriverRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  driverThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  driverThumbPlaceholder: {
+    backgroundColor: colors.primary + "25",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  driverThumbInitial: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  assignedLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  assignedName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  assignedMeta: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  trackButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  trackButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  cancelAcceptedButton: {
+    marginTop: 8,
+    backgroundColor: "#FF444420",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FF4444",
+  },
+  cancelAcceptedButtonText: {
+    color: "#FF4444",
+    fontWeight: "700",
   },
 });

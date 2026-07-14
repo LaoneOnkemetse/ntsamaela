@@ -161,10 +161,13 @@ export const CreatePackageScreen = () => {
         deliveryLat: delivery.lat,
         deliveryLng: delivery.lng,
         priceOffered: parseFloat(price),
-        weight: weight ? parseFloat(weight) : null,
+        ...(weight && !isNaN(parseFloat(weight))
+          ? { weight: parseFloat(weight) }
+          : {}),
         deliveryDate: new Date(deliveryDate).toISOString(),
         urgency: urgency.toUpperCase(),
         recipientPhone,
+        ...(packagePhoto ? { imageUri: packagePhoto } : {}),
       });
 
       if (response.success) {

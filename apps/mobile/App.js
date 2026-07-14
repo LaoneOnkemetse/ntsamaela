@@ -1300,13 +1300,9 @@ function _WalletScreenOld() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <View style={styles.transactionCard}>
-              <View>
-                <Text style={styles.transactionDesc}>Wallet Deposit</Text>
-                <Text style={styles.transactionDate}>Jan 10, 2024</Text>
-              </View>
-              <Text style={styles.transactionAmount}>+P 150.00</Text>
-            </View>
+            <Text style={{ color: colors.textSecondary, marginTop: 8 }}>
+              No transactions yet
+            </Text>
           </View>
         </View>
       </SafeAreaView>

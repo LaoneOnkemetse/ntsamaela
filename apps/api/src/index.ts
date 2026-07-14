@@ -39,6 +39,21 @@ async function ensureSchemaColumns() {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "Driver" ADD COLUMN IF NOT EXISTS "locationName" TEXT`,
     );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Bid" ADD COLUMN IF NOT EXISTS "bidLatitude" DOUBLE PRECISION`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Bid" ADD COLUMN IF NOT EXISTS "bidLongitude" DOUBLE PRECISION`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Bid" ADD COLUMN IF NOT EXISTS "bidLocationName" TEXT`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Bid" ADD COLUMN IF NOT EXISTS "parentBidId" TEXT`,
+    );
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "Bid" ADD COLUMN IF NOT EXISTS "offerFrom" TEXT DEFAULT 'DRIVER'`,
+    );
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "CommissionReservation" (
         "id" TEXT NOT NULL,

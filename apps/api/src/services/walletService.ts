@@ -852,6 +852,61 @@ export class WalletService {
   }
 
   /**
+   * Driver withdrawal — deducts available balance and creates a WITHDRAWAL transaction.
+   */
+  async withdrawFunds(
+    userId: string,
+    amount: number,
+    method: string,
+    accountDetails?: string,
+  ): Promise<Transaction> {
+    if (!amount || amount <= 0) {
+      throw new Error("Withdrawal amount must be greater than 0");
+    }
+
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) {
+      throw new Error("Wallet not found");
+    }
+    if (wallet.availableBalance < amount) {
+      throw new Error("Insufficient available balance");
+    }
+
+    const [updatedWallet, transaction] = await this.prisma.$transaction([
+      this.prisma.wallet.update({
+        where: { userId },
+        data: { availableBalance: { decrement: amount } },
+      }),
+      this.prisma.transaction.create({
+        data: {
+          userId,
+          type: "WITHDRAWAL",
+          amount,
+          status: "PENDING",
+          description: `Withdrawal via ${method}${accountDetails ? ` (${accountDetails})` : ""}`,
+          reference: `WD-${Date.now()}`,
+          metadata: { method, accountDetails },
+        },
+      }),
+    ]);
+
+    void updatedWallet;
+
+    return {
+      id: transaction.id,
+      userId: transaction.userId,
+      type: transaction.type as TransactionType,
+      amount: transaction.amount,
+      status: transaction.status as TransactionStatus,
+      description: transaction.description,
+      reference: transaction.reference || undefined,
+      metadata: (transaction.metadata as Record<string, any>) || undefined,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+    };
+  }
+
+  /**
    * Check and send low balance notification
    */
   private async checkLowBalanceNotification(userId: string): Promise<void> {

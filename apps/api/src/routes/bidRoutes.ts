@@ -64,6 +64,62 @@ router.get("/package/:packageId", requireAuth, (req, res) =>
   bidController.getBidsByPackage(req, res),
 );
 
+// Named routes before /:id
+router.post(
+  "/customer-counter",
+  requireAuth,
+  requireUserType(["CUSTOMER", "ADMIN"]),
+  [
+    body("bidId").notEmpty().withMessage("Bid ID is required"),
+    body("amount")
+      .isFloat({ min: 0.01 })
+      .withMessage("Amount must be greater than 0"),
+  ],
+  handleValidationErrors,
+  (req: any, res: any) => bidController.customerCounterOffer(req, res),
+);
+
+router.post(
+  "/accept",
+  requireAuth,
+  requireUserType(["CUSTOMER", "DRIVER", "ADMIN"]),
+  [body("bidId").notEmpty().withMessage("Bid ID is required")],
+  handleValidationErrors,
+  (req: any, res: any) => bidController.acceptBid(req, res),
+);
+
+router.post(
+  "/reject",
+  requireAuth,
+  requireUserType(["CUSTOMER", "ADMIN"]),
+  [
+    body("bidId").notEmpty().withMessage("Bid ID is required"),
+    body("reason")
+      .optional()
+      .isString()
+      .withMessage("Rejection reason must be a string"),
+  ],
+  handleValidationErrors,
+  (req: any, res: any) => bidController.rejectBid(req, res),
+);
+
+router.get(
+  "/recommendations/package/:packageId",
+  requireAuth,
+  requireUserType(["DRIVER", "ADMIN"]),
+  [param("packageId").notEmpty().withMessage("Valid package ID is required")],
+  handleValidationErrors,
+  (req: any, res: any) => bidController.getRecommendedBid(req, res),
+);
+
+router.post(
+  "/calculate-commission",
+  requireAuth,
+  [body("amount").isFloat({ min: 0 }).withMessage("Valid amount is required")],
+  handleValidationErrors,
+  (req: any, res: any) => bidController.calculateCommission(req, res),
+);
+
 router.get(
   "/:id",
   requireAuth,
@@ -98,63 +154,6 @@ router.delete(
   [param("id").notEmpty().withMessage("Valid bid ID is required")],
   handleValidationErrors,
   (req: any, res: any) => bidController.cancelBid(req, res),
-);
-
-// Bid management routes
-router.post(
-  "/customer-counter",
-  requireAuth,
-  requireUserType(["CUSTOMER", "ADMIN"]),
-  [
-    body("bidId").notEmpty().withMessage("Bid ID is required"),
-    body("amount")
-      .isFloat({ min: 0.01 })
-      .withMessage("Amount must be greater than 0"),
-  ],
-  handleValidationErrors,
-  (req: any, res: any) => bidController.customerCounterOffer(req, res),
-);
-
-router.post(
-  "/accept",
-  requireAuth,
-  requireUserType(["CUSTOMER", "ADMIN"]),
-  [body("bidId").notEmpty().withMessage("Bid ID is required")],
-  handleValidationErrors,
-  (req: any, res: any) => bidController.acceptBid(req, res),
-);
-
-router.post(
-  "/reject",
-  requireAuth,
-  requireUserType(["CUSTOMER", "ADMIN"]),
-  [
-    body("bidId").notEmpty().withMessage("Bid ID is required"),
-    body("reason")
-      .optional()
-      .isString()
-      .withMessage("Rejection reason must be a string"),
-  ],
-  handleValidationErrors,
-  (req: any, res: any) => bidController.rejectBid(req, res),
-);
-
-// Utility routes
-router.get(
-  "/recommendations/package/:packageId",
-  requireAuth,
-  requireUserType(["DRIVER", "ADMIN"]),
-  [param("packageId").notEmpty().withMessage("Valid package ID is required")],
-  handleValidationErrors,
-  (req: any, res: any) => bidController.getRecommendedBid(req, res),
-);
-
-router.post(
-  "/calculate-commission",
-  requireAuth,
-  [body("amount").isFloat({ min: 0 }).withMessage("Valid amount is required")],
-  handleValidationErrors,
-  (req: any, res: any) => bidController.calculateCommission(req, res),
 );
 
 export default router;

@@ -48,6 +48,25 @@ const createDriverProfileValidation = [
     .withMessage("Vehicle capacity must be a string"),
 ];
 
+const updateDriverProfileValidation = [
+  body("carRegistration")
+    .optional({ values: "falsy" })
+    .isString()
+    .withMessage("Car registration must be a string"),
+  body("carDescription")
+    .optional({ values: "falsy" })
+    .isString()
+    .withMessage("Car description must be a string"),
+  body("vehicleType")
+    .optional({ values: "falsy" })
+    .isString()
+    .withMessage("Vehicle type must be a string"),
+  body("vehicleCapacity")
+    .optional({ values: "falsy" })
+    .isString()
+    .withMessage("Vehicle capacity must be a string"),
+];
+
 // Routes
 router.post(
   "/profile",
@@ -71,7 +90,17 @@ router.put(
   requireAuth,
   requireUserType(["DRIVER"]),
   upload.single("carPhoto"),
-  createDriverProfileValidation,
+  updateDriverProfileValidation,
+  validateRequest,
+  driverController.updateDriverProfile.bind(driverController),
+);
+
+/** JSON-only vehicle details (no multipart) — more reliable on mobile */
+router.put(
+  "/profile/vehicle",
+  requireAuth,
+  requireUserType(["DRIVER"]),
+  updateDriverProfileValidation,
   validateRequest,
   driverController.updateDriverProfile.bind(driverController),
 );

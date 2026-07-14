@@ -25,7 +25,11 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
   const [transactions, setTransactions] = useState([]);
   const [commissionBreakdown, setCommissionBreakdown] = useState(null);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawMethod, setWithdrawMethod] = useState("MOBILE_MONEY");
+  const [withdrawAccount, setWithdrawAccount] = useState("");
   const [pendingRecharge, setPendingRecharge] = useState(null);
 
   const loadWalletData = async () => {
@@ -64,7 +68,15 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
       if (transactionsValue?.success && transactionsValue.data != null) {
         const list =
           transactionsValue.data?.transactions ?? transactionsValue.data;
-        setTransactions(Array.isArray(list) ? list : []);
+        const cleaned = (Array.isArray(list) ? list : []).filter((tx) => {
+          if (!tx || !tx.id) return false;
+          const desc = (tx.description || "").toLowerCase();
+          // Drop leftover demo/seed rows
+          if (desc.includes("wallet deposit") && desc.includes("jan"))
+            return false;
+          return true;
+        });
+        setTransactions(cleaned);
       } else {
         setTransactions([]);
       }
@@ -164,6 +176,56 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
     }
   };
 
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a valid withdrawal amount");
+      return;
+    }
+    if (amount > balance) {
+      Alert.alert(
+        "Insufficient Balance",
+        "You cannot withdraw more than your available balance.",
+      );
+      return;
+    }
+    if (!withdrawAccount.trim()) {
+      Alert.alert(
+        "Account required",
+        "Enter your bank account or mobile money number.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.withdrawWallet(
+        amount,
+        withdrawMethod,
+        withdrawAccount.trim(),
+      );
+      if (response?.success === false) {
+        Alert.alert(
+          "Withdrawal failed",
+          response?.error?.message || "Could not submit withdrawal",
+        );
+        return;
+      }
+      Alert.alert(
+        "Withdrawal submitted",
+        `P ${amount.toFixed(2)} withdrawal request is pending processing.`,
+      );
+      setShowWithdrawModal(false);
+      setWithdrawAmount("");
+      setWithdrawAccount("");
+      await loadWalletData();
+    } catch (error) {
+      Alert.alert("Error", error.message || "Failed to withdraw");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatCurrency = (amount) => {
     const n = Number(amount);
     if (n !== n) return "P 0.00";
@@ -216,10 +278,18 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
               <Text style={styles.rechargeButtonText}>Recharge Wallet</Text>
             </TouchableOpacity>
           ) : (
-            <Text style={styles.driverWalletHint}>
-              Driver earnings appear here. Withdrawals are processed from your
-              available balance.
-            </Text>
+            <>
+              <Text style={styles.driverWalletHint}>
+                Earnings from accepted deliveries appear here. You can withdraw
+                available funds to your bank or mobile money.
+              </Text>
+              <TouchableOpacity
+                style={styles.withdrawButton}
+                onPress={() => setShowWithdrawModal(true)}
+              >
+                <Text style={styles.withdrawButtonText}>💸 Withdraw Funds</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -349,6 +419,80 @@ export const WalletScreen = ({ navigation: _navigation, route: _route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Withdraw Modal */}
+      <Modal
+        visible={showWithdrawModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWithdrawModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Withdraw Funds</Text>
+            <Text style={styles.modalHint}>
+              Available: {formatCurrency(balance)}
+            </Text>
+            <TextInput
+              style={styles.amountInput}
+              placeholder="Amount (P)"
+              keyboardType="numeric"
+              value={withdrawAmount}
+              onChangeText={setWithdrawAmount}
+            />
+            <View style={styles.methodRow}>
+              {["MOBILE_MONEY", "BANK_TRANSFER"].map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[
+                    styles.methodChip,
+                    withdrawMethod === m && styles.methodChipActive,
+                  ]}
+                  onPress={() => setWithdrawMethod(m)}
+                >
+                  <Text
+                    style={[
+                      styles.methodChipText,
+                      withdrawMethod === m && styles.methodChipTextActive,
+                    ]}
+                  >
+                    {m === "MOBILE_MONEY" ? "Mobile Money" : "Bank"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.amountInput}
+              placeholder={
+                withdrawMethod === "MOBILE_MONEY"
+                  ? "Mobile number e.g. 71234567"
+                  : "Bank account number"
+              }
+              value={withdrawAccount}
+              onChangeText={setWithdrawAccount}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowWithdrawModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleWithdraw}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.textLight} />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Withdraw</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -405,6 +549,56 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 18,
+  },
+  withdrawButton: {
+    marginTop: 14,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  withdrawButtonText: {
+    color: colors.textLight,
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  modalHint: {
+    color: colors.textSecondary,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  methodRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  methodChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  methodChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + "20",
+  },
+  methodChipText: {
+    color: colors.textSecondary,
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  methodChipTextActive: {
+    color: colors.primary,
   },
   commissionCard: {
     backgroundColor: colors.cardBg,

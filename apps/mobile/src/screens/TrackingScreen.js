@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,23 +7,25 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
-import { colors } from '../constants/colors';
-import apiService from '../services/apiService';
-import socketService from '../services/socketService';
-import * as Location from 'expo-location';
+  Alert,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { colors } from "../constants/colors";
+import apiService from "../services/apiService";
+import socketService from "../services/socketService";
+import * as Location from "expo-location";
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 
 export const TrackingScreen = ({ navigation, route }) => {
   const { packageId } = route.params || {};
   const [loading, setLoading] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [packageInfo, setPackageInfo] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
+  const [_currentLocation, setCurrentLocation] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -34,17 +36,17 @@ export const TrackingScreen = ({ navigation, route }) => {
     }
 
     return () => {
-      socketService.off('location_update');
-      socketService.off('package:location:update');
-      socketService.off('package_status_update');
-      socketService.off('delivery:status:updated');
+      socketService.off("location_update");
+      socketService.off("package:location:update");
+      socketService.off("package_status_update");
+      socketService.off("delivery:status:updated");
     };
   }, [packageId]);
 
   const requestLocationPermission = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
+      if (status === "granted") {
         const location = await Location.getCurrentPositionAsync({});
         setCurrentLocation({
           latitude: location.coords.latitude,
@@ -52,7 +54,7 @@ export const TrackingScreen = ({ navigation, route }) => {
         });
       }
     } catch (error) {
-      console.error('Location permission error:', error);
+      console.error("Location permission error:", error);
     }
   };
 
@@ -66,7 +68,8 @@ export const TrackingScreen = ({ navigation, route }) => {
 
       if (trackingRes.success) {
         setTrackingData(trackingRes.data);
-        const latestUpdate = trackingRes.data?.updates?.[trackingRes.data.updates.length - 1];
+        const latestUpdate =
+          trackingRes.data?.updates?.[trackingRes.data.updates.length - 1];
         if (latestUpdate?.latitude && latestUpdate?.longitude) {
           setDriverLocation({
             latitude: latestUpdate.latitude,
@@ -79,7 +82,7 @@ export const TrackingScreen = ({ navigation, route }) => {
         setPackageInfo(packageRes.data);
       }
     } catch (error) {
-      console.error('Failed to load tracking data:', error);
+      console.error("Failed to load tracking data:", error);
     } finally {
       setLoading(false);
     }
@@ -87,9 +90,9 @@ export const TrackingScreen = ({ navigation, route }) => {
 
   const setupSocketListeners = () => {
     // Subscribe to package tracking updates
-    socketService.emit('package:track', { packageId });
+    socketService.emit("package:track", { packageId });
 
-    socketService.on('location_update', (data) => {
+    socketService.on("location_update", (data) => {
       if (data.packageId === packageId) {
         setDriverLocation({
           latitude: data.latitude,
@@ -99,7 +102,7 @@ export const TrackingScreen = ({ navigation, route }) => {
       }
     });
 
-    socketService.on('package:location:update', (data) => {
+    socketService.on("package:location:update", (data) => {
       if (data.packageId === packageId) {
         setDriverLocation({
           latitude: data.latitude,
@@ -109,13 +112,13 @@ export const TrackingScreen = ({ navigation, route }) => {
       }
     });
 
-    socketService.on('package_status_update', (data) => {
+    socketService.on("package_status_update", (data) => {
       if (data.packageId === packageId) {
         loadTrackingData();
       }
     });
 
-    socketService.on('delivery:status:updated', (data) => {
+    socketService.on("delivery:status:updated", (data) => {
       if (data.packageId === packageId) {
         loadTrackingData();
       }
@@ -131,22 +134,69 @@ export const TrackingScreen = ({ navigation, route }) => {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         },
-        1000
+        1000,
       );
     }
   };
 
+  const handleCancelPackage = () => {
+    const status = (packageInfo?.status || "").toUpperCase();
+    if (!["ACCEPTED", "IN_TRANSIT", "IN_PROGRESS"].includes(status)) {
+      Alert.alert("Cannot cancel", "This package cannot be cancelled now.");
+      return;
+    }
+    const base = packageInfo?.priceOffered || 0;
+    const fee = (Number(base) * 0.1).toFixed(2);
+    Alert.alert(
+      "Cancel package",
+      `A 10% cancellation fee (about P ${fee}) will be charged to your wallet.\n\nContinue?`,
+      [
+        { text: "Keep package", style: "cancel" },
+        {
+          text: "Cancel & pay fee",
+          style: "destructive",
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              const resp = await apiService.cancelPackage(packageId);
+              if (resp?.success === false) {
+                Alert.alert(
+                  "Cancel failed",
+                  resp?.error?.message || "Could not cancel package",
+                );
+                return;
+              }
+              Alert.alert(
+                "Cancelled",
+                resp?.message ||
+                  `Package cancelled. Fee: P ${resp?.data?.fee ?? fee}`,
+              );
+              setPackageInfo((prev) =>
+                prev ? { ...prev, status: "CANCELLED" } : prev,
+              );
+              if (navigation?.goBack) navigation.goBack();
+            } catch (e) {
+              Alert.alert("Cancel failed", e?.message || "Could not cancel");
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'PENDING':
+      case "PENDING":
         return colors.warning;
-      case 'ACCEPTED':
+      case "ACCEPTED":
         return colors.primary;
-      case 'IN_TRANSIT':
+      case "IN_TRANSIT":
         return colors.primary;
-      case 'DELIVERED':
+      case "DELIVERED":
         return colors.success;
-      case 'CANCELLED':
+      case "CANCELLED":
         return colors.error;
       default:
         return colors.textSecondary;
@@ -155,11 +205,11 @@ export const TrackingScreen = ({ navigation, route }) => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -266,11 +316,16 @@ export const TrackingScreen = ({ navigation, route }) => {
           </View>
 
           {/* Tracking Info */}
-          <ScrollView style={styles.infoContainer} contentContainerStyle={styles.infoContent}>
+          <ScrollView
+            style={styles.infoContainer}
+            contentContainerStyle={styles.infoContent}
+          >
             {packageInfo && (
               <View style={styles.packageCard}>
                 <Text style={styles.cardTitle}>Package Details</Text>
-                <Text style={styles.packageDescription}>{packageInfo.description}</Text>
+                <Text style={styles.packageDescription}>
+                  {packageInfo.description}
+                </Text>
                 <View style={styles.statusBadge}>
                   <View
                     style={[
@@ -280,39 +335,68 @@ export const TrackingScreen = ({ navigation, route }) => {
                   />
                   <Text style={styles.statusText}>{packageInfo.status}</Text>
                 </View>
+                {["ACCEPTED", "IN_TRANSIT", "IN_PROGRESS"].includes(
+                  (packageInfo.status || "").toUpperCase(),
+                ) ? (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={handleCancelPackage}
+                    disabled={cancelling}
+                  >
+                    <Text style={styles.cancelButtonText}>
+                      {cancelling
+                        ? "Cancelling..."
+                        : "Cancel package (10% fee)"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
 
-            {trackingData && trackingData.updates && trackingData.updates.length > 0 && (
-              <View style={styles.timelineCard}>
-                <Text style={styles.cardTitle}>Tracking Timeline</Text>
-                {trackingData.updates.map((update, index) => (
-                  <View key={update.id || index} style={styles.timelineItem}>
-                    <View style={styles.timelineDot} />
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineStatus}>{update.status}</Text>
-                      {update.location && (
-                        <Text style={styles.timelineLocation}>{update.location}</Text>
-                      )}
-                      <Text style={styles.timelineTime}>{formatDate(update.timestamp)}</Text>
-                      {update.notes && (
-                        <Text style={styles.timelineNotes}>{update.notes}</Text>
-                      )}
+            {trackingData &&
+              trackingData.updates &&
+              trackingData.updates.length > 0 && (
+                <View style={styles.timelineCard}>
+                  <Text style={styles.cardTitle}>Tracking Timeline</Text>
+                  {trackingData.updates.map((update, index) => (
+                    <View key={update.id || index} style={styles.timelineItem}>
+                      <View style={styles.timelineDot} />
+                      <View style={styles.timelineContent}>
+                        <Text style={styles.timelineStatus}>
+                          {update.status}
+                        </Text>
+                        {update.location && (
+                          <Text style={styles.timelineLocation}>
+                            {update.location}
+                          </Text>
+                        )}
+                        <Text style={styles.timelineTime}>
+                          {formatDate(update.timestamp)}
+                        </Text>
+                        {update.notes && (
+                          <Text style={styles.timelineNotes}>
+                            {update.notes}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            )}
+                  ))}
+                </View>
+              )}
 
             {packageInfo && (
               <View style={styles.addressCard}>
                 <View style={styles.addressRow}>
                   <Text style={styles.addressLabel}>From:</Text>
-                  <Text style={styles.addressText}>{packageInfo.pickupAddress}</Text>
+                  <Text style={styles.addressText}>
+                    {packageInfo.pickupAddress}
+                  </Text>
                 </View>
                 <View style={styles.addressRow}>
                   <Text style={styles.addressLabel}>To:</Text>
-                  <Text style={styles.addressText}>{packageInfo.deliveryAddress}</Text>
+                  <Text style={styles.addressText}>
+                    {packageInfo.deliveryAddress}
+                  </Text>
                 </View>
               </View>
             )}
@@ -330,12 +414,12 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   mapContainer: {
     height: height * 0.5,
-    width: '100%',
+    width: "100%",
   },
   map: {
     flex: 1,
@@ -354,7 +438,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 12,
   },
@@ -364,9 +448,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -380,8 +464,22 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
+  },
+  cancelButton: {
+    marginTop: 14,
+    backgroundColor: "#FF444420",
+    borderWidth: 1,
+    borderColor: "#FF4444",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#FF4444",
+    fontWeight: "700",
+    fontSize: 14,
   },
   timelineCard: {
     backgroundColor: colors.cardBg,
@@ -390,7 +488,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   timelineItem: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
   },
   timelineDot: {
@@ -406,7 +504,7 @@ const styles = StyleSheet.create({
   },
   timelineStatus: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
     marginBottom: 4,
   },
@@ -423,7 +521,7 @@ const styles = StyleSheet.create({
   timelineNotes: {
     fontSize: 14,
     color: colors.textSecondary,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   addressCard: {
     backgroundColor: colors.cardBg,
@@ -435,7 +533,7 @@ const styles = StyleSheet.create({
   },
   addressLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textSecondary,
     marginBottom: 4,
   },
@@ -444,4 +542,3 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 });
-
