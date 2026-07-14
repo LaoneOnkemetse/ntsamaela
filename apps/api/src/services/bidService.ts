@@ -171,12 +171,12 @@ class BidService {
         }
       }
 
-      // Check if driver already has a pending bid on this package
+      // Check if driver already has an open bid on this package
       const existingBid = await this.getPrisma().bid.findFirst({
         where: {
           packageId: bidData.packageId,
           driverId: driver.id,
-          status: "PENDING",
+          status: { in: ["PENDING", "CUSTOMER_COUNTER", "DRIVER_COUNTER"] },
         },
       });
 
@@ -192,17 +192,21 @@ class BidService {
       const commission = this.calculateCommission(bidData.amount);
 
       // Prefer live location from the client; fall back to driver's last known location
+      const toNum = (v: unknown) => {
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) {
+          return Number(v);
+        }
+        return null;
+      };
       let bidLatitude =
-        typeof bidData.bidLatitude === "number"
-          ? bidData.bidLatitude
-          : (driver.lastLatitude ?? null);
+        toNum((bidData as any).bidLatitude) ?? driver.lastLatitude ?? null;
       let bidLongitude =
-        typeof bidData.bidLongitude === "number"
-          ? bidData.bidLongitude
-          : (driver.lastLongitude ?? null);
+        toNum((bidData as any).bidLongitude) ?? driver.lastLongitude ?? null;
       let bidLocationName =
-        typeof bidData.bidLocationName === "string" && bidData.bidLocationName
-          ? bidData.bidLocationName
+        typeof (bidData as any).bidLocationName === "string" &&
+        (bidData as any).bidLocationName
+          ? (bidData as any).bidLocationName
           : (driver.locationName ?? null);
 
       if (bidLatitude != null && bidLongitude != null && !bidLocationName) {
@@ -487,18 +491,31 @@ class BidService {
         );
       }
 
-      if (existingBid.status !== "PENDING") {
-        throw new AppError(
-          "Can only update pending bids",
-          "BID_NOT_PENDING",
-          400,
-        );
+      if (
+        !["PENDING", "DRIVER_COUNTER", "CUSTOMER_COUNTER"].includes(
+          (existingBid.status || "").toUpperCase(),
+        )
+      ) {
+        throw new AppError("Can only update open bids", "BID_NOT_PENDING", 400);
       }
 
-      // Update bid
+      const nextAmount =
+        typeof updateData.amount === "number"
+          ? updateData.amount
+          : existingBid.amount;
+
+      // Driver counter / update replaces the active offer in place
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
-        data: updateData,
+        data: {
+          amount: nextAmount,
+          message:
+            updateData.message ||
+            `Driver counter: P${nextAmount} (awaiting customer)`,
+          status: "DRIVER_COUNTER",
+          offerFrom: "DRIVER",
+          updatedAt: new Date(),
+        },
         include: {
           driver: { include: { user: true } },
           package: { include: { customer: true } },
@@ -896,7 +913,11 @@ class BidService {
         );
       }
 
-      if (existingBid.status !== "PENDING") {
+      if (
+        existingBid.status !== "PENDING" &&
+        existingBid.status !== "CUSTOMER_COUNTER" &&
+        existingBid.status !== "DRIVER_COUNTER"
+      ) {
         throw new AppError("Bid is not pending", "BID_NOT_PENDING", 400);
       }
 
@@ -908,11 +929,14 @@ class BidService {
         );
       }
 
-      // Update bid amount
+      // Driver counter replaces the active offer in place
       const updatedBid = await this.getPrisma().bid.update({
         where: { id: bidId },
         data: {
           amount: newAmount,
+          status: "DRIVER_COUNTER",
+          offerFrom: "DRIVER",
+          message: `Driver counter: P${newAmount} (awaiting customer)`,
           updatedAt: new Date(),
         },
         include: {
@@ -986,15 +1010,11 @@ class BidService {
         );
       }
 
-      const offerFrom = (bid.offerFrom || "DRIVER").toUpperCase();
       const status = (bid.status || "").toUpperCase();
-      // Customer can only counter a driver's outstanding offer
-      if (
-        offerFrom === "CUSTOMER" ||
-        !["PENDING", "DRIVER_COUNTER"].includes(status)
-      ) {
+      const openStatuses = ["PENDING", "DRIVER_COUNTER", "CUSTOMER_COUNTER"];
+      if (!openStatuses.includes(status)) {
         throw new AppError(
-          "You can only counter an active driver bid",
+          "This bid is no longer open for counter offers",
           "BID_NOT_PENDING",
           400,
         );
@@ -1008,33 +1028,31 @@ class BidService {
         );
       }
 
-      // Replace any previous open customer counter for this parent/driver/package
-      await this.getPrisma().bid.updateMany({
-        where: {
-          packageId: bid.packageId,
-          driverId: bid.driverId,
-          status: "CUSTOMER_COUNTER",
-          offerFrom: "CUSTOMER",
-        },
-        data: { status: "REJECTED" },
-      });
-
-      // Create a SEPARATE customer counter bid — do not overwrite the driver bid
-      const counterBid = await this.getPrisma().bid.create({
+      // Replace the active bid in place — one open offer per driver/package
+      const counterBid = await this.getPrisma().bid.update({
+        where: { id: bid.id },
         data: {
-          packageId: bid.packageId,
-          driverId: bid.driverId,
-          tripId: bid.tripId,
           amount: newAmount,
           status: "CUSTOMER_COUNTER",
           offerFrom: "CUSTOMER",
-          parentBidId: bid.id,
-          message: `Customer counter offer: P${newAmount}`,
+          message: `Customer counter: P${newAmount} (awaiting driver)`,
+          updatedAt: new Date(),
         },
         include: {
           driver: { include: { user: true } },
           package: { include: { customer: true } },
         },
+      });
+
+      // Close any leftover duplicate open bids for same driver/package
+      await this.getPrisma().bid.updateMany({
+        where: {
+          packageId: bid.packageId,
+          driverId: bid.driverId,
+          id: { not: bid.id },
+          status: { in: openStatuses },
+        },
+        data: { status: "REJECTED" },
       });
 
       const commission = this.calculateCommission(newAmount);

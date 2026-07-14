@@ -118,45 +118,53 @@ export const AvailablePackagesScreen = () => {
     try {
       apiService.setToken(authToken);
       const location = await captureBidLocation();
-      let resp = await apiService.placeBidOnPackage(
-        pkg.id,
-        amount,
-        `Bid: P${amount}`,
-        location,
+      const openStatuses = ["PENDING", "CUSTOMER_COUNTER", "DRIVER_COUNTER"];
+      const existing = myBids.find(
+        (b) =>
+          b.packageId === pkg.id &&
+          openStatuses.includes((b.status || "").toUpperCase()),
       );
 
-      if (resp?.success === false && resp?.error?.code === "DUPLICATE_BID") {
-        const existing = myBids.find(
-          (b) => b.packageId === pkg.id && b.status === "PENDING",
+      let resp;
+      if (existing) {
+        resp = await apiService.updateBid(
+          existing.id,
+          amount,
+          `Driver counter: P${amount} (awaiting customer)`,
         );
-        if (existing) {
-          resp = await apiService.updateBid(
-            existing.id,
-            amount,
-            `Updated bid: P${amount}`,
-          );
+      } else {
+        resp = await apiService.placeBidOnPackage(
+          pkg.id,
+          amount,
+          `Bid: P${amount}`,
+          location,
+        );
+
+        if (resp?.success === false && resp?.error?.code === "DUPLICATE_BID") {
+          const fallback = myBids.find((b) => b.packageId === pkg.id);
+          if (fallback) {
+            resp = await apiService.updateBid(
+              fallback.id,
+              amount,
+              `Driver counter: P${amount} (awaiting customer)`,
+            );
+          }
         }
       }
 
       if (resp?.success === false) {
-        const code = resp?.error?.code;
-        if (code === "DUPLICATE_BID") {
-          Alert.alert(
-            "Bid already placed",
-            "You already have a pending bid on this package.",
-          );
-        } else {
-          Alert.alert(
-            "Bid failed",
-            resp?.error?.message || "Could not place bid",
-          );
-        }
+        Alert.alert(
+          "Bid failed",
+          resp?.error?.message || "Could not place bid",
+        );
         return;
       }
       const yourEarnings = (parseFloat(amount) * 0.7).toFixed(2);
       Alert.alert(
-        "Bid placed",
-        `Your bid of P ${amount} is pending customer approval.\n\nIf accepted, you'll receive P ${yourEarnings} (after 30% platform fee)`,
+        existing ? "Counter sent" : "Bid placed",
+        existing
+          ? `Your counter of P ${amount} replaced the previous offer. Awaiting customer.`
+          : `Your bid of P ${amount} is pending customer approval.\n\nIf accepted, you'll receive P ${yourEarnings} (after 30% platform fee)`,
       );
       await loadPackages();
     } catch (e) {
@@ -232,20 +240,26 @@ export const AvailablePackagesScreen = () => {
             </Text>
           )}
           {packages.map((pkg) => {
-            const myBid = myBids.find(
+            const openStatuses = [
+              "PENDING",
+              "DRIVER_COUNTER",
+              "CUSTOMER_COUNTER",
+            ];
+            const openBid = myBids.find(
               (b) =>
                 b.packageId === pkg.id &&
-                ["PENDING", "DRIVER_COUNTER"].includes(
-                  (b.status || "").toUpperCase(),
-                ) &&
-                (b.offerFrom || "DRIVER").toUpperCase() !== "CUSTOMER",
+                openStatuses.includes((b.status || "").toUpperCase()),
             );
-            const customerCounter = myBids.find(
-              (b) =>
-                b.packageId === pkg.id &&
-                ((b.status || "").toUpperCase() === "CUSTOMER_COUNTER" ||
-                  (b.offerFrom || "").toUpperCase() === "CUSTOMER"),
-            );
+            const status = (openBid?.status || "").toUpperCase();
+            const offerFrom = (openBid?.offerFrom || "DRIVER").toUpperCase();
+            const awaitingCustomer =
+              openBid &&
+              (status === "PENDING" || status === "DRIVER_COUNTER") &&
+              offerFrom !== "CUSTOMER";
+            const customerCounter =
+              openBid &&
+              (status === "CUSTOMER_COUNTER" || offerFrom === "CUSTOMER");
+
             return (
               <View key={pkg.id} style={packageStyles.packageCardWithPhoto}>
                 {pkg.photo ? (
@@ -290,10 +304,10 @@ export const AvailablePackagesScreen = () => {
                     {pkg.weight} • {pkg.distance}
                   </Text>
 
-                  {myBid ? (
+                  {awaitingCustomer ? (
                     <View style={styles.bidPendingBadge}>
                       <Text style={styles.bidPendingText}>
-                        ✓ Your bid: P {myBid.amount} — awaiting customer
+                        ✓ Your offer: P {openBid.amount} — awaiting customer
                       </Text>
                     </View>
                   ) : null}
@@ -301,54 +315,70 @@ export const AvailablePackagesScreen = () => {
                   {customerCounter ? (
                     <View style={styles.bidPendingBadge}>
                       <Text style={styles.bidPendingText}>
-                        ↕ Customer counter: P {customerCounter.amount}{" "}
-                        (separate offer)
+                        ↕ Customer counter: P {openBid.amount} — your turn
                       </Text>
+                      <View
+                        style={{ flexDirection: "row", gap: 8, marginTop: 8 }}
+                      >
+                        <TouchableOpacity
+                          style={[
+                            packageStyles.packageActionButton,
+                            packageStyles.acceptButton,
+                            { flex: 1 },
+                          ]}
+                          disabled={acceptingCounterId === openBid.id}
+                          onPress={() => acceptCustomerCounter(openBid)}
+                        >
+                          <Text style={packageStyles.acceptButtonText}>
+                            {acceptingCounterId === openBid.id
+                              ? "Accepting..."
+                              : "Accept"}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            packageStyles.packageActionButton,
+                            packageStyles.counterButton,
+                            { flex: 1 },
+                          ]}
+                          disabled={submitting}
+                          onPress={() => handleCounterBid(pkg)}
+                        >
+                          <Text style={packageStyles.counterButtonText}>
+                            Counter
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={packageStyles.packageActions}>
                       <TouchableOpacity
                         style={[
                           packageStyles.packageActionButton,
                           packageStyles.acceptButton,
-                          { marginTop: 8 },
+                          (submitting || awaitingCustomer) && { opacity: 0.5 },
                         ]}
-                        disabled={acceptingCounterId === customerCounter.id}
-                        onPress={() => acceptCustomerCounter(customerCounter)}
+                        onPress={() => handleAccept(pkg)}
+                        disabled={submitting || !!awaitingCustomer}
                       >
                         <Text style={packageStyles.acceptButtonText}>
-                          {acceptingCounterId === customerCounter.id
-                            ? "Accepting..."
-                            : "Accept Customer Counter"}
+                          {awaitingCustomer ? "Awaiting customer" : "Accept"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          packageStyles.packageActionButton,
+                          packageStyles.counterButton,
+                        ]}
+                        onPress={() => handleCounterBid(pkg)}
+                        disabled={submitting}
+                      >
+                        <Text style={packageStyles.counterButtonText}>
+                          {awaitingCustomer ? "Update Bid" : "Counter Bid"}
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  ) : null}
-
-                  <View style={packageStyles.packageActions}>
-                    <TouchableOpacity
-                      style={[
-                        packageStyles.packageActionButton,
-                        packageStyles.acceptButton,
-                        (submitting || myBid) && { opacity: 0.5 },
-                      ]}
-                      onPress={() => handleAccept(pkg)}
-                      disabled={submitting || !!myBid}
-                    >
-                      <Text style={packageStyles.acceptButtonText}>
-                        {myBid ? "Bid Pending" : "Accept"}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        packageStyles.packageActionButton,
-                        packageStyles.counterButton,
-                      ]}
-                      onPress={() => handleCounterBid(pkg)}
-                      disabled={submitting}
-                    >
-                      <Text style={packageStyles.counterButtonText}>
-                        {myBid ? "Update Bid" : "Counter Bid"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  )}
                 </View>
               </View>
             );

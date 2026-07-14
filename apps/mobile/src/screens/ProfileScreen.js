@@ -183,8 +183,7 @@ export const ProfileScreen = () => {
 
       if (isDriver) {
         apiService.setToken(authToken);
-        // Prefer JSON for text fields (more reliable than multipart on mobile)
-        let resp = await apiService.updateDriverVehicleDetails({
+        const resp = await apiService.updateDriverVehicleDetails({
           carRegistration: carRegistration.trim(),
           carDescription: carDescription.trim(),
         });
@@ -193,9 +192,11 @@ export const ProfileScreen = () => {
             resp?.error?.message ||
               (Array.isArray(resp?.error?.details)
                 ? resp.error.details.map((d) => d.msg || d).join("\n")
-                : "Could not save vehicle details"),
+                : `Could not save vehicle details${resp?.statusCode ? ` (${resp.statusCode})` : ""}`),
           );
         }
+
+        let updated = resp?.data ?? resp;
 
         if (carPhotoFile?.uri) {
           const formData = new FormData();
@@ -206,16 +207,18 @@ export const ProfileScreen = () => {
             name: carPhotoFile.fileName || `car-${Date.now()}.jpg`,
             type: carPhotoFile.type || "image/jpeg",
           });
-          resp = await apiService.updateDriverProfile(formData);
-          if (resp?.success === false) {
-            throw new Error(
-              resp?.error?.message ||
-                "Vehicle text saved, but car photo upload failed",
+          const photoResp = await apiService.updateDriverProfile(formData);
+          if (photoResp?.success === false) {
+            Alert.alert(
+              "Photo warning",
+              photoResp?.error?.message ||
+                "Registration saved, but car photo upload failed. Try the photo again.",
             );
+          } else {
+            updated = photoResp?.data ?? photoResp ?? updated;
           }
         }
 
-        const updated = resp?.data ?? resp;
         if (updated) {
           setUserProfile((prev) => ({
             ...prev,

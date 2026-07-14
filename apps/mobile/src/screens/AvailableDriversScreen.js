@@ -152,7 +152,10 @@ export const AvailableDriversScreen = () => {
             rating: t.driver?.rating || 0,
             totalDeliveries: t.driver?.totalDeliveries || 0,
             vehicle: t.driver?.vehicleType || "Vehicle",
-            photo: t.driver?.user?.profilePictureUrl || null,
+            photo:
+              t.driver?.user?.profilePictureUrl ||
+              t.driver?.profilePictureUrl ||
+              null,
             from: t.startAddress,
             to: t.endAddress,
             date: new Date(t.departureTime).toLocaleString(),

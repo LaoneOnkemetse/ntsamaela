@@ -199,7 +199,7 @@ export const MyPackagesScreen = () => {
       }
       Alert.alert(
         "Counter sent",
-        `Your counter of P ${parsed} is a separate offer. The driver's bid is unchanged — they must accept your counter, or you can still accept their bid.`,
+        `Your counter of P ${parsed} replaced the previous offer. Status: pending — awaiting driver. You can update your counter anytime.`,
       );
       if (selectedPackage?.id) {
         await loadBidsForPackage(selectedPackage.id);
@@ -595,29 +595,34 @@ export const MyPackagesScreen = () => {
                                 { color: colors.primary, fontWeight: "700" },
                               ]}
                             >
-                              Your counter offer (awaiting driver)
+                              Pending — awaiting driver
                             </Text>
-                          ) : null}
-                          {driver?.locationName ? (
-                            <Text style={styles.bidMeta}>
-                              📍 Now: {driver.locationName}
+                          ) : status === "DRIVER_COUNTER" ? (
+                            <Text
+                              style={[
+                                styles.bidMeta,
+                                { color: colors.primary, fontWeight: "700" },
+                              ]}
+                            >
+                              Driver counter — your turn
                             </Text>
                           ) : null}
                           {bid.bidLocationName ? (
                             <Text style={styles.bidMeta}>
-                              📌 Bid from: {bid.bidLocationName}
+                              📌 Bid placed from: {bid.bidLocationName}
                             </Text>
                           ) : bid.bidLatitude != null &&
                             bid.bidLongitude != null ? (
                             <Text style={styles.bidMeta}>
-                              📌 Bid from: {Number(bid.bidLatitude).toFixed(4)},{" "}
+                              📌 Bid placed from:{" "}
+                              {Number(bid.bidLatitude).toFixed(4)},{" "}
                               {Number(bid.bidLongitude).toFixed(4)}
                             </Text>
-                          ) : !isCustomerCounter ? (
+                          ) : (
                             <Text style={styles.bidMeta}>
-                              📌 Bid location not available yet
+                              📌 Bid location not captured yet
                             </Text>
-                          ) : null}
+                          )}
                         </View>
                         <Text style={styles.viewProfile}>View →</Text>
                       </TouchableOpacity>
@@ -625,7 +630,11 @@ export const MyPackagesScreen = () => {
                       <View style={styles.bidAmountRow}>
                         <Text style={styles.bidAmount}>P {bid.amount}</Text>
                         <Text style={styles.bidStatus}>
-                          {isCustomerCounter ? "YOUR COUNTER" : status}
+                          {isCustomerCounter
+                            ? "AWAITING DRIVER"
+                            : status === "DRIVER_COUNTER"
+                              ? "DRIVER COUNTER"
+                              : status}
                         </Text>
                       </View>
 
@@ -659,10 +668,15 @@ export const MyPackagesScreen = () => {
                       ) : null}
 
                       {isCustomerCounter && packagePending ? (
-                        <Text style={styles.bidMessage}>
-                          Driver must accept this counter. Your original driver
-                          bid is unchanged.
-                        </Text>
+                        <TouchableOpacity
+                          style={styles.counterButton}
+                          disabled={countering}
+                          onPress={() => handleCounterBid(bid)}
+                        >
+                          <Text style={styles.counterButtonText}>
+                            Update bid
+                          </Text>
+                        </TouchableOpacity>
                       ) : null}
                     </View>
                   );

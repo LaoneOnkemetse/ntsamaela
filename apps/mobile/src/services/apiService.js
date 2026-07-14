@@ -26,22 +26,27 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+    const { isFormData, timeoutMs: customTimeout, ...fetchOptions } = options;
+    const headers = this.getHeaders(!isFormData);
     const config = {
-      headers: this.getHeaders(!options.isFormData),
-      ...options,
+      ...fetchOptions,
+      headers: {
+        ...headers,
+        ...(fetchOptions.headers || {}),
+      },
     };
 
-    // Remove Content-Type for FormData
-    if (options.isFormData) {
+    // Remove Content-Type for FormData so boundary is set automatically
+    if (isFormData) {
       delete config.headers["Content-Type"];
     }
 
     try {
       const controller = new AbortController();
       const timeoutMs =
-        typeof options.timeoutMs === "number"
-          ? options.timeoutMs
-          : options.isFormData
+        typeof customTimeout === "number"
+          ? customTimeout
+          : isFormData
             ? 60000
             : 15000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -71,7 +76,8 @@ class ApiService {
 
       if (!response.ok) {
         const message =
-          (data && (data.error?.message || data.message)) || "Request failed";
+          (data && (data.error?.message || data.message)) ||
+          `Request failed (${response.status})`;
 
         // Rate limited — return a soft error so callers don't retry immediately
         if (response.status === 429) {
@@ -120,11 +126,17 @@ class ApiService {
         throw new Error(message);
       }
 
-      return data;
+      return data?.success !== undefined ? data : { success: true, data };
     } catch (error) {
-      // Keep the existing behavior, but include URL for easier diagnosis
-      console.error("API request failed:", { url, endpoint, error });
-      throw error;
+      if (error?.message && !error.message.includes("Network")) {
+        throw error;
+      }
+      console.error("API request failed:", {
+        url,
+        endpoint,
+        message: error?.message,
+      });
+      throw error instanceof Error ? error : new Error("API request failed");
     }
   }
 
@@ -206,10 +218,33 @@ class ApiService {
   }
 
   async updateDriverVehicleDetails(details) {
-    return this.request("/api/driver/profile/vehicle", {
+    // Prefer JSON vehicle endpoint; fall back to multipart /profile for older APIs
+    const jsonResp = await this.request("/api/driver/profile/vehicle", {
       method: "PUT",
       body: JSON.stringify(details),
     });
+    if (
+      jsonResp?.success !== false &&
+      jsonResp?.statusCode !== 404 &&
+      jsonResp?.error?.code !== "NOT_FOUND"
+    ) {
+      return jsonResp;
+    }
+
+    const formData = new FormData();
+    if (details.carRegistration) {
+      formData.append("carRegistration", String(details.carRegistration));
+    }
+    if (details.carDescription) {
+      formData.append("carDescription", String(details.carDescription));
+    }
+    if (details.vehicleType) {
+      formData.append("vehicleType", String(details.vehicleType));
+    }
+    if (details.vehicleCapacity) {
+      formData.append("vehicleCapacity", String(details.vehicleCapacity));
+    }
+    return this.updateDriverProfile(formData);
   }
 
   async uploadProfilePicture(imageUri) {

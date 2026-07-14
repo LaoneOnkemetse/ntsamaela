@@ -677,6 +677,16 @@ class TripService {
             rating: trip.driver.rating,
             totalDeliveries: trip.driver.totalDeliveries,
             active: trip.driver.active || true,
+            profilePictureUrl: trip.driver.user?.profilePictureUrl || null,
+            user: trip.driver.user
+              ? {
+                  id: trip.driver.user.id,
+                  firstName: trip.driver.user.firstName,
+                  lastName: trip.driver.user.lastName,
+                  phone: trip.driver.user.phone,
+                  profilePictureUrl: trip.driver.user.profilePictureUrl,
+                }
+              : undefined,
           }
         : undefined,
       bids: trip.bids?.map((bid: any) => ({
