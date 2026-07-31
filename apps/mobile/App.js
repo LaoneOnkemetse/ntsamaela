@@ -35,6 +35,7 @@ import {
   CreatePackageScreen,
   MyPackagesScreen,
   AvailablePackagesScreen,
+  MyDeliveriesScreen,
   MyTripsScreen,
   CustomerHomeScreen,
   DriverHomeScreen,
@@ -1440,6 +1441,7 @@ function AppNavigator() {
     // Driver screens (check before tabs)
     if (currentScreen === "availablePackages")
       return <AvailablePackagesScreen />;
+    if (currentScreen === "myDeliveries") return <MyDeliveriesScreen />;
     if (currentScreen === "myTrips") return <MyTripsScreen />;
 
     // Utility screens (available to both)

@@ -74,14 +74,27 @@ export class BidController {
   async getMyBids(req: AuthenticatedRequest, res: Response) {
     try {
       const driverId = req.user!.id;
+      const limit = Math.min(
+        Math.max(parseInt(String(req.query?.limit || "50"), 10) || 50, 1),
+        100,
+      );
+      const offset = Math.max(
+        parseInt(String(req.query?.offset || "0"), 10) || 0,
+        0,
+      );
       const { bids, total } = await this.getBidService().getBidsByDriver(
         driverId,
-        { limit: 20, offset: 0 },
+        { limit, offset },
       );
       res.status(200).json({
         success: true,
         data: bids,
-        pagination: { page: 1, limit: 20, total, totalPages: 1 },
+        pagination: {
+          page: Math.floor(offset / limit) + 1,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
       });
     } catch (_error: any) {
       res.status(500).json({

@@ -158,7 +158,8 @@ export const MyPackagesScreen = () => {
     if (!driverId) return;
     setShowBidsModal(false);
     navigate("driverProfile", false, {
-      driverProfile: { driverId, driver: bid.driver },
+      driverId,
+      driver: bid.driver,
     });
   };
 
@@ -260,7 +261,7 @@ export const MyPackagesScreen = () => {
     );
 
   const handleTrackPackage = (pkg) => {
-    navigate("tracking", false, { tracking: { packageId: pkg.id } });
+    navigate("tracking", false, { packageId: pkg.id });
   };
 
   const handleViewAssignedDriver = (pkg) => {
@@ -271,7 +272,8 @@ export const MyPackagesScreen = () => {
       return;
     }
     navigate("driverProfile", false, {
-      driverProfile: { driverId, driver: bid.driver },
+      driverId,
+      driver: bid.driver,
     });
   };
 

@@ -42,7 +42,7 @@ export const NotificationScreen = () => {
     await markAsRead(notification.id);
     if (notification.packageId) {
       const isDriver = (userType || "").toLowerCase() === "driver";
-      navigate(isDriver ? "availablePackages" : "myPackages");
+      navigate(isDriver ? "myDeliveries" : "myPackages");
     }
   };
 

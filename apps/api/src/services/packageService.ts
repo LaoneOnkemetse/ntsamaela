@@ -660,6 +660,15 @@ class PackageService {
       );
     }
 
+    // Drivers may only cancel before collection (ACCEPTED), not after pickup
+    if (isAssignedDriver && !isCustomer && !isAdmin && status !== "ACCEPTED") {
+      throw new AppError(
+        "Drivers can only cancel before the package is collected",
+        "DRIVER_CANCEL_AFTER_PICKUP",
+        400,
+      );
+    }
+
     const baseAmount = acceptedBid?.amount || pkg.priceOffered || 0;
     const fee = Math.round(baseAmount * 0.1 * 100) / 100;
     const cancellerRole = isAdmin

@@ -487,8 +487,11 @@ class ApiService {
     return this.request(`/api/bids/package/${packageId}`);
   }
 
-  async getMyBids() {
-    return this.request("/api/bids/my-bids");
+  async getMyBids(filters = {}) {
+    const queryParams = new URLSearchParams(filters).toString();
+    return this.request(
+      `/api/bids/my-bids${queryParams ? `?${queryParams}` : ""}`,
+    );
   }
 
   async acceptBid(bidId) {

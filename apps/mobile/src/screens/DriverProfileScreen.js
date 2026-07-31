@@ -14,40 +14,65 @@ import { sharedStyles } from "../styles/sharedStyles";
 import { useNavigation } from "../navigation/NavigationContext";
 import apiService from "../services/apiService";
 
+const unwrapDriverParams = (raw) => {
+  if (!raw || typeof raw !== "object") return {};
+  // Support both flat params and legacy nested { driverProfile: {...} }
+  if (raw.driverId || raw.driver) return raw;
+  if (raw.driverProfile && typeof raw.driverProfile === "object") {
+    return raw.driverProfile;
+  }
+  return raw;
+};
+
 export const DriverProfileScreen = () => {
   const { goBack, screenParams, authToken } = useNavigation();
-  const params = screenParams?.driverProfile || {};
+  const params = unwrapDriverParams(screenParams?.driverProfile);
   const driverId = params.driverId || params.driver?.id;
-  const [driver, setDriver] = useState(null);
-  const [loading, setLoading] = useState(!!driverId);
+  const [driver, setDriver] = useState(params.driver || null);
+  const [loading, setLoading] = useState(!!driverId && !params.driver);
 
   useEffect(() => {
-    if (!driverId) return;
+    if (!driverId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        apiService.setToken(authToken);
+        if (authToken) apiService.setToken(authToken);
         const resp = await apiService.getDriverById(driverId);
-        if (resp?.success !== false && resp?.data) {
-          setDriver(resp.data);
-        } else if (params.driver) {
-          setDriver(params.driver);
+        const data = resp?.data?.data || resp?.data || null;
+        if (!cancelled) {
+          if (resp?.success !== false && data) {
+            setDriver(data);
+          } else if (params.driver) {
+            setDriver(params.driver);
+          }
         }
       } catch (e) {
         console.warn("Failed to load driver profile:", e?.message);
-        if (params.driver) setDriver(params.driver);
+        if (!cancelled && params.driver) setDriver(params.driver);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     load();
-  }, [driverId, authToken, params.driver]);
+    return () => {
+      cancelled = true;
+    };
+  }, [driverId, authToken]);
 
   const name = driver?.user
     ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
     : "Driver";
   const photo = driver?.user?.profilePictureUrl;
   const registration = driver?.licensePlate;
+  const locationLabel =
+    driver?.locationName ||
+    (driver?.lastLatitude != null && driver?.lastLongitude != null
+      ? `${Number(driver.lastLatitude).toFixed(4)}, ${Number(driver.lastLongitude).toFixed(4)}`
+      : null);
 
   return (
     <View style={sharedStyles.screenContainer}>
@@ -63,6 +88,12 @@ export const DriverProfileScreen = () => {
 
         {loading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+        ) : !driver ? (
+          <View style={{ padding: 24, alignItems: "center" }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 16 }}>
+              Driver details are not available.
+            </Text>
+          </View>
         ) : (
           <ScrollView style={{ flex: 1, padding: 20 }}>
             <View style={styles.profileHeader}>
@@ -75,7 +106,7 @@ export const DriverProfileScreen = () => {
                   </Text>
                 </View>
               )}
-              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.name}>{name || "Driver"}</Text>
               <Text style={styles.rating}>
                 {driver?.rating || 0} ⭐ • {driver?.totalDeliveries || 0}{" "}
                 deliveries
@@ -115,7 +146,7 @@ export const DriverProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <Text style={styles.row}>
-                📍 {driver?.locationName || "Location unavailable"}
+                📍 {locationLabel || "Location unavailable"}
               </Text>
             </View>
 

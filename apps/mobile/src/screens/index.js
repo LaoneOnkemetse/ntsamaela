@@ -17,6 +17,7 @@ export { TrackingScreen } from "./TrackingScreen";
 export { CreatePackageScreen } from "./CreatePackageScreen";
 export { MyPackagesScreen } from "./MyPackagesScreen";
 export { AvailablePackagesScreen } from "./AvailablePackagesScreen";
+export { MyDeliveriesScreen } from "./MyDeliveriesScreen";
 
 // Trip management screens (fully extracted)
 export { MyTripsScreen } from "./MyTripsScreen";

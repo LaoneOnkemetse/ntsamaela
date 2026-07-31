@@ -199,6 +199,18 @@ export const DriverHomeScreen = () => {
 
             <TouchableOpacity
               style={homeStyles.actionCard}
+              onPress={() => navigate("myDeliveries")}
+            >
+              <View
+                style={[homeStyles.actionIcon, { backgroundColor: "#1565C0" }]}
+              >
+                <Text style={homeStyles.actionIconText}>🚚</Text>
+              </View>
+              <Text style={homeStyles.actionText}>My Deliveries</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={homeStyles.actionCard}
               onPress={() => navigate("myTrips")}
             >
               <View

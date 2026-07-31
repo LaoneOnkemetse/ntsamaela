@@ -19,7 +19,9 @@ import * as Location from "expo-location";
 const { height } = Dimensions.get("window");
 
 export const TrackingScreen = ({ navigation, route }) => {
-  const { packageId } = route.params || {};
+  const routeParams = route?.params || {};
+  const packageId =
+    routeParams.packageId || routeParams.tracking?.packageId || routeParams.id;
   const [loading, setLoading] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [packageInfo, setPackageInfo] = useState(null);
