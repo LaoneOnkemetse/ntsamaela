@@ -305,6 +305,7 @@ class PackageService {
                       lastName: true,
                       email: true,
                       phone: true,
+                      profilePictureUrl: true,
                     },
                   },
                 },

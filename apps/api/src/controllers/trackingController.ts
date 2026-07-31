@@ -92,13 +92,64 @@ export class TrackingController {
 
       const tracking = await this.realtimeService.getPackageTracking(packageId);
 
-      const response: ApiResponse<PackageTracking[]> = {
-        success: true,
-        data: tracking,
-        message: "Package tracking retrieved successfully",
-      };
+      // Prefer latest tracking point; fall back to accepted driver's last GPS
+      let driverLocation: {
+        latitude: number;
+        longitude: number;
+        locationName?: string | null;
+        updatedAt?: string | null;
+      } | null = null;
 
-      res.status(200).json(response);
+      const latestWithCoords = tracking.find(
+        (t) => t.latitude != null && t.longitude != null,
+      );
+      if (latestWithCoords) {
+        driverLocation = {
+          latitude: Number(latestWithCoords.latitude),
+          longitude: Number(latestWithCoords.longitude),
+          updatedAt: latestWithCoords.timestamp || null,
+        };
+      } else {
+        try {
+          const { getPrismaClient } = await import("@database/index");
+          const prisma = getPrismaClient();
+          if (prisma) {
+            const accepted = await prisma.bid.findFirst({
+              where: { packageId, status: "ACCEPTED" },
+              include: {
+                driver: {
+                  select: {
+                    lastLatitude: true,
+                    lastLongitude: true,
+                    locationName: true,
+                    lastLocationAt: true,
+                  },
+                },
+              },
+            });
+            const d = accepted?.driver;
+            if (d?.lastLatitude != null && d?.lastLongitude != null) {
+              driverLocation = {
+                latitude: Number(d.lastLatitude),
+                longitude: Number(d.lastLongitude),
+                locationName: d.locationName,
+                updatedAt: d.lastLocationAt?.toISOString?.() || null,
+              };
+            }
+          }
+        } catch {
+          // best-effort fallback
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          updates: tracking,
+          driverLocation,
+        },
+        message: "Package tracking retrieved successfully",
+      });
     } catch (_error) {
       if (_error instanceof AppError) {
         res.status(_error.statusCode).json({

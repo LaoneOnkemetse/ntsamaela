@@ -181,7 +181,14 @@ describe("TrackingController", () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        data: mockTracking,
+        data: {
+          updates: mockTracking,
+          driverLocation: {
+            latitude: 40.7128,
+            longitude: -74.006,
+            updatedAt: mockTracking[0].timestamp,
+          },
+        },
         message: "Package tracking retrieved successfully",
       });
     });

@@ -18,6 +18,7 @@ import {
   takePhoto,
   selectFromGallery,
   showPhotoActionSheet,
+  resolveImageUploadPart,
 } from "../utils/imageUtils";
 import apiService from "../services/apiService";
 
@@ -123,11 +124,12 @@ export const RegisterDriverScreen = () => {
             formData.append("carDescription", carDescription.trim());
             formData.append("vehicleType", "CAR");
             formData.append("vehicleCapacity", "MEDIUM");
-            formData.append("carPhoto", {
+            const part = resolveImageUploadPart(carPhoto, "car") || {
               uri: carPhoto.uri,
               name: "car-photo.jpg",
-              type: carPhoto.type || "image/jpeg",
-            });
+              type: "image/jpeg",
+            };
+            formData.append("carPhoto", part);
 
             const vehicleResp = await apiService.updateDriverProfile(formData);
             if (vehicleResp?.success === false) {

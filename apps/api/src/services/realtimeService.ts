@@ -605,20 +605,46 @@ export class RealtimeService {
         tracking: this.formatPackageTracking(tracking),
       });
 
-      // Send notification to customer
-      const packageData = await this.prisma.package.findUnique({
-        where: { id: packageId },
-        include: { customer: true },
-      });
+      // Also emit location events when coordinates are present
+      if (latitude != null && longitude != null) {
+        const locationPayload = {
+          packageId,
+          latitude,
+          longitude,
+          location: location || `${latitude}, ${longitude}`,
+          status,
+          timestamp:
+            tracking.timestamp?.toISOString?.() || new Date().toISOString(),
+          trackingId: tracking.id,
+        };
+        this.io
+          .to(`package:${packageId}`)
+          .emit("package:location:update", locationPayload);
+        this.io
+          .to(`package:${packageId}`)
+          .emit("package:location:updated", locationPayload);
+      }
 
-      if (packageData) {
-        await this.createNotification(
-          packageData.customerId,
-          "PACKAGE_STATUS",
-          "Package Status Update",
-          `Your package status has been updated to: ${status}`,
-          { packageId, status, tracking: this.formatPackageTracking(tracking) },
-        );
+      // Send notification for meaningful status changes only (not GPS pings)
+      if (status !== "LOCATION_UPDATE") {
+        const packageData = await this.prisma.package.findUnique({
+          where: { id: packageId },
+          include: { customer: true },
+        });
+
+        if (packageData) {
+          await this.createNotification(
+            packageData.customerId,
+            "PACKAGE_STATUS",
+            "Package Status Update",
+            `Your package status has been updated to: ${status}`,
+            {
+              packageId,
+              status,
+              tracking: this.formatPackageTracking(tracking),
+            },
+          );
+        }
       }
 
       return this.formatPackageTracking(tracking);

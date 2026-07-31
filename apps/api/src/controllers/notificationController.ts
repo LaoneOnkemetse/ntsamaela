@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { AuthenticatedRequest } from "@shared/types";
+import { getPrismaClient } from "@database/index";
 import { getRealtimeService } from "../services/realtimeService";
 
 export class NotificationController {
@@ -67,43 +68,57 @@ export class NotificationController {
         .status(200)
         .json({ success: true, message: "Notification marked as read" });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: {
-            code: "NOTIFICATION_UPDATE_FAILED",
-            message: "Database error",
-          },
-        });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "NOTIFICATION_UPDATE_FAILED",
+          message: "Database error",
+        },
+      });
     }
   }
 
   async markAllNotificationsAsRead(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const realtime = getRealtimeService();
-      const notifications = await realtime.getUserNotifications(userId, 100, 0);
-      const unread = notifications.filter((n: any) => !n.isRead);
-      for (const n of unread) {
-        await realtime.markNotificationAsRead(n.id);
-      }
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: `Marked ${unread.length} notifications as read`,
-        });
-    } catch (_error: any) {
-      res
-        .status(500)
-        .json({
+      const prisma = getPrismaClient();
+      if (!prisma) {
+        res.status(503).json({
           success: false,
           error: {
-            code: "NOTIFICATIONS_READ_FAILED",
-            message: "Failed to mark all notifications as read",
+            code: "DATABASE_ERROR",
+            message: "Database unavailable",
           },
         });
+        return;
+      }
+
+      const result = await prisma.notification.updateMany({
+        where: { userId, isRead: false },
+        data: { isRead: true },
+      });
+
+      try {
+        getRealtimeService()?.emitToUser?.(userId, "notifications:read-all", {
+          count: result.count,
+        });
+      } catch {
+        // socket emit is best-effort
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Marked ${result.count} notifications as read`,
+        data: { count: result.count },
+      });
+    } catch (_error: any) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "NOTIFICATIONS_READ_FAILED",
+          message: "Failed to mark all notifications as read",
+        },
+      });
     }
   }
 
@@ -113,15 +128,13 @@ export class NotificationController {
         .status(200)
         .json({ success: true, message: "Notification deleted successfully" });
     } catch (_error: any) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: {
-            code: "NOTIFICATION_DELETE_FAILED",
-            message: "Failed to delete notification",
-          },
-        });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: "NOTIFICATION_DELETE_FAILED",
+          message: "Failed to delete notification",
+        },
+      });
     }
   }
 

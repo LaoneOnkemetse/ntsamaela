@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getPrismaClient } from "@database/index";
 import { AuthenticatedRequest } from "@shared/types";
 import cloudStorageService from "../services/cloudStorageService";
+import { getRealtimeService } from "../services/realtimeService";
 
 export class DriverController {
   async createDriverProfile(req: AuthenticatedRequest, res: Response) {
@@ -224,7 +225,6 @@ export class DriverController {
       }
 
       let carPhotoUrl = existingDriver.carPhotoUrl; // Keep existing if no new photo
-      let photoUploadError: string | null = null;
       if (file) {
         try {
           const uploadResult = await cloudStorageService.uploadPackageImage(
@@ -235,9 +235,15 @@ export class DriverController {
           carPhotoUrl = uploadResult.url;
         } catch (uploadErr: any) {
           console.error("Car photo upload failed:", uploadErr);
-          photoUploadError =
-            uploadErr?.message ||
-            "Car photo upload failed; other details saved";
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: "CAR_PHOTO_UPLOAD_FAILED",
+              message:
+                uploadErr?.message ||
+                "Car photo upload failed. Use a JPEG or PNG under 10MB.",
+            },
+          });
         }
       }
 
@@ -259,10 +265,7 @@ export class DriverController {
       res.status(200).json({
         success: true,
         data: updatedDriver,
-        message: photoUploadError
-          ? `Vehicle details updated, but photo failed: ${photoUploadError}`
-          : "Driver profile updated successfully",
-        warning: photoUploadError || undefined,
+        message: "Driver profile updated successfully",
       });
     } catch (_error: any) {
       console.error("Error updating driver profile:", _error);
@@ -331,7 +334,7 @@ export class DriverController {
         // geocoding failed, not critical
       }
 
-      await prisma.driver.update({
+      const driver = await prisma.driver.update({
         where: { userId },
         data: {
           lastLatitude: latitude,
@@ -340,6 +343,82 @@ export class DriverController {
           ...(locationName ? { locationName } : {}),
         },
       });
+
+      // Feed live GPS into package tracking for active deliveries
+      try {
+        const activeBids = await prisma.bid.findMany({
+          where: {
+            driverId: driver.id,
+            status: "ACCEPTED",
+            package: {
+              status: {
+                in: ["ACCEPTED", "IN_TRANSIT", "IN_PROGRESS", "PICKED_UP"],
+              },
+            },
+          },
+          select: { packageId: true },
+          take: 10,
+        });
+
+        if (activeBids.length > 0) {
+          const realtime = getRealtimeService();
+          const locationLabel =
+            locationName || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+          for (const bid of activeBids) {
+            try {
+              if (realtime?.createTrackingUpdate) {
+                await realtime.createTrackingUpdate(
+                  bid.packageId,
+                  "LOCATION_UPDATE",
+                  locationLabel,
+                  latitude,
+                  longitude,
+                  "Driver GPS update",
+                );
+              } else {
+                await prisma.packageTracking.create({
+                  data: {
+                    packageId: bid.packageId,
+                    status: "LOCATION_UPDATE",
+                    location: locationLabel,
+                    latitude,
+                    longitude,
+                    notes: "Driver GPS update",
+                  },
+                });
+              }
+              const payload = {
+                packageId: bid.packageId,
+                latitude,
+                longitude,
+                location: locationLabel,
+                timestamp: new Date().toISOString(),
+              };
+              // Emit both event names for client compatibility
+              realtime?.emitToRoom?.(
+                `package:${bid.packageId}`,
+                "package:location:update",
+                payload,
+              );
+              realtime?.emitToRoom?.(
+                `package:${bid.packageId}`,
+                "package:location:updated",
+                payload,
+              );
+            } catch (trackErr) {
+              console.warn(
+                "Package tracking update from driver GPS failed:",
+                (trackErr as Error)?.message,
+              );
+            }
+          }
+        }
+      } catch (activeErr) {
+        console.warn(
+          "Active delivery location sync failed:",
+          (activeErr as Error)?.message,
+        );
+      }
 
       res.status(200).json({ success: true });
     } catch (_error: any) {

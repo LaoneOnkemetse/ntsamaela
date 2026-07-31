@@ -34,6 +34,8 @@ export interface BidWithRelations {
     carDescription?: string;
     carPhotoUrl?: string;
     locationName?: string;
+    lastLatitude?: number | null;
+    lastLongitude?: number | null;
     rating: number;
     totalDeliveries: number;
     user?: {
@@ -1373,6 +1375,8 @@ class BidService {
             rating: bid.driver.rating,
             totalDeliveries: bid.driver.totalDeliveries,
             locationName: bid.driver.locationName,
+            lastLatitude: bid.driver.lastLatitude ?? null,
+            lastLongitude: bid.driver.lastLongitude ?? null,
             user: bid.driver.user
               ? {
                   id: bid.driver.user.id,

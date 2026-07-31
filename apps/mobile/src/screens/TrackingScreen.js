@@ -28,17 +28,71 @@ export const TrackingScreen = ({ navigation, route }) => {
   const [cancelling, setCancelling] = useState(false);
   const mapRef = useRef(null);
 
-  useEffect(() => {
-    if (packageId) {
-      loadTrackingData();
-      setupSocketListeners();
-      requestLocationPermission();
+  const applyDriverCoords = (latitude, longitude) => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    setDriverLocation({ latitude: lat, longitude: lng });
+    updateMapRegion(lat, lng);
+  };
+
+  const extractDriverLocation = (trackingPayload, pkg) => {
+    const raw = trackingPayload;
+    const updates = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.updates)
+        ? raw.updates
+        : [];
+
+    const fromApi = !Array.isArray(raw) ? raw?.driverLocation : null;
+    if (fromApi?.latitude != null && fromApi?.longitude != null) {
+      return {
+        latitude: Number(fromApi.latitude),
+        longitude: Number(fromApi.longitude),
+      };
     }
 
+    const withCoords = updates.find(
+      (u) => u?.latitude != null && u?.longitude != null,
+    );
+    if (withCoords) {
+      return {
+        latitude: Number(withCoords.latitude),
+        longitude: Number(withCoords.longitude),
+      };
+    }
+
+    const accepted =
+      pkg?.bids?.find?.((b) => (b.status || "").toUpperCase() === "ACCEPTED") ||
+      pkg?.bids?.[0];
+    const driver = accepted?.driver;
+    if (driver?.lastLatitude != null && driver?.lastLongitude != null) {
+      return {
+        latitude: Number(driver.lastLatitude),
+        longitude: Number(driver.lastLongitude),
+      };
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (!packageId) return;
+
+    loadTrackingData();
+    setupSocketListeners();
+    requestLocationPermission();
+
+    const poll = setInterval(() => {
+      loadTrackingData(true);
+    }, 15000);
+
     return () => {
+      clearInterval(poll);
       socketService.off("location_update");
       socketService.off("package:location:update");
+      socketService.off("package:location:updated");
       socketService.off("package_status_update");
+      socketService.off("package:status:update");
       socketService.off("delivery:status:updated");
     };
   }, [packageId]);
@@ -58,70 +112,62 @@ export const TrackingScreen = ({ navigation, route }) => {
     }
   };
 
-  const loadTrackingData = async () => {
-    setLoading(true);
+  const loadTrackingData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [trackingRes, packageRes] = await Promise.all([
         apiService.getPackageTracking(packageId),
         apiService.getPackageById(packageId),
       ]);
 
-      if (trackingRes.success) {
-        setTrackingData(trackingRes.data);
-        const latestUpdate =
-          trackingRes.data?.updates?.[trackingRes.data.updates.length - 1];
-        if (latestUpdate?.latitude && latestUpdate?.longitude) {
-          setDriverLocation({
-            latitude: latestUpdate.latitude,
-            longitude: latestUpdate.longitude,
-          });
-        }
-      }
+      const pkg = packageRes?.success
+        ? packageRes.data?.data || packageRes.data
+        : null;
+      if (pkg) setPackageInfo(pkg);
 
-      if (packageRes.success) {
-        setPackageInfo(packageRes.data);
+      if (trackingRes?.success) {
+        const payload = trackingRes.data;
+        const updates = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.updates)
+            ? payload.updates
+            : [];
+        setTrackingData({ updates, driverLocation: payload?.driverLocation });
+        const coords = extractDriverLocation(payload, pkg);
+        if (coords) {
+          setDriverLocation(coords);
+        }
+      } else if (pkg) {
+        const coords = extractDriverLocation(null, pkg);
+        if (coords) setDriverLocation(coords);
       }
     } catch (error) {
       console.error("Failed to load tracking data:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const setupSocketListeners = () => {
-    // Subscribe to package tracking updates
     socketService.emit("package:track", { packageId });
 
-    socketService.on("location_update", (data) => {
-      if (data.packageId === packageId) {
-        setDriverLocation({
-          latitude: data.latitude,
-          longitude: data.longitude,
-        });
-        updateMapRegion(data.latitude, data.longitude);
-      }
-    });
+    const onLocation = (data) => {
+      if (!data || data.packageId !== packageId) return;
+      applyDriverCoords(data.latitude, data.longitude);
+    };
 
-    socketService.on("package:location:update", (data) => {
-      if (data.packageId === packageId) {
-        setDriverLocation({
-          latitude: data.latitude,
-          longitude: data.longitude,
-        });
-        updateMapRegion(data.latitude, data.longitude);
-      }
-    });
+    socketService.on("location_update", onLocation);
+    socketService.on("package:location:update", onLocation);
+    socketService.on("package:location:updated", onLocation);
 
     socketService.on("package_status_update", (data) => {
-      if (data.packageId === packageId) {
-        loadTrackingData();
-      }
+      if (data?.packageId === packageId) loadTrackingData(true);
     });
-
+    socketService.on("package:status:update", (data) => {
+      if (data?.packageId === packageId) loadTrackingData(true);
+    });
     socketService.on("delivery:status:updated", (data) => {
-      if (data.packageId === packageId) {
-        loadTrackingData();
-      }
+      if (data?.packageId === packageId) loadTrackingData(true);
     });
   };
 

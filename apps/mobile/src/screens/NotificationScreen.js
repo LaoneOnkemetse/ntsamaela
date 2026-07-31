@@ -46,8 +46,20 @@ export const NotificationScreen = () => {
     }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+    if (!authToken) return;
+    try {
+      apiService.setToken(authToken);
+      const resp = await apiService.markAllAsRead();
+      if (resp?.success === false) {
+        if (refreshNotifications) await refreshNotifications(authToken);
+        return;
+      }
+      if (refreshNotifications) await refreshNotifications(authToken);
+    } catch {
+      if (refreshNotifications) await refreshNotifications(authToken);
+    }
   };
 
   const getNotificationIcon = (type) => {

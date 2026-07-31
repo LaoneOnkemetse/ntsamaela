@@ -561,6 +561,12 @@ class ApiService {
     });
   }
 
+  async markAllAsRead() {
+    return this.request("/api/notifications/read-all", {
+      method: "PUT",
+    });
+  }
+
   // FCM Token Management
   async registerFcmToken(fcmToken) {
     return this.request("/api/auth/fcm-token/register", {

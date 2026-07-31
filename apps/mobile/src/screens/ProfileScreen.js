@@ -17,6 +17,7 @@ import {
   takePhoto,
   selectFromGallery,
   showPhotoActionSheet,
+  resolveImageUploadPart,
 } from "../utils/imageUtils";
 import apiService from "../services/apiService";
 
@@ -199,24 +200,23 @@ export const ProfileScreen = () => {
         let updated = resp?.data ?? resp;
 
         if (carPhotoFile?.uri) {
+          const part = resolveImageUploadPart(carPhotoFile, "car");
+          if (!part) {
+            throw new Error("Could not prepare car photo for upload");
+          }
           const formData = new FormData();
           formData.append("carRegistration", carRegistration.trim());
           formData.append("carDescription", carDescription.trim());
-          formData.append("carPhoto", {
-            uri: carPhotoFile.uri,
-            name: carPhotoFile.fileName || `car-${Date.now()}.jpg`,
-            type: carPhotoFile.type || "image/jpeg",
-          });
+          formData.append("carPhoto", part);
           const photoResp = await apiService.updateDriverProfile(formData);
-          if (photoResp?.success === false) {
-            Alert.alert(
-              "Photo warning",
+          if (photoResp?.success === false || photoResp?.warning) {
+            throw new Error(
               photoResp?.error?.message ||
-                "Registration saved, but car photo upload failed. Try the photo again.",
+                photoResp?.warning ||
+                "Car photo upload failed. Try a JPEG or PNG under 10MB.",
             );
-          } else {
-            updated = photoResp?.data ?? photoResp ?? updated;
           }
+          updated = photoResp?.data ?? photoResp ?? updated;
         }
 
         if (updated) {

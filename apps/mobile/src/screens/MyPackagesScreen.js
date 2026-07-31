@@ -287,7 +287,8 @@ export const MyPackagesScreen = () => {
     const driverName = driver?.user
       ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
       : null;
-    const driverPhoto = driver?.user?.profilePictureUrl;
+    const driverPhoto =
+      driver?.user?.profilePictureUrl || driver?.carPhotoUrl || null;
 
     return (
       <View key={pkg.id} style={packageStyles.packageCard}>
@@ -386,6 +387,15 @@ export const MyPackagesScreen = () => {
                     🔖 {driver.licensePlate}
                   </Text>
                 ) : null}
+                {driver?.locationName ||
+                (driver?.lastLatitude != null &&
+                  driver?.lastLongitude != null) ? (
+                  <Text style={styles.assignedMeta}>
+                    📌{" "}
+                    {driver.locationName ||
+                      `${Number(driver.lastLatitude).toFixed(4)}, ${Number(driver.lastLongitude).toFixed(4)}`}
+                  </Text>
+                ) : null}
                 {driver?.user?.phone ? (
                   <Text style={styles.assignedMeta}>
                     📞 {driver.user.phone}
@@ -394,6 +404,13 @@ export const MyPackagesScreen = () => {
               </View>
               <Text style={styles.viewProfile}>Profile →</Text>
             </TouchableOpacity>
+            {driver?.carPhotoUrl ? (
+              <Image
+                source={{ uri: driver.carPhotoUrl }}
+                style={styles.assignedCarPhoto}
+                resizeMode="cover"
+              />
+            ) : null}
             <TouchableOpacity
               style={styles.trackButton}
               onPress={() => handleTrackPackage(pkg)}
@@ -541,7 +558,8 @@ export const MyPackagesScreen = () => {
                   const driverName = driver?.user
                     ? `${driver.user.firstName || ""} ${driver.user.lastName || ""}`.trim()
                     : "Driver";
-                  const photo = driver?.user?.profilePictureUrl;
+                  const photo =
+                    driver?.carPhotoUrl || driver?.user?.profilePictureUrl;
                   const status = (bid.status || "PENDING")
                     .toString()
                     .toUpperCase();
@@ -555,6 +573,15 @@ export const MyPackagesScreen = () => {
                     (status === "PENDING" || status === "DRIVER_COUNTER");
                   const packagePending =
                     (selectedPackage?.status || "").toUpperCase() === "PENDING";
+                  const locationLabel =
+                    bid.bidLocationName ||
+                    driver?.locationName ||
+                    (bid.bidLatitude != null && bid.bidLongitude != null
+                      ? `${Number(bid.bidLatitude).toFixed(4)}, ${Number(bid.bidLongitude).toFixed(4)}`
+                      : driver?.lastLatitude != null &&
+                          driver?.lastLongitude != null
+                        ? `${Number(driver.lastLatitude).toFixed(4)}, ${Number(driver.lastLongitude).toFixed(4)}`
+                        : null);
 
                   return (
                     <View key={bid.id} style={styles.bidCard}>
@@ -587,7 +614,19 @@ export const MyPackagesScreen = () => {
                           </Text>
                           <Text style={styles.bidMeta}>
                             🚗 {driver?.vehicleType || "Vehicle"}
+                            {driver?.licensePlate
+                              ? ` • ${driver.licensePlate}`
+                              : ""}
                           </Text>
+                          {driver?.licensePlate ? (
+                            <Text style={styles.bidMeta}>
+                              🔖 Registration: {driver.licensePlate}
+                            </Text>
+                          ) : (
+                            <Text style={styles.bidMeta}>
+                              🔖 Registration not provided
+                            </Text>
+                          )}
                           {isCustomerCounter ? (
                             <Text
                               style={[
@@ -607,25 +646,25 @@ export const MyPackagesScreen = () => {
                               Driver counter — your turn
                             </Text>
                           ) : null}
-                          {bid.bidLocationName ? (
+                          {locationLabel ? (
                             <Text style={styles.bidMeta}>
-                              📌 Bid placed from: {bid.bidLocationName}
-                            </Text>
-                          ) : bid.bidLatitude != null &&
-                            bid.bidLongitude != null ? (
-                            <Text style={styles.bidMeta}>
-                              📌 Bid placed from:{" "}
-                              {Number(bid.bidLatitude).toFixed(4)},{" "}
-                              {Number(bid.bidLongitude).toFixed(4)}
+                              📌 Location: {locationLabel}
                             </Text>
                           ) : (
                             <Text style={styles.bidMeta}>
-                              📌 Bid location not captured yet
+                              📌 Location not available yet
                             </Text>
                           )}
                         </View>
                         <Text style={styles.viewProfile}>View →</Text>
                       </TouchableOpacity>
+                      {driver?.carPhotoUrl ? (
+                        <Image
+                          source={{ uri: driver.carPhotoUrl }}
+                          style={styles.bidCarPhoto}
+                          resizeMode="cover"
+                        />
+                      ) : null}
 
                       <View style={styles.bidAmountRow}>
                         <Text style={styles.bidAmount}>P {bid.amount}</Text>
@@ -732,6 +771,21 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     marginRight: 12,
+  },
+  bidCarPhoto: {
+    width: "100%",
+    height: 140,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: colors.border,
+  },
+  assignedCarPhoto: {
+    width: "100%",
+    height: 140,
+    borderRadius: 10,
+    marginTop: 10,
+    marginBottom: 4,
+    backgroundColor: colors.border,
   },
   bidPhotoPlaceholder: {
     backgroundColor: colors.primary + "25",

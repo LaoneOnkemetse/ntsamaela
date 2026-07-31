@@ -76,17 +76,51 @@ export const showPhotoActionSheet = (onTakePhoto, onSelectFromGallery) => {
   ]);
 };
 
-export const createFormData = (image, fieldName = "image") => {
-  const formData = new FormData();
+/** Normalize Expo ImagePicker asset into a multipart-friendly file part. */
+export const resolveImageUploadPart = (image, fallbackName = "photo") => {
+  if (!image?.uri) return null;
 
-  if (image) {
-    const fileExtension = image.uri.split(".").pop();
-    formData.append(fieldName, {
-      uri: image.uri,
-      type: `image/${fileExtension}`,
-      name: `${fieldName}_${Date.now()}.${fileExtension}`,
-    });
+  let name =
+    image.fileName ||
+    image.uri.split("/").pop() ||
+    `${fallbackName}-${Date.now()}.jpg`;
+  let type = image.mimeType || image.type || "";
+
+  const extFromName = (name.split(".").pop() || "").toLowerCase();
+  const extFromUri = (image.uri.split(".").pop() || "").toLowerCase();
+  let ext = extFromName || extFromUri || "jpg";
+
+  if (!type || type === "image" || !String(type).includes("/")) {
+    if (ext === "jpg" || ext === "jpeg") type = "image/jpeg";
+    else if (ext === "png") type = "image/png";
+    else if (ext === "webp") type = "image/webp";
+    else type = "image/jpeg";
   }
 
+  // API rejects HEIC/HEIF — rename so multer accepts as jpeg
+  if (
+    /heic|heif/i.test(type) ||
+    /heic|heif/i.test(ext) ||
+    /heic|heif/i.test(name)
+  ) {
+    type = "image/jpeg";
+    ext = "jpg";
+    name = name.replace(/\.(heic|heif)$/i, ".jpg");
+    if (!/\.\w+$/.test(name)) name = `${name}.jpg`;
+  }
+
+  if (!/\.\w+$/.test(name)) {
+    name = `${name}.${ext === "jpeg" ? "jpg" : ext}`;
+  }
+
+  return { uri: image.uri, name, type };
+};
+
+export const createFormData = (image, fieldName = "image") => {
+  const formData = new FormData();
+  const part = resolveImageUploadPart(image, fieldName);
+  if (part) {
+    formData.append(fieldName, part);
+  }
   return formData;
 };

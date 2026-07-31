@@ -1,22 +1,34 @@
-import { Request, Response } from 'express';
-import { NotificationController } from '../notificationController';
-import { getRealtimeService } from '../../services/realtimeService';
-import { AppError } from '../../utils/errors';
+import { Request, Response } from "express";
+import { NotificationController } from "../notificationController";
+import { getRealtimeService } from "../../services/realtimeService";
+import { getPrismaClient } from "@database/index";
+import { AppError } from "../../utils/errors";
 
 // Mock dependencies
-jest.mock('../../services/realtimeService');
+jest.mock("../../services/realtimeService");
+jest.mock("@database/index", () => ({
+  getPrismaClient: jest.fn(),
+}));
 
 const mockRealtimeService = {
   getUserNotifications: jest.fn(),
   markNotificationAsRead: jest.fn(),
   markAllNotificationsAsRead: jest.fn(),
   getUnreadCount: jest.fn(),
-  deleteNotification: jest.fn()
+  deleteNotification: jest.fn(),
+  emitToUser: jest.fn(),
+};
+
+const mockPrisma = {
+  notification: {
+    updateMany: jest.fn(),
+  },
 };
 
 (getRealtimeService as jest.Mock).mockReturnValue(mockRealtimeService);
+(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma);
 
-describe('NotificationController', () => {
+describe("NotificationController", () => {
   let notificationController: NotificationController;
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -25,54 +37,63 @@ describe('NotificationController', () => {
     notificationController = new NotificationController();
     // Mock the getRealtimeService function to return our mock
     (getRealtimeService as jest.Mock).mockReturnValue(mockRealtimeService);
-    
+
     mockReq = {
       user: {
-        id: 'user123',
-        userType: 'CUSTOMER',
-        email: 'test@example.com'
+        id: "user123",
+        userType: "CUSTOMER",
+        email: "test@example.com",
       },
       body: {},
       params: {},
-      query: {}
+      query: {},
     };
     mockRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
     jest.clearAllMocks();
   });
 
-  describe('getUserNotifications', () => {
-    it('should get user notifications successfully', async () => {
+  describe("getUserNotifications", () => {
+    it("should get user notifications successfully", async () => {
       const mockNotifications = [
         {
-          id: 'notif123',
-          userId: 'user123',
-          type: 'BID_RECEIVED',
-          title: 'New Bid',
-          message: 'You have received a new bid',
-          data: { bidId: 'bid123' },
+          id: "notif123",
+          userId: "user123",
+          type: "BID_RECEIVED",
+          title: "New Bid",
+          message: "You have received a new bid",
+          data: { bidId: "bid123" },
           isRead: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         },
         {
-          id: 'notif124',
-          userId: 'user123',
-          type: 'PACKAGE_STATUS',
-          title: 'Package Update',
-          message: 'Your package status has been updated',
+          id: "notif124",
+          userId: "user123",
+          type: "PACKAGE_STATUS",
+          title: "Package Update",
+          message: "Your package status has been updated",
           data: null,
           isRead: true,
-          createdAt: new Date().toISOString()
-        }
+          createdAt: new Date().toISOString(),
+        },
       ];
 
-      mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
+      mockRealtimeService.getUserNotifications.mockResolvedValue(
+        mockNotifications,
+      );
 
-      await notificationController.getUserNotifications(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.getUserNotifications(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
-      expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 20, 0);
+      expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith(
+        "user123",
+        20,
+        0,
+      );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -81,223 +102,241 @@ describe('NotificationController', () => {
           page: 1,
           limit: 20,
           total: 2,
-          totalPages: 1
-        }
+          totalPages: 1,
+        },
       });
     });
 
-    it('should handle service errors', async () => {
+    it("should handle service errors", async () => {
       mockRealtimeService.getUserNotifications.mockRejectedValue(
-        new AppError('Database error', 'NOTIFICATIONS_FETCH_FAILED', 500)
+        new AppError("Database error", "NOTIFICATIONS_FETCH_FAILED", 500),
       );
 
-      await notificationController.getUserNotifications(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.getUserNotifications(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: 'NOTIFICATIONS_FETCH_FAILED',
-          message: 'Database error'
-        }
+          code: "NOTIFICATIONS_FETCH_FAILED",
+          message: "Database error",
+        },
       });
     });
   });
 
-  describe('markNotificationAsRead', () => {
-    it('should mark notification as read successfully', async () => {
-      const notificationId = 'notif123';
+  describe("markNotificationAsRead", () => {
+    it("should mark notification as read successfully", async () => {
+      const notificationId = "notif123";
       mockReq.params = { notificationId };
       mockRealtimeService.markNotificationAsRead.mockResolvedValue(undefined);
 
-      await notificationController.markNotificationAsRead(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.markNotificationAsRead(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
-      expect(mockRealtimeService.markNotificationAsRead).toHaveBeenCalledWith(notificationId);
+      expect(mockRealtimeService.markNotificationAsRead).toHaveBeenCalledWith(
+        notificationId,
+      );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        message: 'Notification marked as read'
+        message: "Notification marked as read",
       });
     });
 
-    it('should handle service errors', async () => {
-      const notificationId = 'notif123';
+    it("should handle service errors", async () => {
+      const notificationId = "notif123";
       mockReq.params = { notificationId };
       mockRealtimeService.markNotificationAsRead.mockRejectedValue(
-        new AppError('Database error', 'NOTIFICATION_UPDATE_FAILED', 500)
+        new AppError("Database error", "NOTIFICATION_UPDATE_FAILED", 500),
       );
 
-      await notificationController.markNotificationAsRead(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.markNotificationAsRead(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: 'NOTIFICATION_UPDATE_FAILED',
-          message: 'Database error'
-        }
+          code: "NOTIFICATION_UPDATE_FAILED",
+          message: "Database error",
+        },
       });
     });
   });
 
-  describe('markAllNotificationsAsRead', () => {
-    it('should mark all notifications as read successfully', async () => {
-      const mockNotifications = [
-        {
-          id: 'notif123',
-          userId: 'user123',
-          type: 'BID_RECEIVED',
-          title: 'New Bid',
-          message: 'You have received a new bid',
-          data: { bidId: 'bid123' },
-          isRead: false,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'notif124',
-          userId: 'user123',
-          type: 'PACKAGE_STATUS',
-          title: 'Package Update',
-          message: 'Your package status has been updated',
-          data: null,
-          isRead: true,
-          createdAt: new Date().toISOString()
-        }
-      ];
+  describe("markAllNotificationsAsRead", () => {
+    it("should mark all notifications as read successfully", async () => {
+      mockPrisma.notification.updateMany.mockResolvedValue({ count: 1 });
 
-      mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
-      mockRealtimeService.markNotificationAsRead.mockResolvedValue(undefined);
+      await notificationController.markAllNotificationsAsRead(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
-      await notificationController.markAllNotificationsAsRead(mockReq as unknown as Request, mockRes as Response);
-
-      expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 100, 0);
-      expect(mockRealtimeService.markNotificationAsRead).toHaveBeenCalledWith('notif123');
+      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user123", isRead: false },
+        data: { isRead: true },
+      });
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        message: 'Marked 1 notifications as read'
+        message: "Marked 1 notifications as read",
+        data: { count: 1 },
       });
     });
 
-    it('should handle service errors', async () => {
-      mockRealtimeService.getUserNotifications.mockRejectedValue(
-        new AppError('Database error', 'NOTIFICATIONS_READ_FAILED', 500)
+    it("should handle service errors", async () => {
+      mockPrisma.notification.updateMany.mockRejectedValue(
+        new AppError("Database error", "NOTIFICATIONS_READ_FAILED", 500),
       );
 
-      await notificationController.markAllNotificationsAsRead(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.markAllNotificationsAsRead(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: 'NOTIFICATIONS_READ_FAILED',
-          message: 'Failed to mark all notifications as read'
-        }
+          code: "NOTIFICATIONS_READ_FAILED",
+          message: "Failed to mark all notifications as read",
+        },
       });
     });
   });
 
-  describe('getUnreadCount', () => {
-    it('should get unread notification count successfully', async () => {
+  describe("getUnreadCount", () => {
+    it("should get unread notification count successfully", async () => {
       const mockNotifications = [
         {
-          id: 'notif123',
-          userId: 'user123',
-          type: 'BID_RECEIVED',
-          title: 'New Bid',
-          message: 'You have received a new bid',
-          data: { bidId: 'bid123' },
+          id: "notif123",
+          userId: "user123",
+          type: "BID_RECEIVED",
+          title: "New Bid",
+          message: "You have received a new bid",
+          data: { bidId: "bid123" },
           isRead: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         },
         {
-          id: 'notif124',
-          userId: 'user123',
-          type: 'PACKAGE_STATUS',
-          title: 'Package Update',
-          message: 'Your package status has been updated',
+          id: "notif124",
+          userId: "user123",
+          type: "PACKAGE_STATUS",
+          title: "Package Update",
+          message: "Your package status has been updated",
           data: null,
           isRead: true,
-          createdAt: new Date().toISOString()
-        }
+          createdAt: new Date().toISOString(),
+        },
       ];
 
-      mockRealtimeService.getUserNotifications.mockResolvedValue(mockNotifications);
+      mockRealtimeService.getUserNotifications.mockResolvedValue(
+        mockNotifications,
+      );
 
-      await notificationController.getUnreadCount(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.getUnreadCount(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
-      expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith('user123', 100, 0);
+      expect(mockRealtimeService.getUserNotifications).toHaveBeenCalledWith(
+        "user123",
+        100,
+        0,
+      );
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: { count: 1 },
-        message: 'Unread notification count retrieved'
+        message: "Unread notification count retrieved",
       });
     });
 
-    it('should handle service errors', async () => {
+    it("should handle service errors", async () => {
       mockRealtimeService.getUserNotifications.mockRejectedValue(
-        new AppError('Database error', 'UNREAD_COUNT_FAILED', 500)
+        new AppError("Database error", "UNREAD_COUNT_FAILED", 500),
       );
 
-      await notificationController.getUnreadCount(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.getUnreadCount(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: 'UNREAD_COUNT_FAILED',
-          message: 'Failed to get unread notification count'
-        }
+          code: "UNREAD_COUNT_FAILED",
+          message: "Failed to get unread notification count",
+        },
       });
     });
   });
 
-  describe('deleteNotification', () => {
-    it('should delete notification successfully', async () => {
-      const notificationId = 'notif123';
+  describe("deleteNotification", () => {
+    it("should delete notification successfully", async () => {
+      const notificationId = "notif123";
       mockReq.params = { notificationId };
 
-      await notificationController.deleteNotification(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.deleteNotification(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        message: 'Notification deleted successfully'
+        message: "Notification deleted successfully",
       });
     });
 
-    it('should handle service errors', async () => {
-      const notificationId = 'notif123';
+    it("should handle service errors", async () => {
+      const notificationId = "notif123";
       mockReq.params = { notificationId };
-      
+
       // Since deleteNotification doesn't call the realtime service, we'll test error handling
       // by temporarily replacing the method implementation
-      const originalDeleteNotification = notificationController.deleteNotification;
-      
-      notificationController.deleteNotification = async (req: Request, res: Response) => {
+      const originalDeleteNotification =
+        notificationController.deleteNotification;
+
+      notificationController.deleteNotification = async (
+        req: Request,
+        res: Response,
+      ) => {
         try {
-          throw new Error('Database error');
+          throw new Error("Database error");
         } catch (_error) {
           res.status(500).json({
             success: false,
             error: {
-              code: 'NOTIFICATION_DELETE_FAILED',
-              message: 'Failed to delete notification'
-            }
+              code: "NOTIFICATION_DELETE_FAILED",
+              message: "Failed to delete notification",
+            },
           });
         }
       };
 
-      await notificationController.deleteNotification(mockReq as unknown as Request, mockRes as Response);
+      await notificationController.deleteNotification(
+        mockReq as unknown as Request,
+        mockRes as Response,
+      );
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         error: {
-          code: 'NOTIFICATION_DELETE_FAILED',
-          message: 'Failed to delete notification'
-        }
+          code: "NOTIFICATION_DELETE_FAILED",
+          message: "Failed to delete notification",
+        },
       });
 
       // Restore the original method
