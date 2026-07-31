@@ -289,15 +289,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   cancelBtn: {
-    backgroundColor: "transparent",
+    backgroundColor: "#FF444420",
     borderWidth: 1,
-    borderColor: colors.error,
+    borderColor: "#FF4444",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
   },
   cancelBtnText: {
-    color: colors.error,
+    color: "#FF4444",
     fontWeight: "700",
     fontSize: 15,
   },
